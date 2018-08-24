@@ -112,7 +112,8 @@ impl Window {
                             break 'outer;
                         }
                         write!(out, "\r\n");
-                        col = 0;
+                        write!(out, "{}", c);
+                        col = w;
                     }
                 }
             }
@@ -123,7 +124,7 @@ impl Window {
             write!(out, "\r\n");
         }
 
-        write!(out, "\r\n {:?} {} {}\r\n", self.cursor, cr, cc);
+        // write!(out, "\r\n {:?} {} {}\r\n", self.cursor, cr, cc);
         write!(
             out,
             "{}",
