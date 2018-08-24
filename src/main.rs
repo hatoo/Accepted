@@ -1,5 +1,6 @@
 extern crate acc;
 extern crate termion;
+extern crate unicode_width;
 
 use std::io::{stdin, stdout, Write};
 use termion::clear::All;
@@ -10,6 +11,8 @@ use termion::raw::IntoRawMode;
 use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
+
+use unicode_width::UnicodeWidthChar;
 
 use acc::Window;
 
@@ -57,7 +60,9 @@ fn main() {
             }
         }
 
-        state.draw(&mut stdout);
+        let mut buf: Vec<u8> = Vec::new();
+        state.draw(&mut buf);
+        stdout.write(&buf).unwrap();
         stdout.flush().unwrap();
     }
 }

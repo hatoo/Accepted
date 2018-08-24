@@ -5,3 +5,4 @@ authors = ["hatoo <hato2000@gmail.com>"]
 
 [dependencies]
 termion = "1.5"
+unicode-width = "0.1"

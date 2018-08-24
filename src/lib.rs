@@ -1,9 +1,12 @@
 extern crate termion;
+extern crate unicode_width;
 
 use std::cmp::{max, min};
 use std::io::{stdin, stdout, Write};
 
-#[derive(Debug)]
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+
+#[derive(Debug, PartialEq, Eq)]
 struct Cursor {
     row: usize,
     col: usize,
@@ -78,33 +81,53 @@ impl Window {
         }
     }
 
-    pub fn draw<T: Write>(&self, w: &mut T) {
-        refresh_screen(w);
+    pub fn draw<T: Write>(&self, out: &mut T) {
+        refresh_screen(out);
 
         let (cols, rows) = termion::terminal_size().unwrap();
+        let cols = cols as usize;
+        let rows = rows as usize;
 
-        for i in 0..rows as usize {
-            if i < self.buffer.len() {
-                write!(
-                    w,
-                    "{}\r\n",
-                    self.buffer[i]
-                        .iter()
-                        .take(cols as usize)
-                        .collect::<String>()
-                );
-            } else {
-                write!(w, "~");
-                if i != rows as usize - 1 {
-                    write!(w, "\r\n");
+        let mut cr = 0;
+        let mut cc = 0;
+
+        let mut row = 0;
+        'outer: for y in self.row_offset..self.buffer.len() {
+            let mut col = 0;
+            for x in 0..self.buffer[y].len() + 1 {
+                let cursor = Cursor { row: y, col: x };
+                if self.cursor == cursor {
+                    cr = row;
+                    cc = col;
+                }
+                if x < self.buffer[y].len() {
+                    let c = self.buffer[y][x];
+                    let w = c.width().unwrap_or(0);
+                    if col + w < cols {
+                        write!(out, "{}", c);
+                        col += w;
+                    } else {
+                        row += 1;
+                        if row == rows {
+                            break 'outer;
+                        }
+                        write!(out, "\r\n");
+                        col = 0;
+                    }
                 }
             }
+            row += 1;
+            if row == rows {
+                break 'outer;
+            }
+            write!(out, "\r\n");
         }
 
+        write!(out, "\r\n {:?} {} {}\r\n", self.cursor, cr, cc);
         write!(
-            w,
+            out,
             "{}",
-            termion::cursor::Goto(self.cursor.col as u16 + 1, self.cursor.row as u16 + 1)
+            termion::cursor::Goto(cc as u16 + 1, cr as u16 + 1)
         );
     }
 }
