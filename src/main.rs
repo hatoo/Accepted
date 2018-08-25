@@ -1,6 +1,5 @@
 extern crate acc;
 extern crate termion;
-extern crate unicode_width;
 
 use std::io::{stdin, stdout, Write};
 use termion::clear::All;
@@ -11,8 +10,6 @@ use termion::raw::IntoRawMode;
 use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
-
-use unicode_width::UnicodeWidthChar;
 
 use acc::Window;
 

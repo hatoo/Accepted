@@ -6,7 +6,7 @@ use std::io::{stdin, stdout, Write};
 
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Cursor {
     row: usize,
     col: usize,
@@ -17,6 +17,65 @@ pub struct Window {
     buffer: Vec<Vec<char>>,
     cursor: Cursor,
     row_offset: usize,
+}
+
+struct DrawBuffer {
+    width: usize,
+    buffer: Vec<Vec<char>>,
+    cursor: Cursor,
+}
+
+impl DrawBuffer {
+    fn new(height: usize, width: usize) -> Self {
+        DrawBuffer {
+            width,
+            buffer: vec![Vec::new(); height],
+            cursor: Cursor { row: 0, col: 0 },
+        }
+    }
+
+    fn newline(&mut self) {
+        self.cursor.col = 0;
+        self.cursor.row += 1;
+    }
+
+    fn put(&mut self, c: char) -> Option<Cursor> {
+        if self.cursor.row >= self.buffer.len() {
+            return None;
+        }
+
+        let w = c.width().unwrap_or(0);
+        if self.cursor.col + w < self.width {
+            let prev = self.cursor;
+            self.buffer[self.cursor.row].push(c);
+            self.cursor.col += w;
+
+            Some(prev)
+        } else {
+            self.cursor.row += 1;
+            if self.cursor.row >= self.buffer.len() {
+                return None;
+            }
+            self.buffer[self.cursor.row].push(c);
+            self.cursor.col = w;
+
+            Some(Cursor {
+                row: self.cursor.row,
+                col: 0,
+            })
+        }
+    }
+
+    fn draw<W: Write>(&self, out: &mut W) {
+        for (i, line) in self.buffer.iter().enumerate() {
+            for &c in line {
+                write!(out, "{}", c);
+            }
+            if i != self.buffer.len() - 1 {
+                write!(out, "\r\n");
+            }
+        }
+    }
 }
 
 fn refresh_screen<T: Write>(w: &mut T) {
@@ -58,6 +117,7 @@ impl Window {
             self.row_offset = self.cursor.row;
         } else {
             let (rows, cols) = Self::windows_size();
+            let rows = rows - 1;
             let mut i = self.cursor.row + 1;
             let mut sum = 0;
             while i > 0 && sum + get_rows(&self.buffer[i - 1], cols) <= rows {
@@ -126,51 +186,55 @@ impl Window {
     pub fn draw<T: Write>(&self, out: &mut T) {
         refresh_screen(out);
 
-        let (cols, rows) = termion::terminal_size().unwrap();
-        let cols = cols as usize;
-        let rows = rows as usize;
+        let (rows, cols) = Self::windows_size();
 
-        let mut cr = 0;
-        let mut cc = 0;
+        let mut draw = DrawBuffer::new(rows - 1, cols);
 
-        let mut row = 0;
-        'outer: for y in self.row_offset..self.buffer.len() {
-            let mut col = 0;
-            for x in 0..self.buffer[y].len() + 1 {
-                let cursor = Cursor { row: y, col: x };
-                if self.cursor == cursor {
-                    cr = row;
-                    cc = col;
-                }
-                if x < self.buffer[y].len() {
-                    let c = self.buffer[y][x];
-                    let w = c.width().unwrap_or(0);
-                    if col + w < cols {
-                        write!(out, "{}", c);
-                        col += w;
-                    } else {
-                        row += 1;
-                        if row == rows {
-                            break 'outer;
-                        }
-                        write!(out, "\r\n");
-                        write!(out, "{}", c);
-                        col = w;
+        let mut cursor = None;
+
+        'outer: for i in self.row_offset..self.buffer.len() {
+            for j in 0..self.buffer[i].len() {
+                let c = self.buffer[i][j];
+                let t = Cursor { row: i, col: j };
+
+                if self.cursor == t {
+                    cursor = draw.put(c);
+                } else {
+                    if draw.put(c).is_none() {
+                        break 'outer;
                     }
                 }
             }
-            row += 1;
-            if row == rows {
-                break 'outer;
+
+            let t = Cursor {
+                row: i,
+                col: self.buffer[i].len(),
+            };
+
+            if self.cursor == t {
+                cursor = Some(draw.cursor);
             }
-            write!(out, "\r\n");
+
+            draw.newline();
         }
 
-        // write!(out, "\r\n {:?} {} {}\r\n", self.cursor, cr, cc);
+        draw.draw(out);
+
         write!(
             out,
-            "{}",
-            termion::cursor::Goto(cc as u16 + 1, cr as u16 + 1)
+            "\r\n{}{}, {}{}",
+            termion::color::Bg(termion::color::LightBlack),
+            self.cursor.row + 1,
+            self.cursor.col,
+            termion::color::Bg(termion::color::Reset),
         );
+
+        if let Some(c) = cursor {
+            write!(
+                out,
+                "{}",
+                termion::cursor::Goto(c.col as u16 + 1, c.row as u16 + 1)
+            );
+        }
     }
 }
