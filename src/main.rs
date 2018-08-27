@@ -11,7 +11,7 @@ use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
 
-use acc::Window;
+use acc::{Buffer, Transition};
 
 fn main() {
     let stdin = stdin();
@@ -27,10 +27,11 @@ fn main() {
         }
     });
 
-    let mut state = Window::new();
+    let mut state = Buffer::new();
 
     loop {
         while let Ok(evt) = rx.recv_timeout(Duration::from_millis(16)) {
+            /*
             match evt {
                 Event::Key(Key::Ctrl('q')) => {
                     return;
@@ -55,10 +56,19 @@ fn main() {
                 }
                 _ => {}
             }
+            */
+            match state.event(evt) {
+                Transition::Exit => {
+                    return;
+                }
+                Transition::Trans(mode) => {
+                    state.mode = mode;
+                }
+                _ => {}
+            }
         }
 
-        let mut buf: Vec<u8> = Vec::new();
-        state.draw(&mut buf);
+        let buf = state.draw();
         stdout.write(&buf).unwrap();
         stdout.flush().unwrap();
     }

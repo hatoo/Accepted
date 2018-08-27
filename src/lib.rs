@@ -7,16 +7,116 @@ use std::io::{stdin, stdout, Write};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Cursor {
+pub struct Cursor {
     row: usize,
     col: usize,
 }
 
 #[derive(Debug)]
-pub struct Window {
+pub struct Core {
     buffer: Vec<Vec<char>>,
     cursor: Cursor,
     row_offset: usize,
+}
+
+pub enum Transition {
+    Nothing,
+    Trans(Box<Mode>),
+    Exit,
+}
+
+pub trait Mode {
+    fn event(&mut self, core: &mut Core, event: termion::event::Event) -> Transition;
+    fn draw(&self, core: &Core) -> Vec<u8>;
+}
+
+struct Normal;
+struct Insert;
+
+impl Mode for Normal {
+    fn event(&mut self, core: &mut Core, event: termion::event::Event) -> Transition {
+        use termion::event::{Event, Key, MouseEvent};
+        match event {
+            Event::Key(Key::Ctrl('q')) => {
+                return Transition::Exit;
+            }
+            Event::Key(Key::Char('i')) => return Transition::Trans(Box::new(Insert)),
+            Event::Key(Key::Char('h')) => core.cursor_left(),
+            Event::Key(Key::Char('j')) => core.cursor_down(),
+            Event::Key(Key::Char('k')) => core.cursor_up(),
+            Event::Key(Key::Char('l')) => core.cursor_right(),
+            _ => {}
+        }
+        Transition::Nothing
+    }
+
+    fn draw(&self, core: &Core) -> Vec<u8> {
+        let mut buf = Vec::new();
+        refresh_screen(&mut buf);
+        let (rows, cols) = Core::windows_size();
+        if let Some(cursor) = core.draw(rows, cols, &mut buf) {
+            write!(
+                buf,
+                "{}",
+                termion::cursor::Goto(cursor.col as u16 + 1, cursor.row as u16 + 1)
+            );
+        }
+        buf
+    }
+}
+impl Mode for Insert {
+    fn event(&mut self, core: &mut Core, event: termion::event::Event) -> Transition {
+        use termion::event::{Event, Key, MouseEvent};
+        match event {
+            Event::Key(Key::Ctrl('q')) => {
+                return Transition::Exit;
+            }
+            Event::Key(Key::Esc) => {
+                return Transition::Trans(Box::new(Normal));
+            }
+            Event::Key(Key::Char(c)) => {
+                core.insert(c);
+            }
+            _ => {}
+        }
+        Transition::Nothing
+    }
+
+    fn draw(&self, core: &Core) -> Vec<u8> {
+        let mut buf = Vec::new();
+        refresh_screen(&mut buf);
+        let (rows, cols) = Core::windows_size();
+        if let Some(cursor) = core.draw(rows, cols, &mut buf) {
+            write!(
+                buf,
+                "{}",
+                termion::cursor::Goto(cursor.col as u16 + 1, cursor.row as u16 + 1)
+            );
+        }
+        buf
+    }
+}
+
+pub struct Buffer {
+    pub core: Core,
+    pub mode: Box<Mode>,
+}
+
+impl Buffer {
+    pub fn new() -> Self {
+        Self {
+            core: Core::new(),
+            mode: Box::new(Normal),
+        }
+    }
+
+    pub fn event(&mut self, event: termion::event::Event) -> Transition {
+        self.mode.event(&mut self.core, event)
+    }
+
+    pub fn draw(&self) -> Vec<u8> {
+        self.mode.draw(&self.core)
+    }
 }
 
 struct DrawBuffer {
@@ -98,9 +198,9 @@ fn get_rows(s: &[char], width: usize) -> usize {
     y
 }
 
-impl Window {
+impl Core {
     pub fn new() -> Self {
-        Window {
+        Self {
             buffer: vec![Vec::new()],
             cursor: Cursor { row: 0, col: 0 },
             row_offset: 0,
@@ -183,12 +283,8 @@ impl Window {
         self.set_offset();
     }
 
-    pub fn draw<T: Write>(&self, out: &mut T) {
-        refresh_screen(out);
-
-        let (rows, cols) = Self::windows_size();
-
-        let mut draw = DrawBuffer::new(rows - 1, cols);
+    pub fn draw<T: Write>(&self, rows: usize, cols: usize, out: &mut T) -> Option<Cursor> {
+        let mut draw = DrawBuffer::new(rows, cols);
 
         let mut cursor = None;
 
@@ -220,21 +316,6 @@ impl Window {
 
         draw.draw(out);
 
-        write!(
-            out,
-            "\r\n{}{}, {}{}",
-            termion::color::Bg(termion::color::LightBlack),
-            self.cursor.row + 1,
-            self.cursor.col,
-            termion::color::Bg(termion::color::Reset),
-        );
-
-        if let Some(c) = cursor {
-            write!(
-                out,
-                "{}",
-                termion::cursor::Goto(c.col as u16 + 1, c.row as u16 + 1)
-            );
-        }
+        cursor
     }
 }
