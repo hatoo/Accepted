@@ -11,7 +11,7 @@ use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
 
-use acc::{Buffer, Transition};
+use acc::Buffer;
 
 fn main() {
     let stdin = stdin();
@@ -57,14 +57,8 @@ fn main() {
                 _ => {}
             }
             */
-            match state.event(evt) {
-                Transition::Exit => {
-                    return;
-                }
-                Transition::Trans(mode) => {
-                    state.mode = mode;
-                }
-                _ => {}
+            if state.event(evt) {
+                return;
             }
         }
 
