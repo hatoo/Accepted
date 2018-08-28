@@ -11,7 +11,7 @@ use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
 
-use acc::Buffer;
+use acc::BufferMode;
 
 fn main() {
     let stdin = stdin();
@@ -27,7 +27,7 @@ fn main() {
         }
     });
 
-    let mut state = Buffer::new();
+    let mut state = BufferMode::new();
 
     loop {
         while let Ok(evt) = rx.recv_timeout(Duration::from_millis(16)) {

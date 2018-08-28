@@ -21,16 +21,17 @@ enum Transition {
 }
 
 trait Mode {
-    fn event(&mut self, core: &mut Core, event: termion::event::Event) -> Transition;
-    fn draw(&self, core: &Core) -> Vec<u8>;
+    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition;
+    fn draw(&self, core: &Buffer) -> Vec<u8>;
 }
 
 struct Normal;
 struct Insert;
 
 impl Mode for Normal {
-    fn event(&mut self, core: &mut Core, event: termion::event::Event) -> Transition {
+    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         use termion::event::{Event, Key, MouseEvent};
+        let core = &mut buf.core;
         match event {
             Event::Key(Key::Ctrl('q')) => {
                 return Transition::Exit;
@@ -49,12 +50,12 @@ impl Mode for Normal {
         Transition::Nothing
     }
 
-    fn draw(&self, core: &Core) -> Vec<u8> {
+    fn draw(&self, buffer: &Buffer) -> Vec<u8> {
         let mut buf = Vec::new();
         refresh_screen(&mut buf);
         write!(buf, "{}", cursor::Block);
         let (rows, cols) = windows_size();
-        if let Some(cursor) = core.draw(rows, cols, &mut buf) {
+        if let Some(cursor) = buffer.core.draw(rows, cols, &mut buf) {
             write!(
                 buf,
                 "{}",
@@ -66,14 +67,18 @@ impl Mode for Normal {
 }
 
 impl Mode for Insert {
-    fn event(&mut self, core: &mut Core, event: termion::event::Event) -> Transition {
+    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         use termion::event::{Event, Key, MouseEvent};
+        let core = &mut buf.core;
         match event {
             Event::Key(Key::Ctrl('q')) => {
                 return Transition::Exit;
             }
             Event::Key(Key::Esc) => {
                 return Transition::Trans(Box::new(Normal));
+            }
+            Event::Key(Key::Backspace) => {
+                core.backspase();
             }
             Event::Key(Key::Char(c)) => {
                 core.insert(c);
@@ -83,12 +88,12 @@ impl Mode for Insert {
         Transition::Nothing
     }
 
-    fn draw(&self, core: &Core) -> Vec<u8> {
+    fn draw(&self, buffer: &Buffer) -> Vec<u8> {
         let mut buf = Vec::new();
         refresh_screen(&mut buf);
         write!(buf, "{}", cursor::Bar);
         let (rows, cols) = windows_size();
-        if let Some(cursor) = core.draw(rows, cols, &mut buf) {
+        if let Some(cursor) = buffer.core.draw(rows, cols, &mut buf) {
             write!(
                 buf,
                 "{}",
@@ -99,21 +104,31 @@ impl Mode for Insert {
     }
 }
 
-pub struct Buffer {
+struct Buffer {
     core: Core,
-    mode: Box<Mode>,
 }
 
 impl Buffer {
+    fn new() -> Self {
+        Self { core: Core::new() }
+    }
+}
+
+pub struct BufferMode {
+    buf: Buffer,
+    mode: Box<Mode>,
+}
+
+impl BufferMode {
     pub fn new() -> Self {
         Self {
-            core: Core::new(),
+            buf: Buffer::new(),
             mode: Box::new(Normal),
         }
     }
 
     pub fn event(&mut self, event: termion::event::Event) -> bool {
-        match self.mode.event(&mut self.core, event) {
+        match self.mode.event(&mut self.buf, event) {
             Transition::Exit => {
                 return true;
             }
@@ -126,7 +141,7 @@ impl Buffer {
     }
 
     pub fn draw(&self) -> Vec<u8> {
-        self.mode.draw(&self.core)
+        self.mode.draw(&self.buf)
     }
 }
 
