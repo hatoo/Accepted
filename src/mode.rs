@@ -171,6 +171,14 @@ impl Mode for Search {
         write!(buf, "{}", cursor::UnderLine);
         let (rows, cols) = windows_size();
 
+        write!(buf, "{}", termion::cursor::Goto(1, rows as u16));
+        write!(buf, "/");
+        for &c in &buffer.search {
+            write!(buf, "{}", c);
+        }
+
+        write!(buf, "{}", termion::cursor::Goto(1, 1));
+
         if let Some(cursor) = buffer.draw(rows - 1, cols, &mut buf) {
             write!(
                 buf,

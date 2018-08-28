@@ -189,42 +189,4 @@ impl Core {
         }
         self.set_offset();
     }
-
-    /*
-    pub fn draw<T: Write>(&self, rows: usize, cols: usize, out: &mut T) -> Option<Cursor> {
-        let mut draw = DrawBuffer::new(rows, cols);
-
-        let mut cursor = None;
-
-        'outer: for i in self.row_offset..self.buffer.len() {
-            for j in 0..self.buffer[i].len() {
-                let c = self.buffer[i][j];
-                let t = Cursor { row: i, col: j };
-
-                if self.cursor == t {
-                    cursor = draw.put(c);
-                } else {
-                    if draw.put(c).is_none() {
-                        break 'outer;
-                    }
-                }
-            }
-
-            let t = Cursor {
-                row: i,
-                col: self.buffer[i].len(),
-            };
-
-            if self.cursor == t {
-                cursor = Some(draw.cursor);
-            }
-
-            draw.newline();
-        }
-
-        draw.draw(out);
-
-        cursor
-    }
-    */
 }
