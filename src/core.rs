@@ -16,65 +16,6 @@ pub struct Core {
     pub row_offset: usize,
 }
 
-struct DrawBuffer {
-    width: usize,
-    buffer: Vec<Vec<char>>,
-    cursor: Cursor,
-}
-
-impl DrawBuffer {
-    fn new(height: usize, width: usize) -> Self {
-        DrawBuffer {
-            width,
-            buffer: vec![Vec::new(); height],
-            cursor: Cursor { row: 0, col: 0 },
-        }
-    }
-
-    fn newline(&mut self) {
-        self.cursor.col = 0;
-        self.cursor.row += 1;
-    }
-
-    fn put(&mut self, c: char) -> Option<Cursor> {
-        if self.cursor.row >= self.buffer.len() {
-            return None;
-        }
-
-        let w = c.width().unwrap_or(0);
-        if self.cursor.col + w < self.width {
-            let prev = self.cursor;
-            self.buffer[self.cursor.row].push(c);
-            self.cursor.col += w;
-
-            Some(prev)
-        } else {
-            self.cursor.row += 1;
-            if self.cursor.row >= self.buffer.len() {
-                return None;
-            }
-            self.buffer[self.cursor.row].push(c);
-            self.cursor.col = w;
-
-            Some(Cursor {
-                row: self.cursor.row,
-                col: 0,
-            })
-        }
-    }
-
-    fn draw<W: Write>(&self, out: &mut W) {
-        for (i, line) in self.buffer.iter().enumerate() {
-            for &c in line {
-                write!(out, "{}", c);
-            }
-            if i != self.buffer.len() - 1 {
-                write!(out, "\r\n");
-            }
-        }
-    }
-}
-
 fn get_rows(s: &[char], width: usize) -> usize {
     let mut x = 0;
     let mut y = 1;
