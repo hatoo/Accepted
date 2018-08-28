@@ -11,9 +11,9 @@ pub struct Cursor {
 
 #[derive(Debug)]
 pub struct Core {
-    buffer: Vec<Vec<char>>,
-    cursor: Cursor,
-    row_offset: usize,
+    pub buffer: Vec<Vec<char>>,
+    pub cursor: Cursor,
+    pub row_offset: usize,
 }
 
 struct DrawBuffer {
@@ -169,6 +169,14 @@ impl Core {
         self.cursor.col = 0;
     }
 
+    pub fn replace(&mut self, c: char) {
+        if self.cursor.col == self.buffer[self.cursor.row].len() {
+            self.buffer[self.cursor.row].push(c);
+        } else {
+            self.buffer[self.cursor.row][self.cursor.col] = c;
+        }
+    }
+
     pub fn backspase(&mut self) {
         if self.cursor.col > 0 {
             self.buffer[self.cursor.row].remove(self.cursor.col - 1);
@@ -182,6 +190,7 @@ impl Core {
         self.set_offset();
     }
 
+    /*
     pub fn draw<T: Write>(&self, rows: usize, cols: usize, out: &mut T) -> Option<Cursor> {
         let mut draw = DrawBuffer::new(rows, cols);
 
@@ -217,4 +226,5 @@ impl Core {
 
         cursor
     }
+    */
 }
