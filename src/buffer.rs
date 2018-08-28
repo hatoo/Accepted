@@ -1,10 +1,14 @@
 use core::Cursor;
+use std::fs;
+use std::io;
 use std::io::Write;
+use std::path::{Path, PathBuf};
 use termion::color::{Fg, Reset, Rgb};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use Core;
 
 pub struct Buffer {
+    pub path: Option<PathBuf>,
     pub core: Core,
     pub search: Vec<char>,
 }
@@ -12,9 +16,30 @@ pub struct Buffer {
 impl Buffer {
     pub fn new() -> Self {
         Self {
+            path: None,
             core: Core::new(),
             search: Vec::new(),
         }
+    }
+
+    pub fn open<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        fs::read_to_string(path.as_ref()).map(|s| {
+            let mut core = Core::new();
+            core.buffer = s
+                .lines()
+                .map(|l| l.trim_right().chars().collect())
+                .collect();
+
+            if core.buffer.is_empty() {
+                core.buffer = vec![Vec::new()];
+            }
+
+            Self {
+                path: Some(path.as_ref().to_path_buf()),
+                core,
+                search: Vec::new(),
+            }
+        })
     }
 
     pub fn draw<T: Write>(&self, rows: usize, cols: usize, out: &mut T) -> Option<Cursor> {
@@ -65,7 +90,7 @@ impl Buffer {
 
 fn search(seq: &[char], line: &[char]) -> Vec<bool> {
     let mut res = vec![false; line.len()];
-    if seq.is_empty() {
+    if seq.is_empty() || line.is_empty() {
         return res;
     }
     let mut i = 0;

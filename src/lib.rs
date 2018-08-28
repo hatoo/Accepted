@@ -6,12 +6,12 @@ mod core;
 mod cursor;
 mod mode;
 
-use std::cmp::{max, min};
-use std::io::{stdin, stdout, Write};
-
 use buffer::Buffer;
 use core::Core;
 use mode::{Mode, Normal, Transition};
+use std::cmp::{max, min};
+use std::io::{self, stdin, stdout, Write};
+use std::path::Path;
 
 pub struct BufferMode {
     buf: Buffer,
@@ -24,6 +24,13 @@ impl BufferMode {
             buf: Buffer::new(),
             mode: Box::new(Normal),
         }
+    }
+
+    pub fn open<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        Buffer::open(path).map(|buf| Self {
+            buf,
+            mode: Box::new(Normal),
+        })
     }
 
     pub fn event(&mut self, event: termion::event::Event) -> bool {

@@ -1,19 +1,31 @@
 extern crate acc;
+#[macro_use]
+extern crate clap;
 extern crate termion;
 
-use std::io::{stdin, stdout, Write};
 use termion::clear::All;
 use termion::event::{Event, Key, MouseEvent};
 use termion::input::{MouseTerminal, TermRead};
 use termion::raw::IntoRawMode;
 
+use std::io::{stdin, stdout, Write};
 use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
 
 use acc::BufferMode;
 
+use clap::{App, Arg};
+
 fn main() {
+    let matches = App::new("Accepted")
+        .version(crate_version!())
+        .bin_name("acc")
+        .arg(Arg::with_name("file"))
+        .get_matches();
+
+    let file = matches.value_of_os("file");
+
     let stdin = stdin();
     let mut stdout = MouseTerminal::from(stdout().into_raw_mode().unwrap());
 
@@ -27,7 +39,11 @@ fn main() {
         }
     });
 
-    let mut state = BufferMode::new();
+    let mut state = if let Some(path) = file {
+        BufferMode::open(path).unwrap()
+    } else {
+        BufferMode::new()
+    };
 
     loop {
         while let Ok(evt) = rx.recv_timeout(Duration::from_millis(16)) {
