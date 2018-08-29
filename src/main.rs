@@ -7,6 +7,7 @@ use termion::clear::All;
 use termion::event::{Event, Key, MouseEvent};
 use termion::input::{MouseTerminal, TermRead};
 use termion::raw::IntoRawMode;
+use termion::screen::AlternateScreen;
 
 use std::io::{stdin, stdout, Write};
 use std::sync::mpsc::channel;
@@ -27,7 +28,7 @@ fn main() {
     let file = matches.value_of_os("file");
 
     let stdin = stdin();
-    let mut stdout = MouseTerminal::from(stdout().into_raw_mode().unwrap());
+    let mut stdout = MouseTerminal::from(AlternateScreen::from(stdout()).into_raw_mode().unwrap());
 
     let (tx, rx) = channel();
 
@@ -46,7 +47,7 @@ fn main() {
     };
 
     loop {
-        while let Ok(evt) = rx.recv_timeout(Duration::from_millis(16)) {
+        if let Ok(evt) = rx.recv_timeout(Duration::from_millis(16)) {
             /*
             match evt {
                 Event::Key(Key::Ctrl('q')) => {
