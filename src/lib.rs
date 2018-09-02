@@ -4,6 +4,7 @@ extern crate unicode_width;
 mod buffer;
 mod core;
 mod cursor;
+pub mod draw;
 mod mode;
 
 use buffer::Buffer;
@@ -46,7 +47,7 @@ impl BufferMode {
         false
     }
 
-    pub fn draw(&self) -> Vec<u8> {
-        self.mode.draw(&self.buf)
+    pub fn draw(&self, db: &mut draw::DoubleBuffer) {
+        self.mode.draw(&self.buf, db)
     }
 }

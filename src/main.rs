@@ -14,6 +14,7 @@ use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
 
+use acc::draw::DoubleBuffer;
 use acc::BufferMode;
 
 use clap::{App, Arg};
@@ -29,6 +30,7 @@ fn main() {
 
     let stdin = stdin();
     let mut stdout = MouseTerminal::from(AlternateScreen::from(stdout()).into_raw_mode().unwrap());
+    // let mut stdout = MouseTerminal::from(stdout().into_raw_mode().unwrap());
 
     let (tx, rx) = channel();
 
@@ -45,6 +47,8 @@ fn main() {
     } else {
         BufferMode::new()
     };
+
+    let mut draw = DoubleBuffer::new();
 
     loop {
         if let Ok(evt) = rx.recv_timeout(Duration::from_millis(16)) {
@@ -79,8 +83,8 @@ fn main() {
             }
         }
 
-        let buf = state.draw();
-        stdout.write(&buf).unwrap();
+        state.draw(&mut draw);
+        draw.present(&mut stdout);
         stdout.flush().unwrap();
     }
 }

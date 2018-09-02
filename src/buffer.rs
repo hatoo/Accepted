@@ -1,4 +1,5 @@
 use core::Cursor;
+use draw::{CharStyle, View};
 use std::fs;
 use std::io;
 use std::io::Write;
@@ -42,6 +43,53 @@ impl Buffer {
         })
     }
 
+    pub fn draw(&self, mut view: View) -> Option<Cursor> {
+        let mut cursor = None;
+
+        'outer: for i in self.core.row_offset..self.core.buffer.len() {
+            let line: Vec<(char, CharStyle)> = self.core.buffer[i]
+                .iter()
+                .cloned()
+                .zip(
+                    search(self.search.as_slice(), &self.core.buffer[i])
+                        .into_iter()
+                        .map(|b| {
+                            if b {
+                                CharStyle::Highlight
+                            } else {
+                                CharStyle::Default
+                            }
+                        }),
+                ).collect();
+
+            for j in 0..self.core.buffer[i].len() {
+                let c = line[j];
+                let t = Cursor { row: i, col: j };
+
+                if self.core.cursor == t {
+                    cursor = view.put(c.0, c.1);
+                } else {
+                    if view.put(c.0, c.1).is_none() {
+                        break 'outer;
+                    }
+                }
+
+                let t = Cursor {
+                    row: i,
+                    col: self.core.buffer[i].len(),
+                };
+
+                if self.core.cursor == t {
+                    cursor = Some(view.cursor);
+                }
+            }
+            view.newline();
+        }
+
+        cursor
+    }
+
+    /*
     pub fn draw<T: Write>(&self, rows: usize, cols: usize, out: &mut T) -> Option<Cursor> {
         let mut draw = DrawBuffer::new(rows, cols);
 
@@ -86,6 +134,7 @@ impl Buffer {
 
         cursor
     }
+    */
 }
 
 fn search(seq: &[char], line: &[char]) -> Vec<bool> {

@@ -1,5 +1,6 @@
 use buffer::Buffer;
 use cursor;
+use draw;
 use std::io::Write;
 use termion;
 
@@ -20,7 +21,7 @@ fn refresh_screen<T: Write>(w: &mut T) {
 
 pub trait Mode {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition;
-    fn draw(&self, core: &Buffer) -> Vec<u8>;
+    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer);
 }
 
 pub struct Normal;
@@ -56,6 +57,12 @@ impl Mode for Normal {
         Transition::Nothing
     }
 
+    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer) {
+        let height = db.back.height;
+        let width = db.back.width;
+        let cursor = core.draw(db.view((0, 0), height, width));
+    }
+    /*
     fn draw(&self, buffer: &Buffer) -> Vec<u8> {
         let mut buf = Vec::new();
         refresh_screen(&mut buf);
@@ -70,6 +77,7 @@ impl Mode for Normal {
         }
         buf
     }
+    */
 }
 
 impl Mode for Insert {
@@ -94,6 +102,8 @@ impl Mode for Insert {
         Transition::Nothing
     }
 
+    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer) {}
+    /*
     fn draw(&self, buffer: &Buffer) -> Vec<u8> {
         let mut buf = Vec::new();
         refresh_screen(&mut buf);
@@ -108,6 +118,7 @@ impl Mode for Insert {
         }
         buf
     }
+    */
 }
 
 impl Mode for R {
@@ -127,6 +138,8 @@ impl Mode for R {
         Transition::Nothing
     }
 
+    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer) {}
+    /*
     fn draw(&self, buffer: &Buffer) -> Vec<u8> {
         let mut buf = Vec::new();
         refresh_screen(&mut buf);
@@ -141,6 +154,7 @@ impl Mode for R {
         }
         buf
     }
+    */
 }
 
 impl Mode for Search {
@@ -165,6 +179,8 @@ impl Mode for Search {
         Transition::Nothing
     }
 
+    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer) {}
+    /*
     fn draw(&self, buffer: &Buffer) -> Vec<u8> {
         let mut buf = Vec::new();
         refresh_screen(&mut buf);
@@ -189,4 +205,5 @@ impl Mode for Search {
 
         buf
     }
+    */
 }
