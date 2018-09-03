@@ -83,6 +83,14 @@ impl Buffer {
                     cursor = Some(view.cursor);
                 }
             }
+            let t = Cursor {
+                row: i,
+                col: self.core.buffer[i].len(),
+            };
+
+            if self.core.cursor == t {
+                cursor = Some(view.cursor);
+            }
             view.newline();
         }
 

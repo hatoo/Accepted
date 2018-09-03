@@ -72,6 +72,7 @@ impl fmt::Display for CursorState {
 pub struct Term {
     pub height: usize,
     pub width: usize,
+    pub cursor: CursorState,
     buf: Vec<Vec<Tile>>,
 }
 
@@ -98,6 +99,7 @@ impl Term {
         Term {
             height,
             width,
+            cursor: CursorState::Hide,
             buf: vec![vec![Tile::Char(' ', CharStyle::Default); width]; height],
         }
     }
@@ -202,6 +204,9 @@ impl DoubleBuffer {
             }
         }
 
+        // if self.front.cursor != self.back.cursor {
+        write!(out, "{}", self.back.cursor);
+        // }
         std::mem::swap(&mut self.front, &mut self.back);
         self.back = Term::new();
     }

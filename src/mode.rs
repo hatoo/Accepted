@@ -61,23 +61,10 @@ impl Mode for Normal {
         let height = db.back.height;
         let width = db.back.width;
         let cursor = core.draw(db.view((0, 0), height, width));
+        db.back.cursor = cursor
+            .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
+            .unwrap_or(draw::CursorState::Hide);
     }
-    /*
-    fn draw(&self, buffer: &Buffer) -> Vec<u8> {
-        let mut buf = Vec::new();
-        refresh_screen(&mut buf);
-        write!(buf, "{}", cursor::Block);
-        let (rows, cols) = windows_size();
-        if let Some(cursor) = buffer.draw(rows, cols, &mut buf) {
-            write!(
-                buf,
-                "{}",
-                termion::cursor::Goto(cursor.col as u16 + 1, cursor.row as u16 + 1)
-            );
-        }
-        buf
-    }
-    */
 }
 
 impl Mode for Insert {
@@ -102,23 +89,14 @@ impl Mode for Insert {
         Transition::Nothing
     }
 
-    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer) {}
-    /*
-    fn draw(&self, buffer: &Buffer) -> Vec<u8> {
-        let mut buf = Vec::new();
-        refresh_screen(&mut buf);
-        write!(buf, "{}", cursor::Bar);
-        let (rows, cols) = windows_size();
-        if let Some(cursor) = buffer.draw(rows, cols, &mut buf) {
-            write!(
-                buf,
-                "{}",
-                termion::cursor::Goto(cursor.col as u16 + 1, cursor.row as u16 + 1)
-            );
-        }
-        buf
+    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer) {
+        let height = db.back.height;
+        let width = db.back.width;
+        let cursor = core.draw(db.view((0, 0), height, width));
+        db.back.cursor = cursor
+            .map(|c| draw::CursorState::Show(c, draw::CursorShape::Bar))
+            .unwrap_or(draw::CursorState::Hide);
     }
-    */
 }
 
 impl Mode for R {
@@ -138,23 +116,14 @@ impl Mode for R {
         Transition::Nothing
     }
 
-    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer) {}
-    /*
-    fn draw(&self, buffer: &Buffer) -> Vec<u8> {
-        let mut buf = Vec::new();
-        refresh_screen(&mut buf);
-        write!(buf, "{}", cursor::UnderLine);
-        let (rows, cols) = windows_size();
-        if let Some(cursor) = buffer.draw(rows, cols, &mut buf) {
-            write!(
-                buf,
-                "{}",
-                termion::cursor::Goto(cursor.col as u16 + 1, cursor.row as u16 + 1)
-            );
-        }
-        buf
+    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer) {
+        let height = db.back.height;
+        let width = db.back.width;
+        let cursor = core.draw(db.view((0, 0), height, width));
+        db.back.cursor = cursor
+            .map(|c| draw::CursorState::Show(c, draw::CursorShape::Underline))
+            .unwrap_or(draw::CursorState::Hide);
     }
-    */
 }
 
 impl Mode for Search {
@@ -179,31 +148,18 @@ impl Mode for Search {
         Transition::Nothing
     }
 
-    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer) {}
-    /*
-    fn draw(&self, buffer: &Buffer) -> Vec<u8> {
-        let mut buf = Vec::new();
-        refresh_screen(&mut buf);
-        write!(buf, "{}", cursor::UnderLine);
-        let (rows, cols) = windows_size();
+    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer) {
+        let height = db.back.height - 1;
+        let width = db.back.width;
+        let cursor = core.draw(db.view((0, 0), height, width));
+        db.back.cursor = cursor
+            .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
+            .unwrap_or(draw::CursorState::Hide);
 
-        write!(buf, "{}", termion::cursor::Goto(1, rows as u16));
-        write!(buf, "/");
-        for &c in &buffer.search {
-            write!(buf, "{}", c);
+        let mut footer = db.view((height, 0), 1, width);
+        footer.put('/', draw::CharStyle::Default);
+        for &c in &core.search {
+            footer.put(c, draw::CharStyle::Default);
         }
-
-        write!(buf, "{}", termion::cursor::Goto(1, 1));
-
-        if let Some(cursor) = buffer.draw(rows - 1, cols, &mut buf) {
-            write!(
-                buf,
-                "{}",
-                termion::cursor::Goto(cursor.col as u16 + 1, cursor.row as u16 + 1)
-            );
-        }
-
-        buf
     }
-    */
 }
