@@ -156,6 +156,7 @@ impl DoubleBuffer {
     }
 
     pub fn present<T: Write>(&mut self, out: &mut T) {
+        let mut edit = false;
         if self.front.height != self.back.height || self.front.width != self.back.width {
             write!(
                 out,
@@ -178,6 +179,7 @@ impl DoubleBuffer {
                     write!(out, "\r\n");
                 }
             }
+            edit = true;
         } else {
             let mut current_style = CharStyle::Default;
             write!(out, "{}", current_style);
@@ -190,6 +192,7 @@ impl DoubleBuffer {
                 .enumerate()
             {
                 if f != b {
+                    edit = true;
                     write!(out, "{}", termion::cursor::Goto(1, i as u16 + 1));
 
                     for (c, s) in b {
@@ -204,9 +207,9 @@ impl DoubleBuffer {
             }
         }
 
-        // if self.front.cursor != self.back.cursor {
-        write!(out, "{}", self.back.cursor);
-        // }
+        if edit || self.front.cursor != self.back.cursor {
+            write!(out, "{}", self.back.cursor);
+        }
         std::mem::swap(&mut self.front, &mut self.back);
         self.back = Term::new();
     }
