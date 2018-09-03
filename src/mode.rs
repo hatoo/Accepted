@@ -10,15 +10,6 @@ pub enum Transition {
     Exit,
 }
 
-fn windows_size() -> (usize, usize) {
-    let (cols, rows) = termion::terminal_size().unwrap();
-    (rows as usize, cols as usize)
-}
-
-fn refresh_screen<T: Write>(w: &mut T) {
-    write!(w, "{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
-}
-
 pub trait Mode {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition;
     fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer);

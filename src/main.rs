@@ -3,8 +3,6 @@ extern crate acc;
 extern crate clap;
 extern crate termion;
 
-use termion::clear::All;
-use termion::event::{Event, Key, MouseEvent};
 use termion::input::{MouseTerminal, TermRead};
 use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
