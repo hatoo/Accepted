@@ -50,32 +50,6 @@ fn main() {
 
     loop {
         if let Ok(evt) = rx.recv_timeout(Duration::from_millis(16)) {
-            /*
-            match evt {
-                Event::Key(Key::Ctrl('q')) => {
-                    return;
-                }
-                Event::Key(Key::Backspace) => {
-                    state.backspase();
-                }
-                Event::Key(Key::Char(c)) => {
-                    state.insert(c);
-                }
-                Event::Key(Key::Left) => {
-                    state.cursor_left();
-                }
-                Event::Key(Key::Right) => {
-                    state.cursor_right();
-                }
-                Event::Key(Key::Up) => {
-                    state.cursor_up();
-                }
-                Event::Key(Key::Down) => {
-                    state.cursor_down();
-                }
-                _ => {}
-            }
-            */
             if state.event(evt) {
                 return;
             }
