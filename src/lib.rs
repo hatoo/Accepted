@@ -10,8 +10,7 @@ mod mode;
 use buffer::Buffer;
 use core::Core;
 use mode::{Mode, Normal, Transition};
-use std::cmp::{max, min};
-use std::io::{self, stdin, stdout, Write};
+use std::io;
 use std::path::Path;
 
 pub struct BufferMode {

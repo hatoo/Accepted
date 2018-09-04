@@ -2,10 +2,7 @@ use core::Cursor;
 use draw::{CharStyle, View};
 use std::fs;
 use std::io;
-use std::io::Write;
 use std::path::{Path, PathBuf};
-use termion::color::{Fg, Reset, Rgb};
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use Core;
 
 pub struct Buffer {

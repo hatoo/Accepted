@@ -1,8 +1,7 @@
 use buffer::Buffer;
-use cursor;
 use draw;
-use std::io::Write;
 use termion;
+use termion::event::{Event, Key};
 
 pub enum Transition {
     Nothing,
@@ -22,7 +21,6 @@ struct Search;
 
 impl Mode for Normal {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
-        use termion::event::{Event, Key, MouseEvent};
         let core = &mut buf.core;
         match event {
             Event::Key(Key::Ctrl('q')) => {
@@ -48,10 +46,10 @@ impl Mode for Normal {
         Transition::Nothing
     }
 
-    fn draw(&self, core: &Buffer, term: &mut draw::Term) {
+    fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
         let height = term.height;
         let width = term.width;
-        let cursor = core.draw(term.view((0, 0), height, width));
+        let cursor = buf.draw(term.view((0, 0), height, width));
         term.cursor = cursor
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide);
@@ -60,7 +58,6 @@ impl Mode for Normal {
 
 impl Mode for Insert {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
-        use termion::event::{Event, Key, MouseEvent};
         let core = &mut buf.core;
         match event {
             Event::Key(Key::Ctrl('q')) => {
@@ -80,10 +77,10 @@ impl Mode for Insert {
         Transition::Nothing
     }
 
-    fn draw(&self, core: &Buffer, term: &mut draw::Term) {
+    fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
         let height = term.height;
         let width = term.width;
-        let cursor = core.draw(term.view((0, 0), height, width));
+        let cursor = buf.draw(term.view((0, 0), height, width));
         term.cursor = cursor
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Bar))
             .unwrap_or(draw::CursorState::Hide);
@@ -92,7 +89,6 @@ impl Mode for Insert {
 
 impl Mode for R {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
-        use termion::event::{Event, Key, MouseEvent};
         let core = &mut buf.core;
         match event {
             Event::Key(Key::Esc) => {
@@ -107,10 +103,10 @@ impl Mode for R {
         Transition::Nothing
     }
 
-    fn draw(&self, core: &Buffer, term: &mut draw::Term) {
+    fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
         let height = term.height;
         let width = term.width;
-        let cursor = core.draw(term.view((0, 0), height, width));
+        let cursor = buf.draw(term.view((0, 0), height, width));
         term.cursor = cursor
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Underline))
             .unwrap_or(draw::CursorState::Hide);
@@ -119,8 +115,6 @@ impl Mode for R {
 
 impl Mode for Search {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
-        use termion::event::{Event, Key, MouseEvent};
-        let core = &mut buf.core;
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Trans(Box::new(Normal));
@@ -139,17 +133,17 @@ impl Mode for Search {
         Transition::Nothing
     }
 
-    fn draw(&self, core: &Buffer, term: &mut draw::Term) {
+    fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
         let height = term.height - 1;
         let width = term.width;
-        let cursor = core.draw(term.view((0, 0), height, width));
+        let cursor = buf.draw(term.view((0, 0), height, width));
         term.cursor = cursor
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide);
 
         let mut footer = term.view((height, 0), 1, width);
         footer.put('/', draw::CharStyle::Default);
-        for &c in &core.search {
+        for &c in &buf.search {
             footer.put(c, draw::CharStyle::Default);
         }
     }

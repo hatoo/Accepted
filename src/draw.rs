@@ -4,7 +4,7 @@ use std;
 use std::fmt;
 use std::io::Write;
 use termion;
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+use unicode_width::UnicodeWidthChar;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CharStyle {
