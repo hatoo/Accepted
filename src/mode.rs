@@ -12,7 +12,7 @@ pub enum Transition {
 
 pub trait Mode {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition;
-    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer);
+    fn draw(&self, core: &Buffer, term: &mut draw::Term);
 }
 
 pub struct Normal;
@@ -48,11 +48,11 @@ impl Mode for Normal {
         Transition::Nothing
     }
 
-    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer) {
-        let height = db.back.height;
-        let width = db.back.width;
-        let cursor = core.draw(db.view((0, 0), height, width));
-        db.back.cursor = cursor
+    fn draw(&self, core: &Buffer, term: &mut draw::Term) {
+        let height = term.height;
+        let width = term.width;
+        let cursor = core.draw(term.view((0, 0), height, width));
+        term.cursor = cursor
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide);
     }
@@ -80,11 +80,11 @@ impl Mode for Insert {
         Transition::Nothing
     }
 
-    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer) {
-        let height = db.back.height;
-        let width = db.back.width;
-        let cursor = core.draw(db.view((0, 0), height, width));
-        db.back.cursor = cursor
+    fn draw(&self, core: &Buffer, term: &mut draw::Term) {
+        let height = term.height;
+        let width = term.width;
+        let cursor = core.draw(term.view((0, 0), height, width));
+        term.cursor = cursor
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Bar))
             .unwrap_or(draw::CursorState::Hide);
     }
@@ -107,11 +107,11 @@ impl Mode for R {
         Transition::Nothing
     }
 
-    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer) {
-        let height = db.back.height;
-        let width = db.back.width;
-        let cursor = core.draw(db.view((0, 0), height, width));
-        db.back.cursor = cursor
+    fn draw(&self, core: &Buffer, term: &mut draw::Term) {
+        let height = term.height;
+        let width = term.width;
+        let cursor = core.draw(term.view((0, 0), height, width));
+        term.cursor = cursor
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Underline))
             .unwrap_or(draw::CursorState::Hide);
     }
@@ -139,15 +139,15 @@ impl Mode for Search {
         Transition::Nothing
     }
 
-    fn draw(&self, core: &Buffer, db: &mut draw::DoubleBuffer) {
-        let height = db.back.height - 1;
-        let width = db.back.width;
-        let cursor = core.draw(db.view((0, 0), height, width));
-        db.back.cursor = cursor
+    fn draw(&self, core: &Buffer, term: &mut draw::Term) {
+        let height = term.height - 1;
+        let width = term.width;
+        let cursor = core.draw(term.view((0, 0), height, width));
+        term.cursor = cursor
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide);
 
-        let mut footer = db.view((height, 0), 1, width);
+        let mut footer = term.view((height, 0), 1, width);
         footer.put('/', draw::CharStyle::Default);
         for &c in &core.search {
             footer.put(c, draw::CharStyle::Default);

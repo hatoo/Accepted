@@ -81,7 +81,7 @@ fn main() {
             }
         }
 
-        state.draw(&mut draw);
+        state.draw(&mut draw.back);
         draw.present(&mut stdout);
         stdout.flush().unwrap();
     }

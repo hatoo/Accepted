@@ -47,7 +47,7 @@ impl BufferMode {
         false
     }
 
-    pub fn draw(&self, db: &mut draw::DoubleBuffer) {
-        self.mode.draw(&self.buf, db)
+    pub fn draw(&self, term: &mut draw::Term) {
+        self.mode.draw(&self.buf, term)
     }
 }
