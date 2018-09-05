@@ -1,5 +1,4 @@
 use core::Cursor;
-use draw;
 use draw::{CharStyle, View};
 use std::fs;
 use std::io;
@@ -41,8 +40,7 @@ impl Buffer {
         })
     }
 
-    pub fn draw(&self, view: View) -> Option<Cursor> {
-        let mut view = draw::SimpleWriter::new(view);
+    pub fn draw(&self, mut view: View) -> Option<Cursor> {
         let mut cursor = None;
 
         'outer: for i in self.core.row_offset..self.core.buffer.len() {
