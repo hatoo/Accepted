@@ -141,7 +141,7 @@ impl Mode for Search {
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide);
 
-        let mut footer = term.view((height, 0), 1, width);
+        let mut footer = draw::SimpleWriter::new(term.view((height, 0), 1, width));
         footer.put('/', draw::CharStyle::Default);
         for &c in &buf.search {
             footer.put(c, draw::CharStyle::Default);

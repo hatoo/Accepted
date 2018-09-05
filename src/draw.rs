@@ -88,6 +88,10 @@ pub struct View<'a> {
     orig: (usize, usize),
     height: usize,
     width: usize,
+}
+
+pub struct SimpleWriter<'a> {
+    view: View<'a>,
     pub cursor: Cursor,
 }
 
@@ -113,10 +117,6 @@ impl Term {
             orig,
             height,
             width,
-            cursor: Cursor {
-                row: orig.0,
-                col: orig.1,
-            },
         }
     }
 
@@ -216,19 +216,47 @@ impl DoubleBuffer {
 }
 
 impl<'a> View<'a> {
-    pub fn is_out(&self) -> bool {
-        self.cursor.row >= self.orig.0 + self.height
+    pub fn put(&mut self, row: usize, col: usize, c: char, style: CharStyle) {
+        assert!(row < self.height);
+        assert!(col < self.width);
+        let w = c.width().unwrap_or(0);
+
+        if w > 0 {
+            assert!(col + w < self.width);
+            self.parent.buf[self.orig.0 + row][self.orig.1 + col] = Tile::Char(c, style);
+            for x in 1..w {
+                self.parent.buf[self.orig.0 + row][self.orig.1 + col + x] = Tile::Empty;
+            }
+        }
     }
+}
+
+impl<'a> SimpleWriter<'a> {
+    pub fn new(view: View<'a>) -> Self {
+        Self {
+            cursor: Cursor {
+                row: view.orig.0,
+                col: view.orig.1,
+            },
+            view,
+        }
+    }
+
+    pub fn is_out(&self) -> bool {
+        self.cursor.row >= self.view.orig.0 + self.view.height
+    }
+
     pub fn newline(&mut self) -> Option<Cursor> {
         if self.is_out() {
             None
         } else {
             let prev = self.cursor;
             self.cursor.row += 1;
-            self.cursor.col = self.orig.1;
+            self.cursor.col = self.view.orig.1;
             Some(prev)
         }
     }
+
     pub fn put(&mut self, c: char, style: CharStyle) -> Option<Cursor> {
         if self.is_out() {
             return None;
@@ -237,16 +265,16 @@ impl<'a> View<'a> {
         let prev = self.cursor;
         let w = c.width().unwrap_or(0);
         if w > 0 {
-            if self.cursor.col + w >= self.orig.1 + self.width {
+            if self.cursor.col + w >= self.view.orig.1 + self.view.width {
                 self.newline();
                 if self.is_out() {
                     return None;
                 }
             }
-            self.parent.buf[self.cursor.row][self.cursor.col] = Tile::Char(c, style);
+            self.view.parent.buf[self.cursor.row][self.cursor.col] = Tile::Char(c, style);
             self.cursor.col += 1;
             for _ in 1..w {
-                self.parent.buf[self.cursor.row][self.cursor.col] = Tile::Empty;
+                self.view.parent.buf[self.cursor.row][self.cursor.col] = Tile::Empty;
                 self.cursor.col += 1;
             }
             Some(prev)
