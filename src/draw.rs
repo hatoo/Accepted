@@ -10,6 +10,7 @@ use unicode_width::UnicodeWidthChar;
 pub enum CharStyle {
     Default,
     Highlight,
+    Info,
 }
 
 impl fmt::Display for CharStyle {
@@ -19,6 +20,11 @@ impl fmt::Display for CharStyle {
             CharStyle::Highlight => {
                 write!(f, "{}", termion::color::Fg(termion::color::Rgb(255, 0, 0)))
             }
+            CharStyle::Info => write!(
+                f,
+                "{}",
+                termion::color::Fg(termion::color::Rgb(128, 128, 128))
+            ),
         }
     }
 }
@@ -89,6 +95,64 @@ pub struct View<'a> {
     height: usize,
     width: usize,
     pub cursor: Cursor,
+}
+
+pub struct LinenumView<'a> {
+    view: View<'a>,
+    current_linenum: usize,
+    width: usize,
+}
+
+impl<'a> LinenumView<'a> {
+    pub fn new(current_linenum: usize, max_linenum: usize, view: View<'a>) -> Self {
+        let width = format!("{}", max_linenum).len() + 1;
+        let mut res = Self {
+            view,
+            width,
+            current_linenum,
+        };
+        res.put_linenum();
+        res
+    }
+
+    fn put_linenum(&mut self) {
+        let s = format!("{}", self.current_linenum);
+        let w = s.len();
+        for c in s.chars() {
+            self.view.put(c, CharStyle::Info);
+        }
+        for _ in 0..self.width - w {
+            self.view.put(' ', CharStyle::Info);
+        }
+    }
+
+    pub fn cursor(&self) -> Option<Cursor> {
+        if !self.view.is_out() {
+            Some(self.view.cursor)
+        } else {
+            None
+        }
+    }
+
+    fn put_space(&mut self) {
+        for _ in 0..self.width {
+            self.view.put(' ', CharStyle::Info);
+        }
+    }
+
+    pub fn put(&mut self, c: char, style: CharStyle) -> Option<Cursor> {
+        if self.view.cause_newline(c) {
+            self.view.newline();
+            self.put_space();
+        }
+        self.view.put(c, style)
+    }
+
+    pub fn newline(&mut self) {
+        self.current_linenum += 1;
+        self.view.newline();
+        self.put_linenum();
+    }
 }
 
 impl Term {
@@ -219,6 +283,7 @@ impl<'a> View<'a> {
     pub fn is_out(&self) -> bool {
         self.cursor.row >= self.orig.0 + self.height
     }
+
     pub fn newline(&mut self) -> Option<Cursor> {
         if self.is_out() {
             None
@@ -229,6 +294,16 @@ impl<'a> View<'a> {
             Some(prev)
         }
     }
+
+    pub fn cause_newline(&self, c: char) -> bool {
+        if self.is_out() {
+            return false;
+        }
+
+        let w = c.width().unwrap_or(0);
+        self.cursor.col + w >= self.orig.1 + self.width
+    }
+
     pub fn put(&mut self, c: char, style: CharStyle) -> Option<Cursor> {
         if self.is_out() {
             return None;

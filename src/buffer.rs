@@ -1,5 +1,5 @@
 use core::Cursor;
-use draw::{CharStyle, View};
+use draw::{CharStyle, LinenumView, View};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -40,7 +40,8 @@ impl Buffer {
         })
     }
 
-    pub fn draw(&self, mut view: View) -> Option<Cursor> {
+    pub fn draw(&self, view: View) -> Option<Cursor> {
+        let mut view = LinenumView::new(self.core.row_offset + 1, self.core.buffer.len() + 1, view);
         let mut cursor = None;
 
         'outer: for i in self.core.row_offset..self.core.buffer.len() {
@@ -70,15 +71,6 @@ impl Buffer {
                         break 'outer;
                     }
                 }
-
-                let t = Cursor {
-                    row: i,
-                    col: self.core.buffer[i].len(),
-                };
-
-                if self.core.cursor == t {
-                    cursor = Some(view.cursor);
-                }
             }
             let t = Cursor {
                 row: i,
@@ -86,7 +78,7 @@ impl Buffer {
             };
 
             if self.core.cursor == t {
-                cursor = Some(view.cursor);
+                cursor = view.cursor();
             }
             view.newline();
         }
