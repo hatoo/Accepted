@@ -60,14 +60,17 @@ impl Mode for Insert {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         let core = &mut buf.core;
         match event {
-            Event::Key(Key::Ctrl('q')) => {
-                return Transition::Exit;
-            }
             Event::Key(Key::Esc) => {
                 return Transition::Trans(Box::new(Normal));
             }
             Event::Key(Key::Backspace) => {
                 core.backspase();
+            }
+            Event::Key(Key::Char('\t')) => {
+                core.insert(' ');
+                while core.cursor.col % 4 != 0 {
+                    core.insert(' ');
+                }
             }
             Event::Key(Key::Char(c)) => {
                 core.insert(c);
