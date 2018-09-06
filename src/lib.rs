@@ -26,11 +26,9 @@ impl BufferMode {
         }
     }
 
-    pub fn open<P: AsRef<Path>>(path: P) -> io::Result<Self> {
-        Buffer::open(path).map(|buf| Self {
-            buf,
-            mode: Box::new(Normal),
-        })
+    pub fn open<P: AsRef<Path>>(&mut self, path: P) -> io::Result<()> {
+        self.mode = Box::new(Normal);
+        self.buf.open(path)
     }
 
     pub fn event(&mut self, event: termion::event::Event) -> bool {

@@ -20,7 +20,7 @@ impl Buffer {
         }
     }
 
-    pub fn open<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+    pub fn open<P: AsRef<Path>>(&mut self, path: P) -> io::Result<()> {
         fs::read_to_string(path.as_ref()).map(|s| {
             let mut core = Core::new();
             core.buffer = s
@@ -32,11 +32,8 @@ impl Buffer {
                 core.buffer = vec![Vec::new()];
             }
 
-            Self {
-                path: Some(path.as_ref().to_path_buf()),
-                core,
-                search: Vec::new(),
-            }
+            self.core = core;
+            self.path = Some(path.as_ref().to_path_buf());
         })
     }
 

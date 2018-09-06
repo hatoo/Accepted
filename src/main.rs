@@ -40,11 +40,10 @@ fn main() {
         }
     });
 
-    let mut state = if let Some(path) = file {
-        BufferMode::open(path).unwrap()
-    } else {
-        BufferMode::new()
-    };
+    let mut state = BufferMode::new();
+    if let Some(path) = file {
+        state.open(path).unwrap();
+    }
 
     let mut draw = DoubleBuffer::new();
 
