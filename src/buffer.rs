@@ -77,7 +77,9 @@ impl Buffer {
             if self.core.cursor == t {
                 cursor = view.cursor();
             }
-            view.newline();
+            if i != self.core.buffer.len() - 1 {
+                view.newline();
+            }
         }
 
         cursor
