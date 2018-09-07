@@ -13,7 +13,7 @@ use std::thread;
 use std::time::Duration;
 
 use acc::draw::DoubleBuffer;
-use acc::BufferMode;
+use acc::{Buffer, BufferMode};
 
 use clap::{App, Arg};
 
@@ -40,10 +40,12 @@ fn main() {
         }
     });
 
-    let mut state = BufferMode::new();
+    let mut buf = Buffer::new();
     if let Some(path) = file {
-        state.open(path).unwrap();
+        buf.open(path).unwrap();
     }
+
+    let mut state = BufferMode::new(buf);
 
     let mut draw = DoubleBuffer::new();
 
