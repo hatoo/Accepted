@@ -8,6 +8,7 @@ mod cursor;
 pub mod draw;
 mod mode;
 pub mod syntax;
+pub mod theme;
 
 pub use buffer::Buffer;
 use core::Core;

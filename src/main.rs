@@ -11,12 +11,13 @@ use termion::screen::AlternateScreen;
 use syntect::highlighting::ThemeSet;
 use syntect::parsing::SyntaxSet;
 
-use std::io::{stdin, stdout, Write};
+use std::io::{stdin, stdout, Cursor, Write};
 use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
 
 use acc::draw::DoubleBuffer;
+use acc::theme;
 use acc::{Buffer, BufferMode};
 
 use clap::{App, Arg};
@@ -45,6 +46,7 @@ fn main() {
     });
 
     let ps = SyntaxSet::load_defaults_nonewlines();
+    // let theme = ThemeSet::load_from_reader(&mut Cursor::new(theme::ONE_DARK.as_bytes())).unwrap();
     let ts = ThemeSet::load_defaults();
 
     let syntax = acc::syntax::Syntax {
