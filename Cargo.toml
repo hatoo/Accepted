@@ -7,3 +7,4 @@ authors = ["hatoo <hato2000@gmail.com>"]
 termion = "1.5"
 unicode-width = "0.1"
 clap = "2.3"
+syntect = "2.1"

@@ -1,3 +1,4 @@
+extern crate syntect;
 extern crate termion;
 extern crate unicode_width;
 
@@ -6,18 +7,19 @@ mod core;
 mod cursor;
 pub mod draw;
 mod mode;
+pub mod syntax;
 
 pub use buffer::Buffer;
 use core::Core;
 use mode::{Mode, Normal, Transition};
 
-pub struct BufferMode {
-    buf: Buffer,
+pub struct BufferMode<'a> {
+    buf: Buffer<'a>,
     mode: Box<Mode>,
 }
 
-impl BufferMode {
-    pub fn new(buf: Buffer) -> Self {
+impl<'a> BufferMode<'a> {
+    pub fn new(buf: Buffer<'a>) -> Self {
         Self {
             buf,
             mode: Box::new(Normal),

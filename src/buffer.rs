@@ -3,20 +3,23 @@ use draw::{CharStyle, LinenumView, View};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use syntax;
 use Core;
 
-pub struct Buffer {
+pub struct Buffer<'a> {
     pub path: Option<PathBuf>,
     pub core: Core,
     pub search: Vec<char>,
+    pub syntax: syntax::Syntax<'a>,
 }
 
-impl Buffer {
-    pub fn new() -> Self {
+impl<'a> Buffer<'a> {
+    pub fn new(syntax: syntax::Syntax<'a>) -> Self {
         Self {
             path: None,
             core: Core::new(),
             search: Vec::new(),
+            syntax,
         }
     }
 

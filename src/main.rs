@@ -1,11 +1,15 @@
 extern crate acc;
 #[macro_use]
 extern crate clap;
+extern crate syntect;
 extern crate termion;
 
 use termion::input::{MouseTerminal, TermRead};
 use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
+
+use syntect::highlighting::ThemeSet;
+use syntect::parsing::SyntaxSet;
 
 use std::io::{stdin, stdout, Write};
 use std::sync::mpsc::channel;
@@ -40,7 +44,15 @@ fn main() {
         }
     });
 
-    let mut buf = Buffer::new();
+    let ps = SyntaxSet::load_defaults_nonewlines();
+    let ts = ThemeSet::load_defaults();
+
+    let syntax = acc::syntax::Syntax {
+        syntax: ps.find_syntax_by_extension("rs").unwrap(),
+        theme: &ts.themes["base16-ocean.dark"],
+    };
+
+    let mut buf = Buffer::new(syntax);
     if let Some(path) = file {
         buf.open(path).unwrap();
     }
