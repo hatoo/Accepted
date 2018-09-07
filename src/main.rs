@@ -49,7 +49,7 @@ fn main() {
 
     let syntax = acc::syntax::Syntax {
         syntax: ps.find_syntax_by_extension("rs").unwrap(),
-        theme: &ts.themes["base16-ocean.dark"],
+        theme: &ts.themes["Solarized (dark)"],
     };
 
     let mut buf = Buffer::new(syntax);

@@ -3,7 +3,9 @@ use cursor;
 use std;
 use std::fmt;
 use std::io::Write;
+use syntect::highlighting::Style;
 use termion;
+use termion::color::{Bg, Fg, Rgb};
 use unicode_width::UnicodeWidthChar;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -11,20 +13,40 @@ pub enum CharStyle {
     Default,
     Highlight,
     Info,
+    Style(Style),
 }
 
 impl fmt::Display for CharStyle {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CharStyle::Default => write!(f, "{}", termion::color::Fg(termion::color::Reset)),
-            CharStyle::Highlight => {
-                write!(f, "{}", termion::color::Fg(termion::color::Rgb(255, 0, 0)))
-            }
+            CharStyle::Default => write!(
+                f,
+                "{}{}",
+                Bg(termion::color::Reset),
+                termion::color::Fg(termion::color::Reset)
+            ),
+            CharStyle::Highlight => write!(
+                f,
+                "{}{}",
+                Bg(termion::color::Reset),
+                termion::color::Fg(termion::color::Rgb(255, 0, 0))
+            ),
             CharStyle::Info => write!(
                 f,
-                "{}",
+                "{}{}",
+                Bg(termion::color::Reset),
                 termion::color::Fg(termion::color::Rgb(128, 128, 128))
             ),
+            CharStyle::Style(style) => {
+                let fg = style.foreground;
+                let bg = style.background;
+                write!(
+                    f,
+                    "{}{}",
+                    Fg(Rgb(fg.r, fg.g, fg.b)),
+                    Bg(Rgb(bg.r, bg.g, bg.b)),
+                )
+            }
         }
     }
 }
