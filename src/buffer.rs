@@ -6,7 +6,6 @@ use std::io;
 use std::path::{Path, PathBuf};
 use syntax;
 use syntect;
-use syntect::easy::HighlightLines;
 use Core;
 
 pub struct Buffer<'a> {
@@ -118,23 +117,4 @@ impl<'a> Buffer<'a> {
 
         cursor
     }
-}
-
-fn search(seq: &[char], line: &[char]) -> Vec<bool> {
-    let mut res = vec![false; line.len()];
-    if seq.is_empty() || line.is_empty() {
-        return res;
-    }
-    let mut i = 0;
-    while i + seq.len() <= line.len() {
-        if &line[i..i + seq.len()] == seq {
-            for _ in 0..seq.len() {
-                res[i] = true;
-                i += 1;
-            }
-            continue;
-        }
-        i += 1;
-    }
-    res
 }
