@@ -27,6 +27,17 @@ impl Mode for Normal {
                 return Transition::Exit;
             }
             Event::Key(Key::Char('i')) => return Transition::Trans(Box::new(Insert)),
+            Event::Key(Key::Char('I')) => {
+                let mut i = 0;
+                {
+                    let line = core.current_line();
+                    while i < line.len() && line[i] == ' ' {
+                        i += 1;
+                    }
+                }
+                core.cursor.col = i;
+                return Transition::Trans(Box::new(Insert));
+            }
             Event::Key(Key::Char('a')) => {
                 core.cursor_right();
                 return Transition::Trans(Box::new(Insert));

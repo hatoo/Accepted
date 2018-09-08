@@ -45,6 +45,10 @@ impl Core {
         }
     }
 
+    pub fn current_line(&self) -> &[char] {
+        &self.buffer[self.cursor.row]
+    }
+
     fn set_offset(&mut self) {
         if self.row_offset >= self.cursor.row {
             self.row_offset = self.cursor.row;
