@@ -12,7 +12,7 @@ use unicode_width::UnicodeWidthChar;
 pub enum CharStyle {
     Default,
     Highlight,
-    Info,
+    UI,
     Style(Style),
 }
 
@@ -31,7 +31,7 @@ impl fmt::Display for CharStyle {
                 Bg(termion::color::Reset),
                 termion::color::Fg(termion::color::Rgb(255, 0, 0))
             ),
-            CharStyle::Info => write!(
+            CharStyle::UI => write!(
                 f,
                 "{}{}",
                 Bg(termion::color::Reset),
@@ -141,10 +141,10 @@ impl<'a> LinenumView<'a> {
         let s = format!("{}", self.current_linenum);
         let w = s.len();
         for c in s.chars() {
-            self.view.put(c, CharStyle::Info);
+            self.view.put(c, CharStyle::UI);
         }
         for _ in 0..self.width - w {
-            self.view.put(' ', CharStyle::Info);
+            self.view.put(' ', CharStyle::UI);
         }
     }
 
@@ -158,7 +158,7 @@ impl<'a> LinenumView<'a> {
 
     fn put_space(&mut self) {
         for _ in 0..self.width {
-            self.view.put(' ', CharStyle::Info);
+            self.view.put(' ', CharStyle::UI);
         }
     }
 
