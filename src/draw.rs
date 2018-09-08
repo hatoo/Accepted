@@ -261,6 +261,8 @@ impl DoubleBuffer {
                     }
                     write!(out, "{}", c);
                 }
+
+                write!(out, "{}", termion::clear::UntilNewline);
                 if i < self.back.height - 1 {
                     write!(out, "\r\n");
                 }
