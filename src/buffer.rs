@@ -54,7 +54,7 @@ impl<'a> Buffer<'a> {
         }
 
         'outer: for i in self.core.row_offset..self.core.buffer.len() {
-            let line: Vec<(char, CharStyle)> = hl
+            let mut line: Vec<(char, CharStyle)> = hl
                 .highlight(self.core.buffer[i].iter().collect::<String>().as_str())
                 .into_iter()
                 .flat_map(|(style, s)| {
@@ -64,22 +64,20 @@ impl<'a> Buffer<'a> {
                         .into_iter()
                 }).collect();
 
-            /*
-            let line: Vec<(char, CharStyle)> = self.core.buffer[i]
-                .iter()
-                .cloned()
-                .zip(
-                    search(self.search.as_slice(), &self.core.buffer[i])
-                        .into_iter()
-                        .map(|b| {
-                            if b {
-                                CharStyle::Highlight
-                            } else {
-                                CharStyle::Default
-                            }
-                        }),
-                ).collect();
-            */
+            if !self.search.is_empty() && line.len() >= self.search.len() {
+                for j in 0..line.len() - self.search.len() + 1 {
+                    let m = self
+                        .search
+                        .iter()
+                        .zip(line[j..j + self.search.len()].iter())
+                        .all(|(c1, (c2, _))| c1 == c2);
+                    if m {
+                        for k in j..j + self.search.len() {
+                            line[k].1 = draw::CharStyle::Highlight;
+                        }
+                    }
+                }
+            }
 
             for j in 0..self.core.buffer[i].len() {
                 let c = line[j];
@@ -120,56 +118,6 @@ impl<'a> Buffer<'a> {
 
         cursor
     }
-
-    /*
-    pub fn draw(&self, view: View) -> Option<Cursor> {
-        let mut view = LinenumView::new(self.core.row_offset + 1, self.core.buffer.len() + 1, view);
-        let mut cursor = None;
-
-        'outer: for i in self.core.row_offset..self.core.buffer.len() {
-            let line: Vec<(char, CharStyle)> = self.core.buffer[i]
-                .iter()
-                .cloned()
-                .zip(
-                    search(self.search.as_slice(), &self.core.buffer[i])
-                        .into_iter()
-                        .map(|b| {
-                            if b {
-                                CharStyle::Highlight
-                            } else {
-                                CharStyle::Default
-                            }
-                        }),
-                ).collect();
-
-            for j in 0..self.core.buffer[i].len() {
-                let c = line[j];
-                let t = Cursor { row: i, col: j };
-
-                if self.core.cursor == t {
-                    cursor = view.put(c.0, c.1);
-                } else {
-                    if view.put(c.0, c.1).is_none() {
-                        break 'outer;
-                    }
-                }
-            }
-            let t = Cursor {
-                row: i,
-                col: self.core.buffer[i].len(),
-            };
-
-            if self.core.cursor == t {
-                cursor = view.cursor();
-            }
-            if i != self.core.buffer.len() - 1 {
-                view.newline();
-            }
-        }
-
-        cursor
-    }
-    */
 }
 
 fn search(seq: &[char], line: &[char]) -> Vec<bool> {
