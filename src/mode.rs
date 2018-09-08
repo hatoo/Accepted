@@ -47,6 +47,11 @@ impl Mode for Normal {
                 core.insert_newline();
                 return Transition::Trans(Box::new(Insert));
             }
+            Event::Key(Key::Char('O')) => {
+                core.cursor_up();
+                core.insert_newline();
+                return Transition::Trans(Box::new(Insert));
+            }
             Event::Key(Key::Char('h')) => core.cursor_left(),
             Event::Key(Key::Char('j')) => core.cursor_down(),
             Event::Key(Key::Char('k')) => core.cursor_up(),
