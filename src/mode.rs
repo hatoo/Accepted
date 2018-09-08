@@ -42,6 +42,10 @@ impl Mode for Normal {
                 core.cursor_right();
                 return Transition::Trans(Box::new(Insert));
             }
+            Event::Key(Key::Char('A')) => {
+                core.cursor.col = core.current_line().len();
+                return Transition::Trans(Box::new(Insert));
+            }
             Event::Key(Key::Char('r')) => return Transition::Trans(Box::new(R)),
             Event::Key(Key::Char('o')) => {
                 core.insert_newline();
