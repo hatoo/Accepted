@@ -23,7 +23,7 @@ impl Mode for Normal {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         let core = &mut buf.core;
         match event {
-            Event::Key(Key::Char('q')) => {
+            Event::Key(Key::Char('Q')) => {
                 return Transition::Exit;
             }
             Event::Key(Key::Char('i')) => return Transition::Trans(Box::new(Insert)),

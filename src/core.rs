@@ -8,7 +8,7 @@ pub struct Cursor {
     pub col: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Core {
     pub buffer: Vec<Vec<char>>,
     pub cursor: Cursor,
