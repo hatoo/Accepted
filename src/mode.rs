@@ -286,6 +286,6 @@ impl Mode for Prefix {
             .unwrap_or(draw::CursorState::Hide);
 
         let mut footer = term.view((height, 0), 1, width);
-        footer.puts("Prefix ... [q: Exit] [s: Save]", draw::CharStyle::Footer);
+        footer.puts("Prefix ... [q: Quit] [s: Save]", draw::CharStyle::Footer);
     }
 }
