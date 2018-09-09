@@ -300,6 +300,17 @@ impl Mode for Prefix {
                     }));
                 }
             }
+            Event::Key(Key::Char('a')) => {
+                if let Some(ref path) = buf.path {
+                    return Transition::Trans(Box::new(Save {
+                        path: path.to_string_lossy().into(),
+                    }));
+                } else {
+                    return Transition::Trans(Box::new(Save {
+                        path: String::new(),
+                    }));
+                }
+            }
             _ => {}
         }
         Transition::Nothing
@@ -314,6 +325,9 @@ impl Mode for Prefix {
             .unwrap_or(draw::CursorState::Hide);
 
         let mut footer = term.view((height, 0), 1, width);
-        footer.puts("Prefix ... [q: Quit] [s: Save]", draw::CharStyle::Footer);
+        footer.puts(
+            "Prefix ... [q: Quit] [s: Save] [a: save As ...]",
+            draw::CharStyle::Footer,
+        );
     }
 }
