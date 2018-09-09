@@ -26,21 +26,20 @@ impl<'a> Buffer<'a> {
         }
     }
 
-    pub fn open<P: AsRef<Path>>(&mut self, path: P) -> io::Result<()> {
-        fs::read_to_string(path.as_ref()).map(|s| {
-            let mut core = Core::new();
-            core.buffer = s
-                .lines()
-                .map(|l| l.trim_right().chars().collect())
-                .collect();
+    pub fn open<P: AsRef<Path>>(&mut self, path: P) {
+        let s = fs::read_to_string(path.as_ref()).unwrap_or(String::new());
+        let mut core = Core::new();
+        core.buffer = s
+            .lines()
+            .map(|l| l.trim_right().chars().collect())
+            .collect();
 
-            if core.buffer.is_empty() {
-                core.buffer = vec![Vec::new()];
-            }
+        if core.buffer.is_empty() {
+            core.buffer = vec![Vec::new()];
+        }
 
-            self.core = core;
-            self.path = Some(path.as_ref().to_path_buf());
-        })
+        self.core = core;
+        self.path = Some(path.as_ref().to_path_buf());
     }
 
     pub fn save(&self) -> Option<io::Result<()>> {

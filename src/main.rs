@@ -56,7 +56,7 @@ fn main() {
 
     let mut buf = Buffer::new(syntax);
     if let Some(path) = file {
-        buf.open(path).unwrap();
+        buf.open(path);
     }
 
     let mut state = BufferMode::new(buf);
