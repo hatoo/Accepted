@@ -147,8 +147,9 @@ impl Mode for Insert {
                 core.backspase();
             }
             Event::Key(Key::Delete) => {
-                core.cursor_succ();
-                core.backspase();
+                if core.cursor_succ() {
+                    core.backspase();
+                }
             }
             Event::Key(Key::Char('\t')) => {
                 core.insert(' ');

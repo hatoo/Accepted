@@ -95,13 +95,17 @@ impl Core {
         self.set_offset();
     }
 
-    pub fn cursor_succ(&mut self) {
+    pub fn cursor_succ(&mut self) -> bool {
         if self.cursor.col < self.buffer[self.cursor.row].len() {
             self.cursor_right();
+            true
         } else {
             if self.cursor.row + 1 < self.buffer.len() {
                 self.cursor.row += 1;
                 self.cursor.col = 0;
+                true
+            } else {
+                false
             }
         }
     }
