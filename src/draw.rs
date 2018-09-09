@@ -303,7 +303,9 @@ impl DoubleBuffer {
             {
                 if f != b {
                     edit = true;
+                    current_style = CharStyle::Default;
                     write!(out, "{}", termion::cursor::Goto(1, i as u16 + 1));
+                    write!(out, "{}", current_style);
 
                     for (c, s) in b {
                         if current_style != s {
