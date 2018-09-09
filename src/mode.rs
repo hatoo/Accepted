@@ -160,7 +160,7 @@ impl Mode for Insert {
             }
             Event::Key(Key::Char(c)) => {
                 // Auto pair
-                let pairs = [('(', ')'), ('{', '}'), ('[', ']')];
+                let pairs = [('(', ')'), ('{', '}'), ('[', ']'), ('"', '"')];
 
                 if pairs.iter().any(|p| p.1 == c) && core.char_at_cursor() == Some(c) {
                     core.cursor_right();
