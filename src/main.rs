@@ -24,7 +24,9 @@ use clap::{App, Arg};
 
 fn main() {
     let matches = App::new("Accepted")
+        .author(crate_authors!())
         .version(crate_version!())
+        .about("A text editor for competitive rust programmers")
         .bin_name("acc")
         .arg(Arg::with_name("file"))
         .get_matches();
