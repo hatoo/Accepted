@@ -3,6 +3,9 @@ use cursor;
 use std;
 use std::fmt;
 use std::io::Write;
+use syntect;
+use syntect::highlighting::Color;
+use syntect::highlighting::FontStyle;
 use syntect::highlighting::Style;
 use termion;
 use termion::color::{Bg, Fg, Rgb};
@@ -15,6 +18,16 @@ pub enum CharStyle {
     UI,
     Footer,
     Style(Style),
+}
+
+impl CharStyle {
+    pub fn bg(color: syntect::highlighting::Color) -> Self {
+        CharStyle::Style(Style {
+            foreground: Color::WHITE,
+            background: color,
+            font_style: FontStyle::default(),
+        })
+    }
 }
 
 impl fmt::Display for CharStyle {
@@ -123,6 +136,7 @@ pub struct View<'a> {
     orig: (usize, usize),
     height: usize,
     width: usize,
+    pub bg: Option<Color>,
     pub cursor: Cursor,
 }
 
@@ -206,6 +220,7 @@ impl Term {
             orig,
             height,
             width,
+            bg: None,
             cursor: Cursor {
                 row: orig.0,
                 col: orig.1,
@@ -320,6 +335,11 @@ impl<'a> View<'a> {
             None
         } else {
             let prev = self.cursor;
+            if let Some(bg) = self.bg {
+                if !self.cause_newline(' ') {
+                    self.put(' ', CharStyle::bg(bg));
+                }
+            }
             self.cursor.row += 1;
             self.cursor.col = self.orig.1;
             Some(prev)

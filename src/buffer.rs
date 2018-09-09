@@ -53,10 +53,10 @@ impl<'a> Buffer<'a> {
         })
     }
 
-    pub fn draw(&self, view: View) -> Option<Cursor> {
+    pub fn draw(&self, mut view: View) -> Option<Cursor> {
+        view.bg = self.syntax.theme.settings.background;
         let mut view = LinenumView::new(self.core.row_offset + 1, self.core.buffer.len() + 1, view);
         let mut cursor = None;
-        let bg = self.syntax.theme.settings.background;
 
         let mut hl = self.syntax.highlight_lines();
         for i in 0..self.core.row_offset {
@@ -108,17 +108,6 @@ impl<'a> Buffer<'a> {
 
             if self.core.cursor == t {
                 cursor = view.cursor();
-            }
-
-            if let Some(bg) = bg {
-                if self.core.buffer[i].is_empty() {
-                    let style = syntect::highlighting::Style {
-                        foreground: syntect::highlighting::Color::BLACK,
-                        background: bg,
-                        font_style: syntect::highlighting::FontStyle::default(),
-                    };
-                    view.put(' ', draw::CharStyle::Style(style));
-                }
             }
 
             if i != self.core.buffer.len() - 1 {
