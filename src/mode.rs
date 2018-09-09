@@ -19,6 +19,7 @@ pub trait Mode {
 pub struct Normal {
     message: String,
 }
+struct Prefix;
 struct Insert;
 struct R;
 struct Search;
@@ -41,22 +42,6 @@ impl Normal {
 impl Mode for Normal {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
-            Event::Key(Key::Char('Q')) => {
-                return Transition::Exit;
-            }
-            Event::Key(Key::Ctrl('s')) => {
-                if let Some(ref path) = buf.path {
-                    if buf.save().unwrap().is_ok() {
-                        self.message = format!("Saved to {}", path.to_string_lossy());
-                    } else {
-                        self.message = format!("Failed to save {}", path.to_string_lossy());
-                    }
-                } else {
-                    return Transition::Trans(Box::new(Save {
-                        path: String::new(),
-                    }));
-                }
-            }
             Event::Key(Key::Char('i')) => return Transition::Trans(Box::new(Insert)),
             Event::Key(Key::Char('I')) => {
                 let mut i = 0;
@@ -92,6 +77,7 @@ impl Mode for Normal {
             Event::Key(Key::Char('k')) => buf.core.cursor_up(),
             Event::Key(Key::Char('l')) => buf.core.cursor_right(),
             Event::Key(Key::Char('/')) => return Transition::Trans(Box::new(Search)),
+            Event::Key(Key::Char(' ')) => return Transition::Trans(Box::new(Prefix)),
             _ => {}
         }
         Transition::Nothing
@@ -260,5 +246,46 @@ impl Mode for Save {
         footer.newline();
         footer.puts("> ", draw::CharStyle::UI);
         footer.puts(&self.path, draw::CharStyle::UI);
+    }
+}
+
+impl Mode for Prefix {
+    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+        match event {
+            Event::Key(Key::Esc) => {
+                return Transition::Trans(Box::new(Normal::new()));
+            }
+            Event::Key(Key::Char('q')) => {
+                return Transition::Exit;
+            }
+            Event::Key(Key::Char('s')) => {
+                if let Some(ref path) = buf.path {
+                    let message = if buf.save().unwrap().is_ok() {
+                        format!("Saved to {}", path.to_string_lossy())
+                    } else {
+                        format!("Failed to save {}", path.to_string_lossy())
+                    };
+                    return Transition::Trans(Box::new(Normal::with_message(message)));
+                } else {
+                    return Transition::Trans(Box::new(Save {
+                        path: String::new(),
+                    }));
+                }
+            }
+            _ => {}
+        }
+        Transition::Nothing
+    }
+
+    fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
+        let height = term.height - 1;
+        let width = term.width;
+        let cursor = buf.draw(term.view((0, 0), height, width));
+        term.cursor = cursor
+            .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
+            .unwrap_or(draw::CursorState::Hide);
+
+        let mut footer = term.view((height, 0), 1, width);
+        footer.puts("Prefix ...", draw::CharStyle::Footer);
     }
 }
