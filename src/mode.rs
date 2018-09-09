@@ -98,24 +98,27 @@ impl Mode for Normal {
     }
 
     fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
-        if self.message.is_empty() {
-            let height = term.height;
-            let width = term.width;
-            let cursor = buf.draw(term.view((0, 0), height, width));
-            term.cursor = cursor
-                .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
-                .unwrap_or(draw::CursorState::Hide);
-        } else {
-            let height = term.height;
-            let width = term.width;
-            let cursor = buf.draw(term.view((0, 0), height - 1, width));
-            term.cursor = cursor
-                .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
-                .unwrap_or(draw::CursorState::Hide);
+        let height = term.height;
+        let width = term.width;
+        let cursor = buf.draw(term.view((0, 0), height - 1, width));
+        term.cursor = cursor
+            .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
+            .unwrap_or(draw::CursorState::Hide);
 
-            let mut footer = term.view((height - 1, 0), 1, width);
-            footer.puts(&self.message, draw::CharStyle::UI);
-        }
+        let mut footer = term.view((height - 1, 0), 1, width);
+        footer.puts(
+            &format!(
+                "[Normal] ({} {}) [{}] {}",
+                buf.core.cursor.row + 1,
+                buf.core.cursor.col + 1,
+                buf.path
+                    .as_ref()
+                    .map(|p| p.to_string_lossy())
+                    .unwrap_or("*".into()),
+                &self.message
+            ),
+            draw::CharStyle::Footer,
+        );
     }
 }
 
