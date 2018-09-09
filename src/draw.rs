@@ -74,7 +74,7 @@ impl fmt::Display for CharStyle {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Tile {
     Empty,
-    Char(char, CharStyle),
+    Char(char, CharStyle, Option<Cursor>),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -162,10 +162,10 @@ impl<'a> LinenumView<'a> {
         let s = format!("{}", self.current_linenum);
         let w = s.len();
         for c in s.chars() {
-            self.view.put(c, CharStyle::UI);
+            self.view.put(c, CharStyle::UI, None);
         }
         for _ in 0..self.width - w {
-            self.view.put(' ', CharStyle::UI);
+            self.view.put(' ', CharStyle::UI, None);
         }
     }
 
@@ -179,16 +179,16 @@ impl<'a> LinenumView<'a> {
 
     fn put_space(&mut self) {
         for _ in 0..self.width {
-            self.view.put(' ', CharStyle::UI);
+            self.view.put(' ', CharStyle::UI, None);
         }
     }
 
-    pub fn put(&mut self, c: char, style: CharStyle) -> Option<Cursor> {
+    pub fn put(&mut self, c: char, style: CharStyle, pos: Option<Cursor>) -> Option<Cursor> {
         if self.view.cause_newline(c) {
             self.view.newline();
             self.put_space();
         }
-        self.view.put(c, style)
+        self.view.put(c, style, pos)
     }
 
     pub fn newline(&mut self) {
@@ -199,7 +199,7 @@ impl<'a> LinenumView<'a> {
 }
 
 impl Term {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let (cols, rows) = termion::terminal_size().unwrap();
         let height = rows as usize;
         let width = cols as usize;
@@ -207,8 +207,17 @@ impl Term {
             height,
             width,
             cursor: CursorState::Hide,
-            buf: vec![vec![Tile::Char(' ', CharStyle::Default); width]; height],
+            buf: vec![vec![Tile::Char(' ', CharStyle::Default, None); width]; height],
         }
+    }
+
+    pub fn pos(&self, cursor: Cursor) -> Option<Cursor> {
+        for x in (0..=cursor.col).rev() {
+            if let Tile::Char(_, _, Some(c)) = self.buf[cursor.row][x] {
+                return Some(c);
+            }
+        }
+        None
     }
 
     pub fn view(&mut self, orig: (usize, usize), height: usize, width: usize) -> View {
@@ -235,7 +244,7 @@ impl Term {
                 let mut res: Vec<(char, CharStyle)> = Vec::new();
                 for ref t in line {
                     match t {
-                        &Tile::Char(c, s) => {
+                        Tile::Char(c, s, _) => {
                             res.push((*c, *s));
                         }
                         Tile::Empty => {}
@@ -339,7 +348,7 @@ impl<'a> View<'a> {
             let prev = self.cursor;
             if let Some(bg) = self.bg {
                 if !self.cause_newline(' ') {
-                    self.put(' ', CharStyle::bg(bg));
+                    self.put(' ', CharStyle::bg(bg), None);
                 }
             }
             self.cursor.row += 1;
@@ -357,7 +366,7 @@ impl<'a> View<'a> {
         self.cursor.col + w >= self.orig.1 + self.width
     }
 
-    pub fn put(&mut self, c: char, style: CharStyle) -> Option<Cursor> {
+    pub fn put(&mut self, c: char, style: CharStyle, pos: Option<Cursor>) -> Option<Cursor> {
         if self.is_out() {
             return None;
         }
@@ -371,7 +380,7 @@ impl<'a> View<'a> {
                     return None;
                 }
             }
-            self.parent.buf[self.cursor.row][self.cursor.col] = Tile::Char(c, style);
+            self.parent.buf[self.cursor.row][self.cursor.col] = Tile::Char(c, style, pos);
             self.cursor.col += 1;
             for _ in 1..w {
                 self.parent.buf[self.cursor.row][self.cursor.col] = Tile::Empty;
@@ -385,7 +394,7 @@ impl<'a> View<'a> {
 
     pub fn puts(&mut self, s: &str, style: CharStyle) {
         for c in s.chars() {
-            self.put(c, style);
+            self.put(c, style, None);
         }
     }
 }

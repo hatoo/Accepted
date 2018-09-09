@@ -1,9 +1,10 @@
 use buffer::Buffer;
+use core::Cursor;
 use draw;
 use std;
 use std::path::PathBuf;
 use termion;
-use termion::event::{Event, Key};
+use termion::event::{Event, Key, MouseButton, MouseEvent};
 
 pub enum Transition {
     Nothing,
@@ -78,6 +79,33 @@ impl Mode for Normal {
             Event::Key(Key::Char('l')) => buf.core.cursor_right(),
             Event::Key(Key::Char('/')) => return Transition::Trans(Box::new(Search)),
             Event::Key(Key::Char(' ')) => return Transition::Trans(Box::new(Prefix)),
+
+            Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
+                let col = x as usize - 1;
+                let row = y as usize - 1;
+                let cursor = Cursor { row, col };
+
+                let mut term = draw::Term::new();
+                let height = term.height;
+                let width = term.width;
+                buf.draw(term.view((0, 0), height, width));
+
+                if let Some(c) = term.pos(cursor) {
+                    buf.core.cursor = c;
+                }
+            }
+
+            Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
+                if buf.core.row_offset < 3 {
+                    buf.core.row_offset = 0;
+                } else {
+                    buf.core.row_offset -= 3;
+                }
+            }
+            Event::Mouse(MouseEvent::Press(MouseButton::WheelDown, _, _)) => {
+                buf.core.row_offset =
+                    std::cmp::min(buf.core.row_offset + 3, buf.core.buffer.len() - 1);
+            }
             _ => {}
         }
         Transition::Nothing
@@ -197,9 +225,9 @@ impl Mode for Search {
             .unwrap_or(draw::CursorState::Hide);
 
         let mut footer = term.view((height, 0), 1, width);
-        footer.put('/', draw::CharStyle::Default);
+        footer.put('/', draw::CharStyle::Default, None);
         for &c in &buf.search {
-            footer.put(c, draw::CharStyle::Default);
+            footer.put(c, draw::CharStyle::Default, None);
         }
     }
 }

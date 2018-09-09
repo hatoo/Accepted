@@ -93,9 +93,9 @@ impl<'a> Buffer<'a> {
                 let t = Cursor { row: i, col: j };
 
                 if self.core.cursor == t {
-                    cursor = view.put(c.0, c.1);
+                    cursor = view.put(c.0, c.1, Some(t));
                 } else {
-                    if view.put(c.0, c.1).is_none() {
+                    if view.put(c.0, c.1, Some(t)).is_none() {
                         break 'outer;
                     }
                 }
@@ -107,6 +107,14 @@ impl<'a> Buffer<'a> {
 
             if self.core.cursor == t {
                 cursor = view.cursor();
+            }
+
+            if self.core.buffer[i].is_empty() {
+                if let Some(col) = self.syntax.theme.settings.background {
+                    view.put(' ', CharStyle::bg(col), Some(t));
+                } else {
+                    view.put(' ', CharStyle::Default, Some(t));
+                }
             }
 
             if i != self.core.buffer.len() - 1 {
