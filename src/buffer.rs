@@ -3,6 +3,7 @@ use draw;
 use draw::{CharStyle, LinenumView, View};
 use std::fs;
 use std::io;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use syntax;
 use syntect;
@@ -39,6 +40,16 @@ impl<'a> Buffer<'a> {
 
             self.core = core;
             self.path = Some(path.as_ref().to_path_buf());
+        })
+    }
+
+    pub fn save(&self) -> Option<io::Result<()>> {
+        self.path.as_ref().map(|path| {
+            let mut f = fs::File::create(path)?;
+            for line in &self.core.buffer {
+                write!(f, "{}\n", line.iter().collect::<String>());
+            }
+            Ok(())
         })
     }
 

@@ -353,4 +353,10 @@ impl<'a> View<'a> {
             Some(prev)
         }
     }
+
+    pub fn puts(&mut self, s: &str, style: CharStyle) {
+        for c in s.chars() {
+            self.put(c, style);
+        }
+    }
 }

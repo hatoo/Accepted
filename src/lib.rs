@@ -23,7 +23,7 @@ impl<'a> BufferMode<'a> {
     pub fn new(buf: Buffer<'a>) -> Self {
         Self {
             buf,
-            mode: Box::new(Normal),
+            mode: Box::new(Normal::new()),
         }
     }
 
