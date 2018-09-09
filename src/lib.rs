@@ -1,3 +1,4 @@
+extern crate shellexpand;
 extern crate syntect;
 extern crate termion;
 extern crate unicode_width;

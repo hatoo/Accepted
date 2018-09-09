@@ -1,6 +1,7 @@
 use buffer::Buffer;
 use core::Cursor;
 use draw;
+use shellexpand;
 use std;
 use std::path::PathBuf;
 use termion;
@@ -260,11 +261,12 @@ impl Mode for Save {
             }
             Event::Key(Key::Char(c)) => {
                 if c == '\n' {
-                    buf.path = Some(PathBuf::from(self.path.clone()));
+                    let path: String = shellexpand::tilde(&self.path).into();
+                    buf.path = Some(PathBuf::from(path.clone()));
                     let message = if buf.save().unwrap().is_ok() {
-                        format!("Saved to {}", self.path)
+                        format!("Saved to {}", path)
                     } else {
-                        format!("Failed to save {}", self.path)
+                        format!("Failed to save {}", path)
                     };
                     return Transition::Trans(Box::new(Normal::with_message(message)));
                 }
