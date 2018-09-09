@@ -45,8 +45,10 @@ impl Core {
         }
     }
 
-    pub fn char_at_cursor(&self) -> char {
-        self.buffer[self.cursor.row][self.cursor.col]
+    pub fn char_at_cursor(&self) -> Option<char> {
+        self.buffer
+            .get(self.cursor.row)
+            .and_then(|line| line.get(self.cursor.col).cloned())
     }
 
     pub fn current_line(&self) -> &[char] {

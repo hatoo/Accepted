@@ -162,7 +162,7 @@ impl Mode for Insert {
                 // Auto pair
                 let pairs = [('(', ')'), ('{', '}'), ('[', ']')];
 
-                if pairs.iter().any(|p| p.1 == c) && core.char_at_cursor() == c {
+                if pairs.iter().any(|p| p.1 == c) && core.char_at_cursor() == Some(c) {
                     core.cursor_right();
                 } else {
                     core.insert(c);
