@@ -146,6 +146,10 @@ impl Mode for Insert {
             Event::Key(Key::Backspace) => {
                 core.backspase();
             }
+            Event::Key(Key::Delete) => {
+                core.cursor_succ();
+                core.backspase();
+            }
             Event::Key(Key::Char('\t')) => {
                 core.insert(' ');
                 while core.cursor.col % 4 != 0 {
@@ -153,7 +157,19 @@ impl Mode for Insert {
                 }
             }
             Event::Key(Key::Char(c)) => {
-                core.insert(c);
+                // Auto pair
+                let pairs = [('(', ')'), ('{', '}'), ('[', ']')];
+
+                if pairs.iter().any(|p| p.1 == c) && core.char_at_cursor() == c {
+                    core.cursor_right();
+                } else {
+                    core.insert(c);
+                    let pair = pairs.iter().find(|p| p.0 == c);
+                    if let Some((_, r)) = pair {
+                        core.insert(*r);
+                        core.cursor_left();
+                    }
+                }
             }
             _ => {}
         }

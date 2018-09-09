@@ -45,6 +45,10 @@ impl Core {
         }
     }
 
+    pub fn char_at_cursor(&self) -> char {
+        self.buffer[self.cursor.row][self.cursor.col]
+    }
+
     pub fn current_line(&self) -> &[char] {
         &self.buffer[self.cursor.row]
     }
@@ -89,6 +93,17 @@ impl Core {
         self.cursor.row = min(self.buffer.len() - 1, self.cursor.row + 1);
         self.cursor.col = min(self.buffer[self.cursor.row].len(), self.cursor.col);
         self.set_offset();
+    }
+
+    pub fn cursor_succ(&mut self) {
+        if self.cursor.col < self.buffer[self.cursor.row].len() {
+            self.cursor_right();
+        } else {
+            if self.cursor.row + 1 < self.buffer.len() {
+                self.cursor.row += 1;
+                self.cursor.col = 0;
+            }
+        }
     }
 
     pub fn insert(&mut self, c: char) {
