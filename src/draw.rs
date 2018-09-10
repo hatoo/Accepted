@@ -277,15 +277,15 @@ impl DoubleBuffer {
         if self.front.height != self.back.height || self.front.width != self.back.width {
             write!(
                 out,
-                "{}{}",
+                "{}{}{}",
+                CharStyle::Default,
                 termion::clear::All,
                 termion::cursor::Goto(1, 1)
             );
 
             let mut current_style = CharStyle::Default;
-            write!(out, "{}", current_style);
             for (i, line) in self.back.render().into_iter().enumerate() {
-                for (c, s) in line {
+                for &(c, s) in &line {
                     if current_style != s {
                         current_style = s;
                         write!(out, "{}", current_style);
@@ -293,7 +293,9 @@ impl DoubleBuffer {
                     write!(out, "{}", c);
                 }
 
-                write!(out, "{}", termion::clear::UntilNewline);
+                if !line.is_empty() {
+                    write!(out, "{}", termion::clear::UntilNewline);
+                }
                 if i < self.back.height - 1 {
                     write!(out, "\r\n");
                 }
