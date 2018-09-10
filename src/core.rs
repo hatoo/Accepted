@@ -1,4 +1,5 @@
 use std::cmp::{max, min};
+use std::num::Wrapping;
 use termion;
 use unicode_width::UnicodeWidthChar;
 
@@ -13,6 +14,7 @@ pub struct Core {
     pub buffer: Vec<Vec<char>>,
     pub cursor: Cursor,
     pub row_offset: usize,
+    pub buffer_changed: Wrapping<usize>,
 }
 
 fn get_rows(s: &[char], width: usize) -> usize {
@@ -42,6 +44,7 @@ impl Core {
             buffer: vec![Vec::new()],
             cursor: Cursor { row: 0, col: 0 },
             row_offset: 0,
+            buffer_changed: Wrapping(0),
         }
     }
 
@@ -141,12 +144,14 @@ impl Core {
             self.cursor.col += 1;
         }
         self.set_offset();
+        self.buffer_changed += Wrapping(1);
     }
 
     pub fn insert_newline(&mut self) {
         self.buffer.insert(self.cursor.row + 1, Vec::new());
         self.cursor.row += 1;
         self.cursor.col = 0;
+        self.buffer_changed += Wrapping(1);
     }
 
     pub fn replace(&mut self, c: char) {
@@ -155,6 +160,7 @@ impl Core {
         } else {
             self.buffer[self.cursor.row][self.cursor.col] = c;
         }
+        self.buffer_changed += Wrapping(1);
     }
 
     pub fn backspase(&mut self) {
@@ -168,5 +174,6 @@ impl Core {
             self.cursor.row -= 1;
         }
         self.set_offset();
+        self.buffer_changed += Wrapping(1);
     }
 }

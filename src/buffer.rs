@@ -1,19 +1,67 @@
 use core::Cursor;
 use draw;
 use draw::{CharStyle, LinenumView, View};
+use std::borrow::Cow;
+use std::cell::{Cell, RefCell};
 use std::fs;
 use std::io;
 use std::io::Write;
+use std::num::Wrapping;
 use std::path::{Path, PathBuf};
 use syntax;
-use syntect;
+use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter};
+use syntect::parsing::{ParseState, ScopeStack};
+
 use Core;
+
+struct DrawCache<'a> {
+    highlighter: Highlighter<'a>,
+    parse_state: ParseState,
+    highlight_state: HighlightState,
+    cache: Vec<Vec<(char, CharStyle)>>,
+}
+
+impl<'a> DrawCache<'a> {
+    fn new(syntax: &syntax::Syntax<'a>) -> Self {
+        let highlighter = Highlighter::new(syntax.theme);
+        let hstate = HighlightState::new(&highlighter, ScopeStack::new());
+        Self {
+            highlighter: highlighter,
+            parse_state: ParseState::new(syntax.syntax),
+            highlight_state: hstate,
+            cache: Vec::new(),
+        }
+    }
+
+    fn get_line(&mut self, buffer: &Vec<Vec<char>>, i: usize) -> &[(char, CharStyle)] {
+        for i in self.cache.len()..=i {
+            let line = &buffer[i].iter().collect::<String>();
+            let ops = self.parse_state.parse_line(&line);
+            let iter = HighlightIterator::new(
+                &mut self.highlight_state,
+                &ops[..],
+                &line,
+                &self.highlighter,
+            );
+            let mut line = Vec::new();
+            for (style, s) in iter {
+                for c in s.chars() {
+                    line.push((c, draw::CharStyle::Style(style)));
+                }
+            }
+            self.cache.push(line);
+        }
+        &self.cache[i]
+    }
+}
 
 pub struct Buffer<'a> {
     pub path: Option<PathBuf>,
     pub core: Core,
     pub search: Vec<char>,
     pub syntax: syntax::Syntax<'a>,
+    cache: RefCell<DrawCache<'a>>,
+    buffer_update: Cell<Wrapping<usize>>,
 }
 
 impl<'a> Buffer<'a> {
@@ -22,7 +70,9 @@ impl<'a> Buffer<'a> {
             path: None,
             core: Core::new(),
             search: Vec::new(),
+            cache: RefCell::new(DrawCache::new(&syntax)),
             syntax,
+            buffer_update: Cell::new(Wrapping(0)),
         }
     }
 
@@ -57,21 +107,15 @@ impl<'a> Buffer<'a> {
         let mut view = LinenumView::new(self.core.row_offset + 1, self.core.buffer.len() + 1, view);
         let mut cursor = None;
 
-        let mut hl = self.syntax.highlight_lines();
-        for i in 0..self.core.row_offset {
-            hl.highlight(self.core.buffer[i].iter().collect::<String>().as_str());
+        if self.core.buffer_changed != self.buffer_update.get() {
+            self.buffer_update.set(self.core.buffer_changed);
+            self.cache.replace(DrawCache::new(&self.syntax));
         }
 
         'outer: for i in self.core.row_offset..self.core.buffer.len() {
-            let mut line: Vec<(char, CharStyle)> = hl
-                .highlight(self.core.buffer[i].iter().collect::<String>().as_str())
-                .into_iter()
-                .flat_map(|(style, s)| {
-                    s.chars()
-                        .map(|c| (c, draw::CharStyle::Style(style.clone())))
-                        .collect::<Vec<_>>()
-                        .into_iter()
-                }).collect();
+            let mut cache = self.cache.borrow_mut();
+            let line_ref = cache.get_line(&self.core.buffer, i);
+            let mut line = Cow::Borrowed(line_ref);
 
             if !self.search.is_empty() && line.len() >= self.search.len() {
                 for j in 0..line.len() - self.search.len() + 1 {
@@ -82,7 +126,7 @@ impl<'a> Buffer<'a> {
                         .all(|(c1, (c2, _))| c1 == c2);
                     if m {
                         for k in j..j + self.search.len() {
-                            line[k].1 = draw::CharStyle::Highlight;
+                            line.to_mut()[k].1 = draw::CharStyle::Highlight;
                         }
                     }
                 }
