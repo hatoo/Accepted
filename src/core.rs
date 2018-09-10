@@ -112,6 +112,21 @@ impl Core {
         }
     }
 
+    pub fn cursor_dec(&mut self) -> bool {
+        if self.cursor.row == 0 && self.cursor.col == 0 {
+            return false;
+        }
+
+        if self.cursor.col == 0 {
+            self.cursor.row -= 1;
+            self.cursor.col = self.buffer[self.cursor.row].len();
+        } else {
+            self.cursor.col -= 1;
+        }
+
+        true
+    }
+
     pub fn insert(&mut self, c: char) {
         if c == '\n' {
             let rest: Vec<char> = self.buffer[self.cursor.row]

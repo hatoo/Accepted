@@ -100,6 +100,47 @@ impl Mode for Normal {
                         && buf.core.cursor_inc()
                 } {}
             }
+            Event::Key(Key::Char('b')) => {
+                let mut moved = false;
+                while {
+                    buf.core
+                        .char_at_cursor()
+                        .map(|c| c.is_alphabetic())
+                        .unwrap_or(true)
+                        && buf.core.cursor_dec()
+                } {
+                    moved = true;
+                }
+                if !moved {
+                    buf.core.cursor_dec();
+                }
+                while {
+                    buf.core
+                        .char_at_cursor()
+                        .map(|c| c.is_whitespace())
+                        .unwrap_or(true)
+                        && buf.core.cursor_dec()
+                } {}
+                let mut moved = false;
+                while {
+                    buf.core
+                        .char_at_cursor()
+                        .map(|c| c.is_alphabetic())
+                        .unwrap_or(true)
+                        && buf.core.cursor_dec()
+                } {
+                    moved = true;
+                }
+                if buf
+                    .core
+                    .char_at_cursor()
+                    .map(|c| !c.is_alphabetic())
+                    .unwrap_or(true)
+                    && moved
+                {
+                    buf.core.cursor_inc();
+                }
+            }
             Event::Key(Key::Char('/')) => return Transition::Trans(Box::new(Search)),
             Event::Key(Key::Char(' ')) => return Transition::Trans(Box::new(Prefix)),
 
