@@ -79,65 +79,32 @@ impl Mode for Normal {
             Event::Key(Key::Char('k')) => buf.core.cursor_up(),
             Event::Key(Key::Char('l')) => buf.core.cursor_right(),
             Event::Key(Key::Char('w')) => {
-                let mut moved = false;
                 while {
                     buf.core
                         .char_at_cursor()
                         .map(|c| c.is_alphabetic())
                         .unwrap_or(true)
                         && buf.core.cursor_inc()
-                } {
-                    moved = true;
-                }
-                if !moved {
-                    buf.core.cursor_inc();
-                }
+                } {}
                 while {
                     buf.core
                         .char_at_cursor()
-                        .map(|c| c.is_whitespace())
+                        .map(|c| !c.is_alphabetic())
                         .unwrap_or(true)
                         && buf.core.cursor_inc()
                 } {}
             }
             Event::Key(Key::Char('b')) => {
-                let mut moved = false;
+                buf.core.cursor_dec();
                 while {
-                    buf.core
-                        .char_at_cursor()
-                        .map(|c| c.is_alphabetic())
-                        .unwrap_or(true)
-                        && buf.core.cursor_dec()
-                } {
-                    moved = true;
-                }
-                if !moved {
-                    buf.core.cursor_dec();
-                }
-                while {
-                    buf.core
-                        .char_at_cursor()
-                        .map(|c| c.is_whitespace())
-                        .unwrap_or(true)
+                    buf.core.char_at_cursor().map(|c| c.is_alphabetic()) != Some(true)
                         && buf.core.cursor_dec()
                 } {}
-                let mut moved = false;
                 while {
-                    buf.core
-                        .char_at_cursor()
-                        .map(|c| c.is_alphabetic())
-                        .unwrap_or(true)
+                    buf.core.char_at_cursor().map(|c| c.is_alphabetic()) == Some(true)
                         && buf.core.cursor_dec()
-                } {
-                    moved = true;
-                }
-                if buf
-                    .core
-                    .char_at_cursor()
-                    .map(|c| !c.is_alphabetic())
-                    .unwrap_or(true)
-                    && moved
-                {
+                } {}
+                if buf.core.char_at_cursor().map(|c| c.is_alphabetic()) != Some(true) {
                     buf.core.cursor_inc();
                 }
             }
