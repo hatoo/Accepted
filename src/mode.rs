@@ -108,6 +108,20 @@ impl Mode for Normal {
                     buf.core.cursor_inc();
                 }
             }
+            Event::Key(Key::Char('e')) => {
+                buf.core.cursor_inc();
+                while {
+                    buf.core.char_at_cursor().map(|c| c.is_alphabetic()) != Some(true)
+                        && buf.core.cursor_inc()
+                } {}
+                while {
+                    buf.core.char_at_cursor().map(|c| c.is_alphabetic()) == Some(true)
+                        && buf.core.cursor_inc()
+                } {}
+                if buf.core.char_at_cursor().map(|c| c.is_alphabetic()) != Some(true) {
+                    buf.core.cursor_dec();
+                }
+            }
             Event::Key(Key::Char('/')) => return Transition::Trans(Box::new(Search)),
             Event::Key(Key::Char(' ')) => return Transition::Trans(Box::new(Prefix)),
 
