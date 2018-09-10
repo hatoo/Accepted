@@ -97,7 +97,7 @@ impl Core {
         self.set_offset();
     }
 
-    pub fn cursor_succ(&mut self) -> bool {
+    pub fn cursor_inc(&mut self) -> bool {
         if self.cursor.col < self.buffer[self.cursor.row].len() {
             self.cursor_right();
             true

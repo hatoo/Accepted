@@ -79,20 +79,20 @@ impl Mode for Normal {
             Event::Key(Key::Char('k')) => buf.core.cursor_up(),
             Event::Key(Key::Char('l')) => buf.core.cursor_right(),
             Event::Key(Key::Char('w')) => {
-                buf.core.cursor_succ();
+                buf.core.cursor_inc();
                 while {
                     buf.core
                         .char_at_cursor()
                         .map(|c| c.is_alphabetic())
                         .unwrap_or(true)
-                        && buf.core.cursor_succ()
+                        && buf.core.cursor_inc()
                 } {}
                 while {
                     buf.core
                         .char_at_cursor()
                         .map(|c| c.is_whitespace())
                         .unwrap_or(true)
-                        && buf.core.cursor_succ()
+                        && buf.core.cursor_inc()
                 } {}
             }
             Event::Key(Key::Char('/')) => return Transition::Trans(Box::new(Search)),
@@ -165,7 +165,7 @@ impl Mode for Insert {
                 core.backspase();
             }
             Event::Key(Key::Delete) => {
-                if core.cursor_succ() {
+                if core.cursor_inc() {
                     core.backspase();
                 }
             }
