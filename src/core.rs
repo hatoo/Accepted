@@ -31,6 +31,14 @@ impl Ord for Cursor {
 pub struct CursorRange(pub Cursor, pub Cursor);
 
 impl CursorRange {
+    pub fn l(&self) -> Cursor {
+        min(self.0, self.1)
+    }
+
+    pub fn r(&self) -> Cursor {
+        max(self.0, self.1)
+    }
+
     pub fn contains(&self, curosor: Cursor) -> bool {
         min(self.0, self.1) <= curosor && curosor <= max(self.0, self.1)
     }
@@ -201,6 +209,36 @@ impl Core {
             self.cursor.row -= 1;
         }
         self.set_offset();
+        self.buffer_changed += Wrapping(1);
+    }
+
+    pub fn delete_from_cursor(&mut self, to: Cursor) {
+        let range = CursorRange(self.cursor, to);
+        let l = range.l();
+        let r = range.r();
+        if l.row == r.row {
+            if r.col == self.buffer[l.row].len() {
+                self.buffer[l.row].drain(l.col..);
+                if l.row + 1 < self.buffer.len() {
+                    let mut line = self.buffer.remove(l.row + 1);
+                    self.buffer[l.row].append(&mut line);
+                }
+            } else {
+                self.buffer[l.row].drain(l.col..r.col + 1);
+            }
+        } else {
+            if l.col == 0 && r.col == self.buffer[r.row].len() {
+                self.buffer.drain(l.row..r.row + 1);
+            } else {
+                self.buffer.drain(l.row + 1..r.row);
+                self.buffer[l.row].drain(l.col..);
+                let rr = self.buffer.remove(l.row + 1);
+                if r.col < rr.len() {
+                    self.buffer[l.row].extend(rr[r.col + 1..].into_iter());
+                }
+            }
+        }
+        self.cursor = l;
         self.buffer_changed += Wrapping(1);
     }
 }

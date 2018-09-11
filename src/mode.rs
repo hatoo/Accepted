@@ -459,6 +459,10 @@ impl Mode for Visual {
                     buf.core.cursor_dec();
                 }
             }
+            Event::Key(Key::Char('d')) => {
+                buf.core.delete_from_cursor(self.0);
+                return Transition::Trans(Box::new(Normal::new()));
+            }
             _ => {}
         }
         Transition::Nothing
