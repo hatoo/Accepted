@@ -122,6 +122,11 @@ impl Mode for Normal {
                     buf.core.cursor_dec();
                 }
             }
+            Event::Key(Key::Char('x')) => {
+                if buf.core.cursor_inc() {
+                    buf.core.backspase();
+                }
+            }
             Event::Key(Key::Char('/')) => return Transition::Trans(Box::new(Search)),
             Event::Key(Key::Char(' ')) => return Transition::Trans(Box::new(Prefix)),
 
