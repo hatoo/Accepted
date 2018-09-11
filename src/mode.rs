@@ -82,14 +82,14 @@ impl Mode for Normal {
                 while {
                     buf.core
                         .char_at_cursor()
-                        .map(|c| c.is_alphabetic())
+                        .map(|c| c.is_alphanumeric())
                         .unwrap_or(true)
                         && buf.core.cursor_inc()
                 } {}
                 while {
                     buf.core
                         .char_at_cursor()
-                        .map(|c| !c.is_alphabetic())
+                        .map(|c| !c.is_alphanumeric())
                         .unwrap_or(true)
                         && buf.core.cursor_inc()
                 } {}
@@ -97,28 +97,28 @@ impl Mode for Normal {
             Event::Key(Key::Char('b')) => {
                 buf.core.cursor_dec();
                 while {
-                    buf.core.char_at_cursor().map(|c| c.is_alphabetic()) != Some(true)
+                    buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true)
                         && buf.core.cursor_dec()
                 } {}
                 while {
-                    buf.core.char_at_cursor().map(|c| c.is_alphabetic()) == Some(true)
+                    buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) == Some(true)
                         && buf.core.cursor_dec()
                 } {}
-                if buf.core.char_at_cursor().map(|c| c.is_alphabetic()) != Some(true) {
+                if buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) {
                     buf.core.cursor_inc();
                 }
             }
             Event::Key(Key::Char('e')) => {
                 buf.core.cursor_inc();
                 while {
-                    buf.core.char_at_cursor().map(|c| c.is_alphabetic()) != Some(true)
+                    buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true)
                         && buf.core.cursor_inc()
                 } {}
                 while {
-                    buf.core.char_at_cursor().map(|c| c.is_alphabetic()) == Some(true)
+                    buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) == Some(true)
                         && buf.core.cursor_inc()
                 } {}
-                if buf.core.char_at_cursor().map(|c| c.is_alphabetic()) != Some(true) {
+                if buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) {
                     buf.core.cursor_dec();
                 }
             }
