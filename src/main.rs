@@ -11,13 +11,12 @@ use termion::screen::AlternateScreen;
 use syntect::highlighting::ThemeSet;
 use syntect::parsing::SyntaxSet;
 
-use std::io::{stdin, stdout, Cursor, Write};
+use std::io::{stdin, stdout, Write};
 use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
 
 use acc::draw::DoubleBuffer;
-use acc::theme;
 use acc::{Buffer, BufferMode};
 
 use clap::{App, Arg};
