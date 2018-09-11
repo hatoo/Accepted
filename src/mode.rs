@@ -1,5 +1,6 @@
 use buffer::Buffer;
 use core::Cursor;
+use core::CursorRange;
 use draw;
 use shellexpand;
 use std;
@@ -28,6 +29,7 @@ struct Search;
 struct Save {
     path: String,
 }
+struct Visual(Cursor);
 
 impl Normal {
     pub fn new() -> Self {
@@ -128,6 +130,9 @@ impl Mode for Normal {
                 }
             }
             Event::Key(Key::Char('/')) => return Transition::Trans(Box::new(Search)),
+            Event::Key(Key::Char('v')) => {
+                return Transition::Trans(Box::new(Visual(buf.core.cursor)))
+            }
             Event::Key(Key::Char(' ')) => return Transition::Trans(Box::new(Prefix)),
 
             Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
@@ -397,5 +402,75 @@ impl Mode for Prefix {
             "Prefix ... [Esc: Return] [q: Quit] [s: Save] [a: save As ...]",
             draw::CharStyle::Footer,
         );
+    }
+}
+
+impl Mode for Visual {
+    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+        match event {
+            Event::Key(Key::Esc) => {
+                return Transition::Trans(Box::new(Normal::new()));
+            }
+            Event::Key(Key::Char('h')) => buf.core.cursor_left(),
+            Event::Key(Key::Char('j')) => buf.core.cursor_down(),
+            Event::Key(Key::Char('k')) => buf.core.cursor_up(),
+            Event::Key(Key::Char('l')) => buf.core.cursor_right(),
+            Event::Key(Key::Char('w')) => {
+                while {
+                    buf.core
+                        .char_at_cursor()
+                        .map(|c| c.is_alphanumeric())
+                        .unwrap_or(true)
+                        && buf.core.cursor_inc()
+                } {}
+                while {
+                    buf.core
+                        .char_at_cursor()
+                        .map(|c| !c.is_alphanumeric())
+                        .unwrap_or(true)
+                        && buf.core.cursor_inc()
+                } {}
+            }
+            Event::Key(Key::Char('b')) => {
+                buf.core.cursor_dec();
+                while {
+                    buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true)
+                        && buf.core.cursor_dec()
+                } {}
+                while {
+                    buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) == Some(true)
+                        && buf.core.cursor_dec()
+                } {}
+                if buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) {
+                    buf.core.cursor_inc();
+                }
+            }
+            Event::Key(Key::Char('e')) => {
+                buf.core.cursor_inc();
+                while {
+                    buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true)
+                        && buf.core.cursor_inc()
+                } {}
+                while {
+                    buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) == Some(true)
+                        && buf.core.cursor_inc()
+                } {}
+                if buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) {
+                    buf.core.cursor_dec();
+                }
+            }
+            _ => {}
+        }
+        Transition::Nothing
+    }
+
+    fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
+        let height = term.height;
+        let width = term.width;
+        let range = CursorRange(self.0, buf.core.cursor);
+        let cursor = buf.draw_with_selected(term.view((0, 0), height, width), Some(range));
+        term.cursor = cursor
+            .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
+            .unwrap_or(draw::CursorState::Hide);
     }
 }

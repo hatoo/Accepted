@@ -17,6 +17,7 @@ pub enum CharStyle {
     Highlight,
     UI,
     Footer,
+    Selected,
     Style(Style),
 }
 
@@ -56,6 +57,12 @@ impl fmt::Display for CharStyle {
                 "{}{}",
                 Bg(termion::color::Rgb(200, 200, 200)),
                 termion::color::Fg(termion::color::Rgb(64, 64, 64))
+            ),
+            CharStyle::Selected => write!(
+                f,
+                "{}{}",
+                Bg(termion::color::Rgb(0, 0, 0)),
+                termion::color::Fg(termion::color::Rgb(200, 200, 200))
             ),
             CharStyle::Style(style) => {
                 let fg = style.foreground;

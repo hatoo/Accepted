@@ -1,4 +1,5 @@
 use core::Cursor;
+use core::CursorRange;
 use draw;
 use draw::{CharStyle, LinenumView, View};
 use std::borrow::Cow;
@@ -102,7 +103,15 @@ impl<'a> Buffer<'a> {
         })
     }
 
-    pub fn draw(&self, mut view: View) -> Option<Cursor> {
+    pub fn draw(&self, view: View) -> Option<Cursor> {
+        self.draw_with_selected(view, None)
+    }
+
+    pub fn draw_with_selected(
+        &self,
+        mut view: View,
+        selected: Option<CursorRange>,
+    ) -> Option<Cursor> {
         view.bg = self.syntax.theme.settings.background;
         let mut view = LinenumView::new(self.core.row_offset + 1, self.core.buffer.len() + 1, view);
         let mut cursor = None;
@@ -132,14 +141,20 @@ impl<'a> Buffer<'a> {
                 }
             }
 
-            for j in 0..self.core.buffer[i].len() {
-                let c = line[j];
+            for j in 0..line.len() {
+                let (c, style) = line[j];
                 let t = Cursor { row: i, col: j };
 
-                if self.core.cursor == t {
-                    cursor = view.put(c.0, c.1, Some(t));
+                let style = if selected.as_ref().map(|r| r.contains(t)) == Some(true) {
+                    CharStyle::Selected
                 } else {
-                    if view.put(c.0, c.1, Some(t)).is_none() {
+                    style
+                };
+
+                if self.core.cursor == t {
+                    cursor = view.put(c, style, Some(t));
+                } else {
+                    if view.put(c, style, Some(t)).is_none() {
                         break 'outer;
                     }
                 }

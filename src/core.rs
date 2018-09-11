@@ -28,6 +28,14 @@ impl Ord for Cursor {
     }
 }
 
+pub struct CursorRange(pub Cursor, pub Cursor);
+
+impl CursorRange {
+    pub fn contains(&self, curosor: Cursor) -> bool {
+        min(self.0, self.1) <= curosor && curosor <= max(self.0, self.1)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Core {
     pub buffer: Vec<Vec<char>>,
