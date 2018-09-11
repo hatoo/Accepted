@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::cmp::{max, min};
 use std::num::Wrapping;
 use termion;
@@ -7,6 +8,24 @@ use unicode_width::UnicodeWidthChar;
 pub struct Cursor {
     pub row: usize,
     pub col: usize,
+}
+
+impl Cursor {
+    fn to_tuple(&self) -> (usize, usize) {
+        (self.row, self.col)
+    }
+}
+
+impl PartialOrd for Cursor {
+    fn partial_cmp(&self, other: &Cursor) -> Option<Ordering> {
+        Some(self.to_tuple().cmp(&other.to_tuple()))
+    }
+}
+
+impl Ord for Cursor {
+    fn cmp(&self, other: &Cursor) -> Ordering {
+        self.to_tuple().cmp(&other.to_tuple())
+    }
 }
 
 #[derive(Debug, Clone)]
