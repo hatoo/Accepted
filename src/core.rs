@@ -46,7 +46,7 @@ impl CursorRange {
 
 #[derive(Debug, Clone)]
 pub struct Core {
-    pub buffer: Vec<Vec<char>>,
+    buffer: Vec<Vec<char>>,
     pub cursor: Cursor,
     pub row_offset: usize,
     pub buffer_changed: Wrapping<usize>,
@@ -240,5 +240,20 @@ impl Core {
         }
         self.cursor = l;
         self.buffer_changed += Wrapping(1);
+    }
+
+    pub fn set_string(&mut self, s: &str) {
+        self.buffer = s
+            .lines()
+            .map(|l| l.trim_right().chars().collect())
+            .collect();
+
+        if self.buffer.is_empty() {
+            self.buffer = vec![Vec::new()];
+        }
+    }
+
+    pub fn buffer(&self) -> &Vec<Vec<char>> {
+        &self.buffer
     }
 }

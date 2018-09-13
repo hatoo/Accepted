@@ -80,14 +80,7 @@ impl<'a> Buffer<'a> {
     pub fn open<P: AsRef<Path>>(&mut self, path: P) {
         let s = fs::read_to_string(path.as_ref()).unwrap_or(String::new());
         let mut core = Core::new();
-        core.buffer = s
-            .lines()
-            .map(|l| l.trim_right().chars().collect())
-            .collect();
-
-        if core.buffer.is_empty() {
-            core.buffer = vec![Vec::new()];
-        }
+        core.set_string(&s);
 
         self.core = core;
         self.path = Some(path.as_ref().to_path_buf());
@@ -96,7 +89,7 @@ impl<'a> Buffer<'a> {
     pub fn save(&self) -> Option<io::Result<()>> {
         self.path.as_ref().map(|path| {
             let mut f = fs::File::create(path)?;
-            for line in &self.core.buffer {
+            for line in self.core.buffer() {
                 write!(f, "{}\n", line.iter().collect::<String>());
             }
             Ok(())
@@ -113,7 +106,8 @@ impl<'a> Buffer<'a> {
         selected: Option<CursorRange>,
     ) -> Option<Cursor> {
         view.bg = self.syntax.theme.settings.background;
-        let mut view = LinenumView::new(self.core.row_offset + 1, self.core.buffer.len() + 1, view);
+        let mut view =
+            LinenumView::new(self.core.row_offset + 1, self.core.buffer().len() + 1, view);
         let mut cursor = None;
 
         if self.core.buffer_changed != self.buffer_update.get() {
@@ -121,9 +115,9 @@ impl<'a> Buffer<'a> {
             self.cache.replace(DrawCache::new(&self.syntax));
         }
 
-        'outer: for i in self.core.row_offset..self.core.buffer.len() {
+        'outer: for i in self.core.row_offset..self.core.buffer().len() {
             let mut cache = self.cache.borrow_mut();
-            let line_ref = cache.get_line(&self.core.buffer, i);
+            let line_ref = cache.get_line(self.core.buffer(), i);
             let mut line = Cow::Borrowed(line_ref);
 
             if !self.search.is_empty() && line.len() >= self.search.len() {
@@ -161,14 +155,14 @@ impl<'a> Buffer<'a> {
             }
             let t = Cursor {
                 row: i,
-                col: self.core.buffer[i].len(),
+                col: self.core.buffer()[i].len(),
             };
 
             if self.core.cursor == t {
                 cursor = view.cursor();
             }
 
-            if self.core.buffer[i].is_empty() {
+            if self.core.buffer()[i].is_empty() {
                 if let Some(col) = self.syntax.theme.settings.background {
                     view.put(' ', CharStyle::bg(col), Some(t));
                 } else {
@@ -176,7 +170,7 @@ impl<'a> Buffer<'a> {
                 }
             }
 
-            if i != self.core.buffer.len() - 1 {
+            if i != self.core.buffer().len() - 1 {
                 view.newline();
             }
         }

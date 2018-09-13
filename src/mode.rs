@@ -159,7 +159,7 @@ impl Mode for Normal {
             }
             Event::Mouse(MouseEvent::Press(MouseButton::WheelDown, _, _)) => {
                 buf.core.row_offset =
-                    std::cmp::min(buf.core.row_offset + 3, buf.core.buffer.len() - 1);
+                    std::cmp::min(buf.core.row_offset + 3, buf.core.buffer().len() - 1);
             }
             _ => {}
         }
