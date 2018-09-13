@@ -55,7 +55,9 @@ impl Mode for Normal {
                         i += 1;
                     }
                 }
-                buf.core.cursor.col = i;
+                let mut c = buf.core.cursor();
+                c.col = i;
+                buf.core.set_cursor(c);
                 return Transition::Trans(Box::new(Insert));
             }
             Event::Key(Key::Char('a')) => {
@@ -63,7 +65,9 @@ impl Mode for Normal {
                 return Transition::Trans(Box::new(Insert));
             }
             Event::Key(Key::Char('A')) => {
-                buf.core.cursor.col = buf.core.current_line().len();
+                let mut c = buf.core.cursor();
+                c.col = buf.core.current_line().len();
+                buf.core.set_cursor(c);
                 return Transition::Trans(Box::new(Insert));
             }
             Event::Key(Key::Char('r')) => return Transition::Trans(Box::new(R)),
@@ -131,7 +135,7 @@ impl Mode for Normal {
             }
             Event::Key(Key::Char('/')) => return Transition::Trans(Box::new(Search)),
             Event::Key(Key::Char('v')) => {
-                return Transition::Trans(Box::new(Visual(buf.core.cursor)))
+                return Transition::Trans(Box::new(Visual(buf.core.cursor())))
             }
             Event::Key(Key::Char(' ')) => return Transition::Trans(Box::new(Prefix)),
 
@@ -146,7 +150,7 @@ impl Mode for Normal {
                 buf.draw(term.view((0, 0), height, width));
 
                 if let Some(c) = term.pos(cursor) {
-                    buf.core.cursor = c;
+                    buf.core.set_cursor(c);
                 }
             }
 
@@ -178,8 +182,8 @@ impl Mode for Normal {
         footer.puts(
             &format!(
                 "[Normal] ({} {}) [{}] {}",
-                buf.core.cursor.row + 1,
-                buf.core.cursor.col + 1,
+                buf.core.cursor().row + 1,
+                buf.core.cursor().col + 1,
                 buf.path
                     .as_ref()
                     .map(|p| p.to_string_lossy())
@@ -208,7 +212,7 @@ impl Mode for Insert {
             }
             Event::Key(Key::Char('\t')) => {
                 core.insert(' ');
-                while core.cursor.col % 4 != 0 {
+                while core.cursor().col % 4 != 0 {
                     core.insert(' ');
                 }
             }
@@ -471,7 +475,7 @@ impl Mode for Visual {
     fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
         let height = term.height;
         let width = term.width;
-        let range = CursorRange(self.0, buf.core.cursor);
+        let range = CursorRange(self.0, buf.core.cursor());
         let cursor = buf.draw_with_selected(term.view((0, 0), height, width), Some(range));
         term.cursor = cursor
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))

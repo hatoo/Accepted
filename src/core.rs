@@ -47,7 +47,7 @@ impl CursorRange {
 #[derive(Debug, Clone)]
 pub struct Core {
     buffer: Vec<Vec<char>>,
-    pub cursor: Cursor,
+    cursor: Cursor,
     pub row_offset: usize,
     pub buffer_changed: Wrapping<usize>,
 }
@@ -255,5 +255,15 @@ impl Core {
 
     pub fn buffer(&self) -> &Vec<Vec<char>> {
         &self.buffer
+    }
+
+    pub fn cursor(&self) -> Cursor {
+        self.cursor
+    }
+
+    pub fn set_cursor(&mut self, cursor: Cursor) {
+        assert!(cursor.row < self.buffer.len());
+        assert!(cursor.col <= self.buffer[cursor.row].len());
+        self.cursor = cursor;
     }
 }

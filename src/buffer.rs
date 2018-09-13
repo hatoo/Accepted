@@ -145,7 +145,7 @@ impl<'a> Buffer<'a> {
                     style
                 };
 
-                if self.core.cursor == t {
+                if self.core.cursor() == t {
                     cursor = view.put(c, style, Some(t));
                 } else {
                     if view.put(c, style, Some(t)).is_none() {
@@ -158,7 +158,7 @@ impl<'a> Buffer<'a> {
                 col: self.core.buffer()[i].len(),
             };
 
-            if self.core.cursor == t {
+            if self.core.cursor() == t {
                 cursor = view.cursor();
             }
 
