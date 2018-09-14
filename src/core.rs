@@ -198,17 +198,13 @@ impl Core {
         self.buffer_changed += Wrapping(1);
     }
 
-    pub fn backspase(&mut self) {
-        if self.cursor.col > 0 {
-            self.buffer[self.cursor.row].remove(self.cursor.col - 1);
-            self.cursor.col -= 1;
-        } else if self.cursor.row > 0 {
-            let mut line = self.buffer.remove(self.cursor.row);
-            self.cursor.col = self.buffer[self.cursor.row - 1].len();
-            self.buffer[self.cursor.row - 1].append(&mut line);
-            self.cursor.row -= 1;
+    pub fn delete(&mut self) {
+        if self.cursor.col < self.buffer[self.cursor.row].len() {
+            self.buffer[self.cursor.row].remove(self.cursor.col);
+        } else if self.cursor.row + 1 < self.buffer.len() {
+            let mut line = self.buffer.remove(self.cursor.row + 1);
+            self.buffer[self.cursor.row].append(&mut line);
         }
-        self.set_offset();
         self.buffer_changed += Wrapping(1);
     }
 

@@ -129,9 +129,7 @@ impl Mode for Normal {
                 }
             }
             Event::Key(Key::Char('x')) => {
-                if buf.core.cursor_inc() {
-                    buf.core.backspase();
-                }
+                buf.core.delete();
             }
             Event::Key(Key::Char('/')) => return Transition::Trans(Box::new(Search)),
             Event::Key(Key::Char('v')) => {
@@ -203,12 +201,11 @@ impl Mode for Insert {
                 return Transition::Trans(Box::new(Normal::new()));
             }
             Event::Key(Key::Backspace) => {
-                core.backspase();
+                core.cursor_dec();
+                core.delete();
             }
             Event::Key(Key::Delete) => {
-                if core.cursor_inc() {
-                    core.backspase();
-                }
+                core.delete();
             }
             Event::Key(Key::Char('\t')) => {
                 core.insert(' ');
