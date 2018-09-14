@@ -251,6 +251,9 @@ impl Core {
         if self.buffer.is_empty() {
             self.buffer = vec![Vec::new()];
         }
+        self.cursor.row = min(self.buffer.len() - 1, self.cursor.row);
+        self.cursor.col = min(self.buffer[self.cursor.row].len(), self.cursor.row);
+        self.buffer_changed += Wrapping(1);
     }
 
     pub fn buffer(&self) -> &Vec<Vec<char>> {
