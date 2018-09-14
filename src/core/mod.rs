@@ -48,6 +48,7 @@ impl CursorRange {
 pub struct Core {
     buffer: Vec<Vec<char>>,
     cursor: Cursor,
+    // TODO: Consider to move this to Buffer.
     pub row_offset: usize,
     pub buffer_changed: Wrapping<usize>,
 }
