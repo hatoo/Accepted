@@ -6,6 +6,7 @@ use indent;
 use rustfmt;
 use shellexpand;
 use std;
+use std::cmp::{max, min};
 use std::path::PathBuf;
 use termion;
 use termion::event::{Event, Key, MouseButton, MouseEvent};
@@ -31,7 +32,10 @@ struct Search;
 struct Save {
     path: String,
 }
-struct Visual(Cursor);
+struct Visual {
+    cursor: Cursor,
+    line_mode: bool,
+}
 
 impl Normal {
     pub fn new() -> Self {
@@ -146,7 +150,16 @@ impl Mode for Normal {
             }
             Event::Key(Key::Char('/')) => return Transition::Trans(Box::new(Search)),
             Event::Key(Key::Char('v')) => {
-                return Transition::Trans(Box::new(Visual(buf.core.cursor())))
+                return Transition::Trans(Box::new(Visual {
+                    cursor: buf.core.cursor(),
+                    line_mode: false,
+                }))
+            }
+            Event::Key(Key::Char('V')) => {
+                return Transition::Trans(Box::new(Visual {
+                    cursor: buf.core.cursor(),
+                    line_mode: true,
+                }))
             }
             Event::Key(Key::Char(' ')) => return Transition::Trans(Box::new(Prefix)),
 
@@ -450,6 +463,22 @@ impl Mode for Prefix {
     }
 }
 
+impl Visual {
+    fn get_range(&self, to: Cursor, buf: &Vec<Vec<char>>) -> CursorRange {
+        if self.line_mode {
+            let mut l = min(self.cursor, to);
+            let mut r = max(self.cursor, to);
+
+            l.col = 0;
+            r.col = buf[r.row].len();
+
+            CursorRange(l, r)
+        } else {
+            CursorRange(self.cursor, to)
+        }
+    }
+}
+
 impl Mode for Visual {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
@@ -505,7 +534,10 @@ impl Mode for Visual {
                 }
             }
             Event::Key(Key::Char('d')) => {
-                buf.core.delete_from_cursor(self.0);
+                let range = self.get_range(buf.core.cursor(), buf.core.buffer());
+                buf.core.set_cursor(range.l());
+                buf.core.delete_from_cursor(range.r());
+                buf.core.commit();
                 return Transition::Trans(Box::new(Normal::new()));
             }
             _ => {}
@@ -516,7 +548,7 @@ impl Mode for Visual {
     fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
         let height = term.height;
         let width = term.width;
-        let range = CursorRange(self.0, buf.core.cursor());
+        let range = self.get_range(buf.core.cursor(), buf.core.buffer());
         let cursor = buf.draw_with_selected(term.view((0, 0), height, width), Some(range));
         term.cursor = cursor
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))

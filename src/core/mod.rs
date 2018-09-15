@@ -215,7 +215,8 @@ impl Core {
         let mut cnt = 0;
         while t != r {
             if t.row < r.row {
-                cnt += self.buffer[l.row].len() - l.col;
+                cnt += self.buffer[t.row].len() - t.col + 1;
+                t.col = 0;
                 t.row += 1;
             } else {
                 cnt += r.col - t.col;
