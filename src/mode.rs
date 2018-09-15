@@ -154,6 +154,12 @@ impl Mode for Normal {
                     buf.core.cursor_dec();
                 }
             }
+            Event::Key(Key::Char('G')) => {
+                let row = buf.core.buffer().len() - 1;
+                let col = buf.core.buffer()[row].len();
+                buf.core.set_cursor(Cursor { row, col });
+                buf.core.set_offset();
+            }
             Event::Key(Key::Char('x')) => {
                 buf.core.delete();
                 buf.core.commit();
