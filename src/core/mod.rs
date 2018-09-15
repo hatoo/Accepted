@@ -233,6 +233,7 @@ impl Core {
             let op = operation::Delete::new(l);
             self.perform(op);
         }
+        self.set_offset();
     }
 
     pub fn get_string(&self) -> String {
@@ -313,6 +314,7 @@ impl Core {
             self.redo.push(ops);
             self.buffer_changed += Wrapping(1);
         }
+        self.set_offset();
     }
 
     pub fn redo(&mut self) {
@@ -323,5 +325,6 @@ impl Core {
             self.history.push(ops);
             self.buffer_changed += Wrapping(1);
         }
+        self.set_offset();
     }
 }
