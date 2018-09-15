@@ -234,11 +234,7 @@ impl Insert {
         let line = core.current_line();
         let mut i = core.cursor().col;
 
-        if i == line.len() && i > 0 {
-            i -= 1;
-        }
-
-        while i > 0 && (line[i].is_alphanumeric() || line[i] == '_') {
+        while i > 0 && (line[i - 1].is_alphanumeric() || line[i - 1] == '_') {
             i -= 1;
         }
 
@@ -366,7 +362,7 @@ impl Mode for Insert {
 
         let completion = Self::completion(buf);
 
-        let completion_height = 8;
+        let completion_height = min(8, completion.len());
         let completion_width = 16;
 
         if let Some(cursor) = cursor {
