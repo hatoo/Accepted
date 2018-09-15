@@ -1,6 +1,13 @@
 extern crate acc;
 #[macro_use]
 extern crate clap;
+extern crate config;
+extern crate dirs;
+extern crate serde;
+extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
+extern crate shellexpand;
 extern crate syntect;
 extern crate termion;
 
@@ -11,7 +18,10 @@ use termion::screen::AlternateScreen;
 use syntect::highlighting::ThemeSet;
 use syntect::parsing::SyntaxSet;
 
+use std::collections::HashMap;
+use std::fs;
 use std::io::{stdin, stdout, Write};
+use std::path::PathBuf;
 use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
@@ -20,6 +30,14 @@ use acc::draw::DoubleBuffer;
 use acc::{Buffer, BufferMode};
 
 use clap::{App, Arg};
+
+#[derive(Serialize, Deserialize, Debug)]
+struct SnippetSet(HashMap<String, Snippet>);
+#[derive(Serialize, Deserialize, Debug)]
+struct Snippet {
+    prefix: String,
+    body: Vec<String>,
+}
 
 fn main() {
     let matches = App::new("Accepted")
@@ -31,6 +49,41 @@ fn main() {
         .get_matches();
 
     let file = matches.value_of_os("file");
+    let config = dirs::config_dir()
+        .map(|mut p| {
+            p.push("acc");
+            p.push("init.toml");
+            p
+        }).map(|config_path| {
+            let mut settings = config::Config::default();
+            // Just ignore error.
+            let _ = settings.merge(config::File::from(config_path));
+            settings
+        }).unwrap_or(config::Config::default());
+
+    let mut snippet = HashMap::new();
+    if let Ok(arr) = config.get_array("snippet") {
+        for fname in arr {
+            if let Ok(s) = fname.into_str() {
+                if let Ok(snippet_json) =
+                    fs::read_to_string(PathBuf::from(shellexpand::tilde(&s).as_ref()))
+                {
+                    if let Ok(snippet_set) = serde_json::from_str::<SnippetSet>(&snippet_json) {
+                        for (_, s) in snippet_set.0 {
+                            let mut body = String::new();
+                            for line in &s.body {
+                                for c in line.chars() {
+                                    body.push(c);
+                                }
+                                body.push('\n');
+                            }
+                            snippet.insert(s.prefix, body);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     let stdin = stdin();
     let mut stdout = MouseTerminal::from(AlternateScreen::from(stdout()).into_raw_mode().unwrap());
@@ -59,6 +112,8 @@ fn main() {
     if let Some(path) = file {
         buf.open(path);
     }
+
+    buf.snippet = snippet;
 
     let mut state = BufferMode::new(buf);
 

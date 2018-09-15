@@ -4,6 +4,7 @@ use draw;
 use draw::{CharStyle, LinenumView, View};
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::io::Write;
@@ -61,6 +62,7 @@ pub struct Buffer<'a> {
     pub core: Core,
     pub search: Vec<char>,
     pub syntax: syntax::Syntax<'a>,
+    pub snippet: HashMap<String, String>,
     cache: RefCell<DrawCache<'a>>,
     buffer_update: Cell<Wrapping<usize>>,
 }
@@ -72,6 +74,7 @@ impl<'a> Buffer<'a> {
             core: Core::new(),
             search: Vec::new(),
             cache: RefCell::new(DrawCache::new(&syntax)),
+            snippet: HashMap::new(),
             syntax,
             buffer_update: Cell::new(Wrapping(0)),
         }
