@@ -1,4 +1,5 @@
 use buffer::Buffer;
+use core::Core;
 use core::Cursor;
 use core::CursorRange;
 use draw;
@@ -26,7 +27,16 @@ pub struct Normal {
     message: String,
 }
 struct Prefix;
-struct Insert;
+struct Insert {
+    completion_index: usize,
+}
+impl Default for Insert {
+    fn default() -> Self {
+        Insert {
+            completion_index: 0,
+        }
+    }
+}
 struct R;
 struct Search;
 struct Save {
@@ -54,7 +64,7 @@ impl Mode for Normal {
         match event {
             Event::Key(Key::Char('u')) => buf.core.undo(),
             Event::Key(Key::Char('U')) => buf.core.redo(),
-            Event::Key(Key::Char('i')) => return Transition::Trans(Box::new(Insert)),
+            Event::Key(Key::Char('i')) => return Transition::Trans(Box::new(Insert::default())),
             Event::Key(Key::Char('I')) => {
                 let mut i = 0;
                 {
@@ -66,17 +76,17 @@ impl Mode for Normal {
                 let mut c = buf.core.cursor();
                 c.col = i;
                 buf.core.set_cursor(c);
-                return Transition::Trans(Box::new(Insert));
+                return Transition::Trans(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('a')) => {
                 buf.core.cursor_right();
-                return Transition::Trans(Box::new(Insert));
+                return Transition::Trans(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('A')) => {
                 let mut c = buf.core.cursor();
                 c.col = buf.core.current_line().len();
                 buf.core.set_cursor(c);
-                return Transition::Trans(Box::new(Insert));
+                return Transition::Trans(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('r')) => return Transition::Trans(Box::new(R)),
             Event::Key(Key::Char('o')) => {
@@ -85,7 +95,7 @@ impl Mode for Normal {
                 for _ in 0..4 * indent {
                     buf.core.insert(' ');
                 }
-                return Transition::Trans(Box::new(Insert));
+                return Transition::Trans(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('O')) => {
                 buf.core.cursor_up();
@@ -94,7 +104,7 @@ impl Mode for Normal {
                 for _ in 0..4 * indent {
                     buf.core.insert(' ');
                 }
-                return Transition::Trans(Box::new(Insert));
+                return Transition::Trans(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('h')) => buf.core.cursor_left(),
             Event::Key(Key::Char('j')) => buf.core.cursor_down(),
@@ -219,59 +229,125 @@ impl Mode for Normal {
     }
 }
 
+impl Insert {
+    fn token(core: &Core) -> String {
+        let line = core.current_line();
+        let mut i = core.cursor().col;
+
+        if i == line.len() && i > 0 {
+            i -= 1;
+        }
+
+        while i > 0 && (line[i].is_alphanumeric() || line[i] == '_') {
+            i -= 1;
+        }
+
+        line[i..core.cursor().col].iter().collect::<String>()
+    }
+
+    fn completion(buf: &Buffer) -> Vec<String> {
+        let prefix = Self::token(&buf.core);
+        if prefix.is_empty() {
+            return Vec::new();
+        }
+        buf.snippet
+            .keys()
+            .filter(|k| k.starts_with(&prefix))
+            .cloned()
+            .collect()
+    }
+
+    fn remove_token(core: &mut Core) {
+        core.cursor_left();
+        while core
+            .char_at_cursor()
+            .map(|c| c.is_alphanumeric() || c == '_')
+            == Some(true)
+        {
+            core.delete();
+            core.cursor_left();
+        }
+    }
+
+    fn in_completion(buf: &Buffer) -> bool {
+        let prefix = Self::token(&buf.core);
+        if prefix.is_empty() {
+            false
+        } else {
+            buf.snippet.keys().any(|k| k.starts_with(&prefix))
+        }
+    }
+}
+
 impl Mode for Insert {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
-        let core = &mut buf.core;
         match event {
             Event::Key(Key::Esc) => {
-                core.commit();
+                buf.core.commit();
                 return Transition::Trans(Box::new(Normal::new()));
             }
             Event::Key(Key::Backspace) => {
-                core.cursor_dec();
-                core.delete();
+                buf.core.cursor_dec();
+                buf.core.delete();
             }
             Event::Key(Key::Delete) => {
-                core.delete();
+                buf.core.delete();
             }
             Event::Key(Key::Char('\t')) => {
-                core.insert(' ');
-                while core.cursor().col % 4 != 0 {
-                    core.insert(' ');
+                let comp_len = Self::completion(buf).len();
+                if comp_len > 0 {
+                    self.completion_index = (self.completion_index + 1) % comp_len;
+                } else {
+                    buf.core.insert(' ');
+                    while buf.core.cursor().col % 4 != 0 {
+                        buf.core.insert(' ');
+                    }
                 }
             }
             Event::Key(Key::Char(c)) => {
                 // Auto pair
                 let pairs = [('(', ')'), ('{', '}'), ('[', ']'), ('"', '"')];
 
-                if pairs.iter().any(|p| p.1 == c) && core.char_at_cursor() == Some(c) {
-                    core.cursor_right();
+                if pairs.iter().any(|p| p.1 == c) && buf.core.char_at_cursor() == Some(c) {
+                    buf.core.cursor_right();
                 } else {
-                    core.insert(c);
-                    let pair = pairs.iter().find(|p| p.0 == c);
-                    if let Some((_, r)) = pair {
-                        core.insert(*r);
-                        core.cursor_left();
-                    }
+                    if c == '\n' && Self::in_completion(buf) {
+                        let comp = Self::completion(buf);
+                        let key = &comp[self.completion_index];
+                        let body = &buf.snippet[key];
+                        Self::remove_token(&mut buf.core);
+                        for c in body.chars() {
+                            buf.core.insert(c);
+                        }
+                        buf.core.set_offset();
+                    } else {
+                        buf.core.insert(c);
+                        let pair = pairs.iter().find(|p| p.0 == c);
+                        if let Some((_, r)) = pair {
+                            buf.core.insert(*r);
+                            buf.core.cursor_left();
+                        }
 
-                    if c == '\n' {
-                        let indent =
-                            indent::next_indent_level(&core.buffer()[core.cursor().row - 1]);
-                        for _ in 0..4 * indent {
-                            core.insert(' ');
-                        }
-                        let pos = core.cursor();
-                        if ['}', ']']
-                            .into_iter()
-                            .any(|&c| core.char_at_cursor() == Some(c))
-                        {
-                            core.insert('\n');
-                            let i = if indent == 0 { 0 } else { indent - 1 };
-                            for _ in 0..4 * i {
-                                core.insert(' ');
+                        if c == '\n' {
+                            let indent = indent::next_indent_level(
+                                &buf.core.buffer()[buf.core.cursor().row - 1],
+                            );
+                            for _ in 0..4 * indent {
+                                buf.core.insert(' ');
                             }
+                            let pos = buf.core.cursor();
+                            if ['}', ']']
+                                .into_iter()
+                                .any(|&c| buf.core.char_at_cursor() == Some(c))
+                            {
+                                buf.core.insert('\n');
+                                let i = if indent == 0 { 0 } else { indent - 1 };
+                                for _ in 0..4 * i {
+                                    buf.core.insert(' ');
+                                }
+                            }
+                            buf.core.set_cursor(pos);
                         }
-                        core.set_cursor(pos);
                     }
                 }
             }
@@ -287,6 +363,27 @@ impl Mode for Insert {
         term.cursor = cursor
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Bar))
             .unwrap_or(draw::CursorState::Hide);
+
+        let completion = Self::completion(buf);
+
+        let completion_height = 8;
+        let completion_width = 16;
+
+        if let Some(cursor) = cursor {
+            if cursor.col + completion_width < width && cursor.row + completion_height < height {
+                let mut view = term.view(cursor.to_tuple(), completion_height, completion_width);
+                for (i, s) in completion.iter().take(completion_height).enumerate() {
+                    for c in s.chars().take(completion_width - 1) {
+                        if i == self.completion_index {
+                            view.put(c, draw::CharStyle::Highlight, None);
+                        } else {
+                            view.put(c, draw::CharStyle::UI, None);
+                        }
+                    }
+                    view.newline();
+                }
+            }
+        }
     }
 }
 

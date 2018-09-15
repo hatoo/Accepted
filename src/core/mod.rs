@@ -16,7 +16,7 @@ pub struct Cursor {
 }
 
 impl Cursor {
-    fn to_tuple(&self) -> (usize, usize) {
+    pub fn to_tuple(&self) -> (usize, usize) {
         (self.row, self.col)
     }
 }
@@ -101,11 +101,17 @@ impl Core {
             .and_then(|line| line.get(self.cursor.col).cloned())
     }
 
+    pub fn char_ar(&self, cursor: Cursor) -> Option<char> {
+        self.buffer
+            .get(cursor.row)
+            .and_then(|line| line.get(cursor.col).cloned())
+    }
+
     pub fn current_line(&self) -> &[char] {
         &self.buffer[self.cursor.row]
     }
 
-    fn set_offset(&mut self) {
+    pub fn set_offset(&mut self) {
         if self.row_offset >= self.cursor.row {
             self.row_offset = self.cursor.row;
         } else {

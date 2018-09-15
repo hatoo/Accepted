@@ -18,7 +18,7 @@ use termion::screen::AlternateScreen;
 use syntect::highlighting::ThemeSet;
 use syntect::parsing::SyntaxSet;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io::{stdin, stdout, Write};
 use std::path::PathBuf;
@@ -61,7 +61,7 @@ fn main() {
             settings
         }).unwrap_or(config::Config::default());
 
-    let mut snippet = HashMap::new();
+    let mut snippet = BTreeMap::new();
     if let Ok(arr) = config.get_array("snippet") {
         for fname in arr {
             if let Ok(s) = fname.into_str() {
