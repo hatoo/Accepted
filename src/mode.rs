@@ -2,6 +2,7 @@ use buffer::Buffer;
 use core::Cursor;
 use core::CursorRange;
 use draw;
+use indent;
 use rustfmt;
 use shellexpand;
 use std;
@@ -75,12 +76,20 @@ impl Mode for Normal {
             }
             Event::Key(Key::Char('r')) => return Transition::Trans(Box::new(R)),
             Event::Key(Key::Char('o')) => {
+                let indent = indent::next_indent_level(buf.core.current_line());
                 buf.core.insert_newline();
+                for _ in 0..4 * indent {
+                    buf.core.insert(' ');
+                }
                 return Transition::Trans(Box::new(Insert));
             }
             Event::Key(Key::Char('O')) => {
                 buf.core.cursor_up();
+                let indent = indent::next_indent_level(buf.core.current_line());
                 buf.core.insert_newline();
+                for _ in 0..4 * indent {
+                    buf.core.insert(' ');
+                }
                 return Transition::Trans(Box::new(Insert));
             }
             Event::Key(Key::Char('h')) => buf.core.cursor_left(),
@@ -230,6 +239,26 @@ impl Mode for Insert {
                     if let Some((_, r)) = pair {
                         core.insert(*r);
                         core.cursor_left();
+                    }
+
+                    if c == '\n' {
+                        let indent =
+                            indent::next_indent_level(&core.buffer()[core.cursor().row - 1]);
+                        for _ in 0..4 * indent {
+                            core.insert(' ');
+                        }
+                        let pos = core.cursor();
+                        if ['}', ']']
+                            .into_iter()
+                            .any(|&c| core.char_at_cursor() == Some(c))
+                        {
+                            core.insert('\n');
+                            let i = if indent == 0 { 0 } else { indent - 1 };
+                            for _ in 0..4 * i {
+                                core.insert(' ');
+                            }
+                        }
+                        core.set_cursor(pos);
                     }
                 }
             }

@@ -7,6 +7,7 @@ mod buffer;
 mod core;
 mod cursor;
 pub mod draw;
+mod indent;
 mod mode;
 mod rustfmt;
 pub mod syntax;
