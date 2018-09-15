@@ -2,6 +2,7 @@ use buffer::Buffer;
 use core::Cursor;
 use core::CursorRange;
 use draw;
+use rustfmt;
 use shellexpand;
 use std;
 use std::path::PathBuf;
@@ -359,6 +360,16 @@ impl Mode for Prefix {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
+                return Transition::Trans(Box::new(Normal::new()));
+            }
+            Event::Key(Key::Char(' ')) => {
+                let src = buf.core.get_string();
+                if let Some(formatted) = rustfmt::system_rustfmt(&src) {
+                    if formatted != src {
+                        buf.core.set_string(&formatted, false);
+                    }
+                }
+
                 return Transition::Trans(Box::new(Normal::new()));
             }
             Event::Key(Key::Char('q')) => {

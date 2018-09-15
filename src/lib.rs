@@ -8,6 +8,7 @@ mod core;
 mod cursor;
 pub mod draw;
 mod mode;
+mod rustfmt;
 pub mod syntax;
 pub mod theme;
 

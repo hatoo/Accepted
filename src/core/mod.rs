@@ -228,6 +228,19 @@ impl Core {
         }
     }
 
+    pub fn get_string(&self) -> String {
+        let mut buf = String::new();
+        for line in &self.buffer {
+            for &c in line {
+                buf.push(c);
+            }
+            // Supports LF only...
+            buf.push('\n');
+        }
+
+        buf
+    }
+
     pub fn set_string(&mut self, s: &str, clear_history: bool) {
         let mut buffer: Vec<Vec<char>> = s
             .lines()
