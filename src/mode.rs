@@ -369,10 +369,10 @@ impl Mode for Insert {
         let completion = Self::completion(buf);
 
         let completion_height = min(8, completion.len());
-        let completion_width = 16;
+        let completion_width = width - cursor.map(|c| c.col).unwrap_or(0);
 
         if let Some(cursor) = cursor {
-            if cursor.col + completion_width < width && cursor.row + completion_height < height {
+            if cursor.col + completion_width <= width && cursor.row + completion_height <= height {
                 let mut view = term.view(cursor.to_tuple(), completion_height, completion_width);
                 for (i, s) in completion.iter().take(completion_height).enumerate() {
                     for c in s.chars().take(completion_width - 1) {
