@@ -556,7 +556,7 @@ impl Mode for Prefix {
 
         let mut footer = term.view((height, 0), 1, width);
         footer.puts(
-            "Prefix ... [Esc: Return] [q: Quit] [s: Save] [a: save As ...]",
+            "Prefix ... [Esc: Return] [q: Quit] [s: Save] [a: save As ...] [<Space> Rustfmt]",
             draw::CharStyle::Footer,
         );
     }
