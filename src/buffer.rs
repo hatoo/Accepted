@@ -80,7 +80,7 @@ impl<'a> Buffer<'a> {
     pub fn open<P: AsRef<Path>>(&mut self, path: P) {
         let s = fs::read_to_string(path.as_ref()).unwrap_or(String::new());
         let mut core = Core::new();
-        core.set_string(&s);
+        core.set_string(&s, true);
 
         self.core = core;
         self.path = Some(path.as_ref().to_path_buf());

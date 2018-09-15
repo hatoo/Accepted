@@ -46,6 +46,8 @@ impl Normal {
 impl Mode for Normal {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
+            Event::Key(Key::Char('u')) => buf.core.undo(),
+            Event::Key(Key::Char('U')) => buf.core.redo(),
             Event::Key(Key::Char('i')) => return Transition::Trans(Box::new(Insert)),
             Event::Key(Key::Char('I')) => {
                 let mut i = 0;
@@ -130,6 +132,7 @@ impl Mode for Normal {
             }
             Event::Key(Key::Char('x')) => {
                 buf.core.delete();
+                buf.core.commit();
             }
             Event::Key(Key::Char('/')) => return Transition::Trans(Box::new(Search)),
             Event::Key(Key::Char('v')) => {
@@ -198,6 +201,7 @@ impl Mode for Insert {
         let core = &mut buf.core;
         match event {
             Event::Key(Key::Esc) => {
+                core.commit();
                 return Transition::Trans(Box::new(Normal::new()));
             }
             Event::Key(Key::Backspace) => {

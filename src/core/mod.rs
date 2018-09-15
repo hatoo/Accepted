@@ -1,8 +1,13 @@
+use std;
 use std::cmp::Ordering;
 use std::cmp::{max, min};
 use std::num::Wrapping;
 use termion;
 use unicode_width::UnicodeWidthChar;
+
+pub mod operation;
+
+use self::operation::{Operation, OperationArg};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cursor {
@@ -44,10 +49,13 @@ impl CursorRange {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Core {
     buffer: Vec<Vec<char>>,
     cursor: Cursor,
+    history: Vec<Vec<Box<Operation>>>,
+    history_tmp: Vec<Box<Operation>>,
+    redo: Vec<Vec<Box<Operation>>>,
     // TODO: Consider to move this to Buffer.
     pub row_offset: usize,
     pub buffer_changed: Wrapping<usize>,
@@ -80,6 +88,9 @@ impl Core {
             buffer: vec![Vec::new()],
             cursor: Cursor { row: 0, col: 0 },
             row_offset: 0,
+            history: Vec::new(),
+            history_tmp: Vec::new(),
+            redo: Vec::new(),
             buffer_changed: Wrapping(0),
         }
     }
@@ -167,90 +178,74 @@ impl Core {
     }
 
     pub fn insert(&mut self, c: char) {
-        if c == '\n' {
-            let rest: Vec<char> = self.buffer[self.cursor.row]
-                .drain(self.cursor.col..)
-                .collect();
-
-            self.buffer.insert(self.cursor.row + 1, rest);
-            self.cursor.row += 1;
-            self.cursor.col = 0;
-        } else {
-            self.buffer[self.cursor.row].insert(self.cursor.col, c);
-            self.cursor.col += 1;
-        }
-        self.set_offset();
-        self.buffer_changed += Wrapping(1);
+        let op = operation::Insert {
+            cursor: self.cursor,
+            c,
+        };
+        self.perform(op);
     }
 
+    // o
     pub fn insert_newline(&mut self) {
-        self.buffer.insert(self.cursor.row + 1, Vec::new());
-        self.cursor.row += 1;
-        self.cursor.col = 0;
-        self.buffer_changed += Wrapping(1);
+        let op = operation::Insert {
+            cursor: Cursor {
+                row: self.cursor.row,
+                col: self.buffer[self.cursor.row].len(),
+            },
+            c: '\n',
+        };
+        self.perform(op);
     }
 
     pub fn replace(&mut self, c: char) {
-        if self.cursor.col == self.buffer[self.cursor.row].len() {
-            self.buffer[self.cursor.row].push(c);
-        } else {
-            self.buffer[self.cursor.row][self.cursor.col] = c;
-        }
-        self.buffer_changed += Wrapping(1);
+        let op = operation::Replace::new(self.cursor, c);
+        self.perform(op);
     }
 
     pub fn delete(&mut self) {
-        if self.cursor.col < self.buffer[self.cursor.row].len() {
-            self.buffer[self.cursor.row].remove(self.cursor.col);
-        } else if self.cursor.row + 1 < self.buffer.len() {
-            let mut line = self.buffer.remove(self.cursor.row + 1);
-            self.buffer[self.cursor.row].append(&mut line);
-        }
-        self.buffer_changed += Wrapping(1);
+        let op = operation::Delete::new(self.cursor);
+        self.perform(op);
     }
 
     pub fn delete_from_cursor(&mut self, to: Cursor) {
         let range = CursorRange(self.cursor, to);
         let l = range.l();
         let r = range.r();
-        if l.row == r.row {
-            if r.col == self.buffer[l.row].len() {
-                self.buffer[l.row].drain(l.col..);
-                if l.row + 1 < self.buffer.len() {
-                    let mut line = self.buffer.remove(l.row + 1);
-                    self.buffer[l.row].append(&mut line);
-                }
+        let mut t = l;
+        let mut cnt = 0;
+        while t != r {
+            if t.row < r.row {
+                cnt += self.buffer[l.row].len() - l.col;
+                t.row += 1;
             } else {
-                self.buffer[l.row].drain(l.col..r.col + 1);
-            }
-        } else {
-            if l.col == 0 && r.col == self.buffer[r.row].len() {
-                self.buffer.drain(l.row..r.row + 1);
-            } else {
-                self.buffer.drain(l.row + 1..r.row);
-                self.buffer[l.row].drain(l.col..);
-                let rr = self.buffer.remove(l.row + 1);
-                if r.col < rr.len() {
-                    self.buffer[l.row].extend(rr[r.col + 1..].into_iter());
-                }
+                cnt += r.col - t.col;
+                t.col = r.col;
             }
         }
-        self.cursor = l;
-        self.buffer_changed += Wrapping(1);
+        for _ in 0..cnt + 1 {
+            let op = operation::Delete::new(l);
+            self.perform(op);
+        }
     }
 
-    pub fn set_string(&mut self, s: &str) {
-        self.buffer = s
+    pub fn set_string(&mut self, s: &str, clear_history: bool) {
+        let mut buffer: Vec<Vec<char>> = s
             .lines()
             .map(|l| l.trim_right().chars().collect())
             .collect();
 
-        if self.buffer.is_empty() {
-            self.buffer = vec![Vec::new()];
+        if buffer.is_empty() {
+            buffer = vec![Vec::new()];
         }
-        self.cursor.row = min(self.buffer.len() - 1, self.cursor.row);
-        self.cursor.col = min(self.buffer[self.cursor.row].len(), self.cursor.row);
-        self.buffer_changed += Wrapping(1);
+
+        let op = operation::Set::new(buffer);
+        self.perform(op);
+
+        if clear_history {
+            self.redo.clear();
+            self.history.clear();
+            self.history_tmp.clear();
+        }
     }
 
     pub fn buffer(&self) -> &Vec<Vec<char>> {
@@ -265,5 +260,48 @@ impl Core {
         assert!(cursor.row < self.buffer.len());
         assert!(cursor.col <= self.buffer[cursor.row].len());
         self.cursor = cursor;
+    }
+
+    fn arg(&mut self) -> OperationArg {
+        OperationArg {
+            buffer: &mut self.buffer,
+            cursor: &mut self.cursor,
+        }
+    }
+
+    fn perform<T: Operation + 'static>(&mut self, mut op: T) {
+        op.perform(self.arg());
+        self.history_tmp.push(Box::new(op));
+        self.redo.clear();
+        self.buffer_changed += Wrapping(1);
+    }
+
+    pub fn commit(&mut self) {
+        if !self.history_tmp.is_empty() {
+            let mut h = Vec::new();
+            std::mem::swap(&mut self.history_tmp, &mut h);
+            self.history.push(h);
+        }
+    }
+
+    pub fn undo(&mut self) {
+        self.commit();
+        if let Some(mut ops) = self.history.pop() {
+            for op in ops.iter_mut().rev() {
+                op.undo(self.arg());
+            }
+            self.redo.push(ops);
+            self.buffer_changed += Wrapping(1);
+        }
+    }
+
+    pub fn redo(&mut self) {
+        if let Some(mut ops) = self.redo.pop() {
+            for op in &mut ops {
+                op.perform(self.arg());
+            }
+            self.history.push(ops);
+            self.buffer_changed += Wrapping(1);
+        }
     }
 }
