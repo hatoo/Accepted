@@ -43,7 +43,7 @@ fn main() {
     let matches = App::new("Accepted")
         .author(crate_authors!())
         .version(crate_version!())
-        .about("A text editor for competitive rust programmers")
+        .about("A text editor to be ACCEPTED")
         .bin_name("acc")
         .arg(Arg::with_name("file"))
         .get_matches();
@@ -103,6 +103,7 @@ fn main() {
     // let theme = ThemeSet::load_from_reader(&mut Cursor::new(theme::ONE_DARK.as_bytes())).unwrap();
     let ts = ThemeSet::load_defaults();
 
+    // TODO Make configurable
     let syntax = acc::syntax::Syntax {
         syntax: ps.find_syntax_by_extension("rs").unwrap(),
         theme: &ts.themes["Solarized (dark)"],
