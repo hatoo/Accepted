@@ -28,12 +28,12 @@ pub struct Normal {
 }
 struct Prefix;
 struct Insert {
-    completion_index: usize,
+    completion_index: Option<usize>,
 }
 impl Default for Insert {
     fn default() -> Self {
         Insert {
-            completion_index: 0,
+            completion_index: None,
         }
     }
 }
@@ -298,7 +298,11 @@ impl Mode for Insert {
             Event::Key(Key::Char('\t')) => {
                 let comp_len = Self::completion(buf).len();
                 if comp_len > 0 {
-                    self.completion_index = (self.completion_index + 1) % comp_len;
+                    if let Some(index) = self.completion_index {
+                        self.completion_index = Some((index + 1) % comp_len);
+                    } else {
+                        self.completion_index = Some(0);
+                    }
                 } else {
                     buf.core.insert(' ');
                     while buf.core.cursor().col % 4 != 0 {
@@ -313,15 +317,16 @@ impl Mode for Insert {
                 if pairs.iter().any(|p| p.1 == c) && buf.core.char_at_cursor() == Some(c) {
                     buf.core.cursor_right();
                 } else {
-                    if c == '\n' && Self::in_completion(buf) {
+                    if c == '\n' && self.completion_index.is_some() && Self::in_completion(buf) {
                         let comp = Self::completion(buf);
-                        let key = &comp[self.completion_index];
+                        let key = &comp[self.completion_index.unwrap()];
                         let body = &buf.snippet[key];
                         Self::remove_token(&mut buf.core);
                         for c in body.chars() {
                             buf.core.insert(c);
                         }
                         buf.core.set_offset();
+                        self.completion_index = None;
                     } else {
                         buf.core.insert(c);
                         let pair = pairs.iter().find(|p| p.0 == c);
@@ -350,6 +355,15 @@ impl Mode for Insert {
                             }
                             buf.core.set_cursor(pos);
                         }
+
+                        let comp_len = Self::completion(buf).len();
+                        if comp_len == 0 {
+                            self.completion_index = None;
+                        } else {
+                            if let Some(index) = self.completion_index {
+                                self.completion_index = Some(min(index, comp_len - 1));
+                            }
+                        }
                     }
                 }
             }
@@ -368,7 +382,7 @@ impl Mode for Insert {
 
         let completion = Self::completion(buf);
 
-        let completion_height = min(8, completion.len());
+        let completion_height = height - cursor.map(|c| c.row).unwrap_or(0);
         let completion_width = width - cursor.map(|c| c.col).unwrap_or(0);
 
         if let Some(cursor) = cursor {
@@ -376,7 +390,7 @@ impl Mode for Insert {
                 let mut view = term.view(cursor.to_tuple(), completion_height, completion_width);
                 for (i, s) in completion.iter().take(completion_height).enumerate() {
                     for c in s.chars().take(completion_width - 1) {
-                        if i == self.completion_index {
+                        if Some(i) == self.completion_index {
                             view.put(c, draw::CharStyle::Highlight, None);
                         } else {
                             view.put(c, draw::CharStyle::UI, None);
