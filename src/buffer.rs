@@ -2,6 +2,7 @@ use core::Cursor;
 use core::CursorRange;
 use draw;
 use draw::{CharStyle, LinenumView, View};
+use racer;
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
@@ -63,12 +64,13 @@ pub struct Buffer<'a> {
     pub search: Vec<char>,
     pub syntax: syntax::Syntax<'a>,
     pub snippet: BTreeMap<String, String>,
+    pub racer_session: racer::Session<'a>,
     cache: RefCell<DrawCache<'a>>,
     buffer_update: Cell<Wrapping<usize>>,
 }
 
 impl<'a> Buffer<'a> {
-    pub fn new(syntax: syntax::Syntax<'a>) -> Self {
+    pub fn new(syntax: syntax::Syntax<'a>, racer_cache: &'a racer::FileCache) -> Self {
         Self {
             path: None,
             core: Core::new(),
@@ -77,6 +79,7 @@ impl<'a> Buffer<'a> {
             snippet: BTreeMap::new(),
             syntax,
             buffer_update: Cell::new(Wrapping(0)),
+            racer_session: racer::Session::new(racer_cache),
         }
     }
 

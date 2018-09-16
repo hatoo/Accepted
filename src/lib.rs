@@ -1,3 +1,4 @@
+extern crate racer;
 extern crate shellexpand;
 extern crate syntect;
 extern crate termion;
@@ -35,7 +36,8 @@ impl<'a> BufferMode<'a> {
             Transition::Exit => {
                 return true;
             }
-            Transition::Trans(t) => {
+            Transition::Trans(mut t) => {
+                t.init(&mut self.buf);
                 self.mode = t;
             }
             _ => {}

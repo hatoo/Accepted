@@ -7,6 +7,7 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
+extern crate racer;
 extern crate shellexpand;
 extern crate syntect;
 extern crate termion;
@@ -109,7 +110,8 @@ fn main() {
         theme: &ts.themes["Solarized (dark)"],
     };
 
-    let mut buf = Buffer::new(syntax);
+    let cache = racer::FileCache::default();
+    let mut buf = Buffer::new(syntax, &cache);
     if let Some(path) = file {
         buf.open(path);
     }

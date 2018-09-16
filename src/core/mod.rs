@@ -91,7 +91,7 @@ impl Core {
             history: Vec::new(),
             history_tmp: Vec::new(),
             redo: Vec::new(),
-            buffer_changed: Wrapping(0),
+            buffer_changed: Wrapping(1),
         }
     }
 

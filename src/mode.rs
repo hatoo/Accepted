@@ -4,10 +4,12 @@ use core::Cursor;
 use core::CursorRange;
 use draw;
 use indent;
+use racer;
 use rustfmt;
 use shellexpand;
 use std;
 use std::cmp::{max, min};
+use std::num::Wrapping;
 use std::path::PathBuf;
 use termion;
 use termion::event::{Event, Key, MouseButton, MouseEvent};
@@ -19,6 +21,7 @@ pub enum Transition {
 }
 
 pub trait Mode {
+    fn init(&mut self, &mut Buffer) {}
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition;
     fn draw(&self, core: &Buffer, term: &mut draw::Term);
 }
@@ -29,11 +32,15 @@ pub struct Normal {
 struct Prefix;
 struct Insert {
     completion_index: Option<usize>,
+    completion: Vec<(String, bool)>,
+    buf_update: Wrapping<usize>,
 }
 impl Default for Insert {
     fn default() -> Self {
         Insert {
             completion_index: None,
+            completion: Vec::new(),
+            buf_update: Wrapping(0),
         }
     }
 }
@@ -247,41 +254,66 @@ impl Insert {
         line[i..core.cursor().col].iter().collect::<String>()
     }
 
-    fn completion(buf: &Buffer) -> Vec<String> {
-        let prefix = Self::token(&buf.core);
-        if prefix.is_empty() {
-            return Vec::new();
-        }
-        buf.snippet
-            .keys()
-            .filter(|k| k.starts_with(&prefix))
-            .cloned()
-            .collect()
-    }
-
     fn remove_token(core: &mut Core) {
-        core.cursor_left();
-        while core
-            .char_at_cursor()
-            .map(|c| c.is_alphanumeric() || c == '_')
-            == Some(true)
-        {
-            core.delete();
+        let mut i = core.cursor().col;
+        while i > 0 && {
+            let c = core.current_line()[i - 1];
+            c.is_alphanumeric() || c == '_'
+        } {
             core.cursor_left();
+            core.delete();
+            i -= 1;
         }
     }
 
-    fn in_completion(buf: &Buffer) -> bool {
+    fn build_completion(&mut self, buf: &mut Buffer) {
+        if self.buf_update != buf.core.buffer_changed {
+            buf.racer_session
+                .cache_file_contents("main.rs", buf.core.get_string());
+            self.buf_update = buf.core.buffer_changed;
+        }
+        self.completion.clear();
         let prefix = Self::token(&buf.core);
-        if prefix.is_empty() {
-            false
+        let semi_colon = {
+            let i = buf.core.cursor().col;
+            i > 0 && buf.core.current_line()[i - 1] == ':'
+        };
+        // racer first
+        if prefix.len() > 0 || semi_colon {
+            let matches = racer::complete_from_file(
+                "main.rs",
+                racer::Location::from(racer::Coordinate::new(
+                    buf.core.cursor().row as u32 + 1,
+                    buf.core.cursor().col as u32,
+                )),
+                &buf.racer_session,
+            );
+
+            for m in matches {
+                self.completion.push((m.matchstr, false));
+            }
+        }
+        // snippet
+        if !prefix.is_empty() {
+            for keyword in buf.snippet.keys().filter(|k| k.starts_with(&prefix)) {
+                self.completion.push((keyword.to_string(), true));
+            }
+        }
+
+        if self.completion.is_empty() {
+            self.completion_index = None;
         } else {
-            buf.snippet.keys().any(|k| k.starts_with(&prefix))
+            if let Some(index) = self.completion_index {
+                self.completion_index = Some(min(index, self.completion.len() - 1));
+            }
         }
     }
 }
 
 impl Mode for Insert {
+    fn init(&mut self, buf: &mut Buffer) {
+        self.build_completion(buf);
+    }
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
@@ -296,7 +328,7 @@ impl Mode for Insert {
                 buf.core.delete();
             }
             Event::Key(Key::Char('\t')) => {
-                let comp_len = Self::completion(buf).len();
+                let comp_len = self.completion.len();
                 if comp_len > 0 {
                     if let Some(index) = self.completion_index {
                         self.completion_index = Some((index + 1) % comp_len);
@@ -317,10 +349,9 @@ impl Mode for Insert {
                 if pairs.iter().any(|p| p.1 == c) && buf.core.char_at_cursor() == Some(c) {
                     buf.core.cursor_right();
                 } else {
-                    if c == '\n' && self.completion_index.is_some() && Self::in_completion(buf) {
-                        let comp = Self::completion(buf);
-                        let key = &comp[self.completion_index.unwrap()];
-                        let body = &buf.snippet[key];
+                    if c == '\n' && self.completion_index.is_some() {
+                        let (key, is_snip) = &self.completion[self.completion_index.unwrap()];
+                        let body = if *is_snip { &buf.snippet[key] } else { key };
                         Self::remove_token(&mut buf.core);
                         for c in body.chars() {
                             buf.core.insert(c);
@@ -355,20 +386,12 @@ impl Mode for Insert {
                             }
                             buf.core.set_cursor(pos);
                         }
-
-                        let comp_len = Self::completion(buf).len();
-                        if comp_len == 0 {
-                            self.completion_index = None;
-                        } else {
-                            if let Some(index) = self.completion_index {
-                                self.completion_index = Some(min(index, comp_len - 1));
-                            }
-                        }
                     }
                 }
             }
             _ => {}
         }
+        self.build_completion(buf);
         Transition::Nothing
     }
 
@@ -380,15 +403,13 @@ impl Mode for Insert {
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Bar))
             .unwrap_or(draw::CursorState::Hide);
 
-        let completion = Self::completion(buf);
-
         let completion_height = height - cursor.map(|c| c.row).unwrap_or(0);
         let completion_width = width - cursor.map(|c| c.col).unwrap_or(0);
 
         if let Some(cursor) = cursor {
             if cursor.col + completion_width <= width && cursor.row + completion_height <= height {
                 let mut view = term.view(cursor.to_tuple(), completion_height, completion_width);
-                for (i, s) in completion.iter().take(completion_height).enumerate() {
+                for (i, (s, _)) in self.completion.iter().take(completion_height).enumerate() {
                     for c in s.chars().take(completion_width - 1) {
                         if Some(i) == self.completion_index {
                             view.put(c, draw::CharStyle::Highlight, None);
