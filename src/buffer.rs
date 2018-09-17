@@ -78,7 +78,6 @@ pub struct Buffer<'a> {
     pub search: Vec<char>,
     pub syntax: syntax::Syntax<'a>,
     pub snippet: BTreeMap<String, String>,
-    pub racer_session: racer::Session<'a>,
     pub yank: Yank,
     pub last_save: Wrapping<usize>,
     cache: RefCell<DrawCache<'a>>,
@@ -86,14 +85,13 @@ pub struct Buffer<'a> {
 }
 
 impl<'a> Buffer<'a> {
-    pub fn new(syntax: syntax::Syntax<'a>, racer_cache: &'a racer::FileCache) -> Self {
+    pub fn new(syntax: syntax::Syntax<'a>) -> Self {
         Self {
             path: None,
             core: Core::new(),
             search: Vec::new(),
             cache: RefCell::new(DrawCache::new(&syntax)),
             snippet: BTreeMap::new(),
-            racer_session: racer::Session::new(racer_cache),
             yank: Yank::default(),
             last_save: Wrapping(0),
             syntax,

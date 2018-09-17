@@ -110,8 +110,7 @@ fn main() {
         theme: &ts.themes["Solarized (dark)"],
     };
 
-    let cache = racer::FileCache::default();
-    let mut buf = Buffer::new(syntax, &cache);
+    let mut buf = Buffer::new(syntax);
     if let Some(path) = file {
         buf.open(path);
     }

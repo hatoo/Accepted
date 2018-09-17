@@ -11,7 +11,9 @@ use shellexpand;
 use std;
 use std::cmp::{max, min};
 use std::num::Wrapping;
+use std::panic;
 use std::path::PathBuf;
+use std::thread;
 use termion;
 use termion::event::{Event, Key, MouseButton, MouseEvent};
 
@@ -34,6 +36,7 @@ struct Prefix;
 struct Insert {
     completion_index: Option<usize>,
     completion: Vec<(String, bool)>,
+    racer_completion: Vec<(String, bool)>,
     buf_update: Wrapping<usize>,
 }
 impl Default for Insert {
@@ -41,6 +44,7 @@ impl Default for Insert {
         Insert {
             completion_index: None,
             completion: Vec::new(),
+            racer_completion: Vec::new(),
             buf_update: Wrapping(0),
         }
     }
@@ -288,34 +292,46 @@ impl Insert {
     }
 
     fn build_completion(&mut self, buf: &mut Buffer) {
-        if self.buf_update != buf.core.buffer_changed {
-            buf.racer_session
-                .cache_file_contents("main.rs", buf.core.get_string());
-            self.buf_update = buf.core.buffer_changed;
-        }
-        self.completion.clear();
         let prefix = Self::token(&buf.core);
         let semi_colon = {
             let i = buf.core.cursor().col;
             i > 0 && buf.core.current_line()[i - 1] == ':'
         };
         // racer
-        if prefix.len() > 0 || semi_colon {
-            let matches = racer::complete_from_file(
-                "main.rs",
-                racer::Location::from(racer::Coordinate::new(
-                    buf.core.cursor().row as u32 + 1,
-                    buf.core.cursor().col as u32,
-                )),
-                &buf.racer_session,
-            );
+        if self.buf_update != buf.core.buffer_changed {
+            self.racer_completion.clear();
+            if prefix.len() > 0 || semi_colon {
+                let cursor = buf.core.cursor();
+                let src = buf.core.get_string();
+                // racer sometimes crash
+                if let Ok(matches) = panic::catch_unwind(move || {
+                    panic::set_hook(Box::new(|_| {
+                        println!("Custom panic hook");
+                    }));
+                    let cache = racer::FileCache::default();
+                    let session = racer::Session::new(&cache);
 
-            for m in matches {
-                if prefix != m.matchstr {
-                    self.completion.push((m.matchstr, false));
+                    session.cache_file_contents("main.rs", src);
+
+                    racer::complete_from_file(
+                        "main.rs",
+                        racer::Location::from(racer::Coordinate::new(
+                            cursor.row as u32 + 1,
+                            cursor.col as u32,
+                        )),
+                        &session,
+                    ).collect::<Vec<_>>()
+                }) {
+                    for m in matches {
+                        if prefix != m.matchstr {
+                            self.racer_completion.push((m.matchstr, false));
+                        }
+                    }
                 }
             }
+            self.buf_update = buf.core.buffer_changed;
         }
+        self.completion = self.racer_completion.clone();
         // snippet
         if !prefix.is_empty() {
             for keyword in buf.snippet.keys().filter(|k| k.starts_with(&prefix)) {
@@ -364,6 +380,7 @@ impl Mode for Insert {
                         buf.core.insert(' ');
                     }
                 }
+                return Transition::Nothing;
             }
             Event::Key(Key::Char(c)) => {
                 // Auto pair
