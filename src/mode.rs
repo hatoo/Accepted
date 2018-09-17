@@ -278,7 +278,7 @@ impl Insert {
             let i = buf.core.cursor().col;
             i > 0 && buf.core.current_line()[i - 1] == ':'
         };
-        // racer first
+        // racer
         if prefix.len() > 0 || semi_colon {
             let matches = racer::complete_from_file(
                 "main.rs",
