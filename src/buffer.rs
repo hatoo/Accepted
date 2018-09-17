@@ -36,22 +36,24 @@ impl<'a> DrawCache<'a> {
     }
 
     fn get_line(&mut self, buffer: &[Vec<char>], i: usize) -> &[(char, CharStyle)] {
-        for line in &buffer[self.cache.len()..=i] {
-            let line = line.iter().collect::<String>();
-            let ops = self.parse_state.parse_line(&line);
-            let iter = HighlightIterator::new(
-                &mut self.highlight_state,
-                &ops[..],
-                &line,
-                &self.highlighter,
-            );
-            let mut line = Vec::new();
-            for (style, s) in iter {
-                for c in s.chars() {
-                    line.push((c, draw::CharStyle::Style(style)));
+        if self.cache.len() <= i {
+            for line in &buffer[self.cache.len()..=i] {
+                let line = line.iter().collect::<String>();
+                let ops = self.parse_state.parse_line(&line);
+                let iter = HighlightIterator::new(
+                    &mut self.highlight_state,
+                    &ops[..],
+                    &line,
+                    &self.highlighter,
+                );
+                let mut line = Vec::new();
+                for (style, s) in iter {
+                    for c in s.chars() {
+                        line.push((c, draw::CharStyle::Style(style)));
+                    }
                 }
+                self.cache.push(line);
             }
-            self.cache.push(line);
         }
         &self.cache[i]
     }
@@ -106,6 +108,7 @@ impl<'a> Buffer<'a> {
         self.last_save = core.buffer_changed;
         self.core = core;
         self.path = Some(path.as_ref().to_path_buf());
+        self.cache.replace(DrawCache::new(&self.syntax));
     }
 
     pub fn save(&self) -> Option<io::Result<()>> {
