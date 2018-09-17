@@ -915,7 +915,6 @@ impl Mode for ViewProcess {
                 view.puts(line, draw::CharStyle::Default);
                 view.newline();
             }
-            view.puts(&format!("{}", self.buf.len()), draw::CharStyle::Default);
         }
         {
             let mut view = term.view((height - 1, 0), 1, width);
