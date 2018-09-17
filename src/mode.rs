@@ -700,7 +700,8 @@ impl Mode for Prefix {
                                 if let Some(stem) = path.file_stem() {
                                     let mut prog = OsString::from("./");
                                     prog.push(stem);
-                                    if let Ok(mut child) = process::Command::new(prog)
+                                    if let Ok(mut child) = process::Command::new("time")
+                                        .arg(prog)
                                         .stdout(process::Stdio::piped())
                                         .stderr(process::Stdio::piped())
                                         .stdin(process::Stdio::piped())
