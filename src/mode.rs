@@ -293,14 +293,17 @@ impl Insert {
 
     fn build_completion(&mut self, buf: &mut Buffer) {
         let prefix = Self::token(&buf.core);
-        let semi_colon = {
+        let start_completion = {
             let i = buf.core.cursor().col;
-            i > 0 && buf.core.current_line()[i - 1] == ':'
+            i > 0 && {
+                let c = buf.core.current_line()[i - 1];
+                c == ':' || c == '.'
+            }
         };
         // racer
         if self.buf_update != buf.core.buffer_changed {
             self.racer_completion.clear();
-            if prefix.len() > 0 || semi_colon {
+            if prefix.len() > 0 || start_completion {
                 let cursor = buf.core.cursor();
                 let src = buf.core.get_string();
                 // racer sometimes crash
