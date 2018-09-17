@@ -1,4 +1,4 @@
-extern crate acc;
+extern crate accepted;
 #[macro_use]
 extern crate clap;
 extern crate config;
@@ -27,8 +27,8 @@ use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
 
-use acc::draw::DoubleBuffer;
-use acc::{Buffer, BufferMode};
+use accepted::draw::DoubleBuffer;
+use accepted::{Buffer, BufferMode};
 
 use clap::{App, Arg};
 
@@ -105,7 +105,7 @@ fn main() {
     let ts = ThemeSet::load_defaults();
 
     // TODO Make configurable
-    let syntax = acc::syntax::Syntax {
+    let syntax = accepted::syntax::Syntax {
         syntax: ps.find_syntax_by_extension("rs").unwrap(),
         theme: &ts.themes["Solarized (dark)"],
     };
