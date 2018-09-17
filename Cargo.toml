@@ -2,6 +2,10 @@
 name = "accepted"
 version = "0.1.0"
 authors = ["hatoo <hato2000@gmail.com>"]
+description = "A text editor to be ACCEPTED."
+keywords = ["text", "editor", "terminal", "modal", "competitive"]
+categories = ["text-editors"]
+license = "MIT"
 
 [[bin]]
 name = "acc"
