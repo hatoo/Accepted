@@ -10,9 +10,17 @@ use rustfmt;
 use shellexpand;
 use std;
 use std::cmp::{max, min};
+use std::ffi::OsString;
+use std::io::BufRead;
+use std::io::BufReader;
+use std::io::Read;
+use std::io::Write;
 use std::num::Wrapping;
 use std::panic;
 use std::path::PathBuf;
+use std::process;
+use std::sync::mpsc;
+use std::thread;
 use termion;
 use termion::event::{Event, Key, MouseButton, MouseEvent};
 
@@ -25,7 +33,7 @@ pub enum Transition {
 pub trait Mode {
     fn init(&mut self, &mut Buffer) {}
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition;
-    fn draw(&self, core: &Buffer, term: &mut draw::Term);
+    fn draw(&mut self, core: &Buffer, term: &mut draw::Term);
 }
 
 pub struct Normal {
@@ -56,6 +64,52 @@ struct Save {
 struct Visual {
     cursor: Cursor,
     line_mode: bool,
+}
+struct ViewProcess {
+    pub buf: Vec<String>,
+    pub reader: mpsc::Receiver<String>,
+    pub process: process::Child,
+}
+
+impl ViewProcess {
+    fn new(mut child: process::Child) -> Option<Self> {
+        let stdout = child.stdout.take()?;
+        let stderr = child.stderr.take()?;
+        let (tx, rx) = mpsc::channel();
+        thread::spawn(move || {
+            let mut line = String::new();
+            let mut stdout = BufReader::new(stdout);
+            let mut stderr = BufReader::new(stderr);
+            loop {
+                let mut fail = 0;
+                line.clear();
+                if stdout.read_line(&mut line).is_ok() && !line.is_empty() {
+                    if tx.send(line.trim_right().to_string()).is_err() {
+                        return;
+                    }
+                } else {
+                    fail += 1;
+                }
+
+                line.clear();
+                if stderr.read_line(&mut line).is_ok() && !line.is_empty() {
+                    if tx.send(line.trim_right().to_string()).is_err() {
+                        return;
+                    }
+                } else {
+                    fail += 1;
+                }
+                if fail == 2 {
+                    break;
+                }
+            }
+        });
+        Some(Self {
+            buf: Vec::new(),
+            reader: rx,
+            process: child,
+        })
+    }
 }
 
 impl Normal {
@@ -241,7 +295,7 @@ impl Mode for Normal {
         Transition::Nothing
     }
 
-    fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
         let height = term.height;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height - 1, width));
@@ -437,7 +491,7 @@ impl Mode for Insert {
         Transition::Nothing
     }
 
-    fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
         let height = term.height;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height, width));
@@ -482,7 +536,7 @@ impl Mode for R {
         Transition::Nothing
     }
 
-    fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
         let height = term.height;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height, width));
@@ -512,7 +566,7 @@ impl Mode for Search {
         Transition::Nothing
     }
 
-    fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
         let height = term.height - 1;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height, width));
@@ -555,7 +609,7 @@ impl Mode for Save {
         Transition::Nothing
     }
 
-    fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
         let height = term.height - 2;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height, width));
@@ -633,12 +687,73 @@ impl Mode for Prefix {
                     }.into(),
                 )));
             }
+            Event::Key(Key::Char('t')) => {
+                if let Some(path) = buf.path.as_ref() {
+                    buf.save();
+                    if let Ok(mut p) = process::Command::new("rustc")
+                        .args([path].iter())
+                        .stderr(process::Stdio::piped())
+                        .spawn()
+                    {
+                        if let Some(mut stderr) = p.stderr.take() {
+                            let mut buf = Vec::new();
+                            if stderr.read_to_end(&mut buf).is_ok() && buf.len() == 0 {
+                                if let Some(stem) = path.file_stem() {
+                                    let mut prog = OsString::from("./");
+                                    prog.push(stem);
+                                    if let Ok(mut child) = process::Command::new(prog)
+                                        .stdout(process::Stdio::piped())
+                                        .stderr(process::Stdio::piped())
+                                        .stdin(process::Stdio::piped())
+                                        .spawn()
+                                    {
+                                        if let Some(input) = clipboard::clipboard_paste() {
+                                            if let Some(mut stdin) = child.stdin.take() {
+                                                write!(stdin, "{}", input);
+                                            }
+                                            if let Some(next_state) = ViewProcess::new(child) {
+                                                return Transition::Trans(Box::new(next_state));
+                                            } else {
+                                                return Transition::Trans(Box::new(
+                                                    Normal::with_message("Failed to test".into()),
+                                                ));
+                                            }
+                                        } else {
+                                            return Transition::Trans(Box::new(
+                                                Normal::with_message("Failed to paste".into()),
+                                            ));
+                                        }
+                                    } else {
+                                        return Transition::Trans(Box::new(Normal::with_message(
+                                            "Failed to run".into(),
+                                        )));
+                                    }
+                                } else {
+                                    return Transition::Trans(Box::new(Normal::with_message(
+                                        "Failed to run".into(),
+                                    )));
+                                }
+                            } else {
+                                return Transition::Trans(Box::new(Normal::with_message(
+                                    "Failed to compile".into(),
+                                )));
+                            }
+                        }
+                    } else {
+                        return Transition::Trans(Box::new(Normal::with_message(
+                            "Failed to compile".into(),
+                        )));
+                    }
+                } else {
+                    return Transition::Trans(Box::new(Normal::with_message("Save first".into())));
+                }
+            }
             _ => {}
         }
         Transition::Nothing
     }
 
-    fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
         let height = term.height - 1;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height, width));
@@ -755,7 +870,7 @@ impl Mode for Visual {
         Transition::Nothing
     }
 
-    fn draw(&self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
         let height = term.height;
         let width = term.width;
         let range = self.get_range(buf.core.cursor(), buf.core.buffer());
@@ -763,5 +878,44 @@ impl Mode for Visual {
         term.cursor = cursor
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide);
+    }
+}
+
+impl Mode for ViewProcess {
+    fn event(&mut self, _buf: &mut Buffer, event: termion::event::Event) -> Transition {
+        match event {
+            Event::Key(Key::Esc) => {
+                if self.process.kill().is_ok() {
+                    return Transition::Trans(Box::new(Normal::new()));
+                } else {
+                    return Transition::Trans(Box::new(Normal::with_message(
+                        "Failed to kill".into(),
+                    )));
+                }
+            }
+            _ => {}
+        }
+        Transition::Nothing
+    }
+
+    fn draw(&mut self, _buf: &Buffer, term: &mut draw::Term) {
+        while let Ok(line) = self.reader.try_recv() {
+            self.buf.push(line);
+        }
+
+        let height = term.height;
+        let width = term.width;
+        term.cursor = draw::CursorState::Hide;
+        {
+            let mut view = term.view((0, 0), height - 1, width);
+            for line in &self.buf {
+                view.puts(line, draw::CharStyle::Default);
+                view.newline();
+            }
+        }
+        {
+            let mut view = term.view((height - 1, 0), 1, width);
+            view.puts("Esc to return", draw::CharStyle::Footer);
+        }
     }
 }
