@@ -690,7 +690,7 @@ impl Mode for Prefix {
                 if let Some(path) = buf.path.as_ref() {
                     buf.save();
                     if let Ok(mut p) = process::Command::new("rustc")
-                        .args([path].iter())
+                        .arg(path)
                         .stderr(process::Stdio::piped())
                         .spawn()
                     {
