@@ -13,7 +13,6 @@ use std::cmp::{max, min};
 use std::num::Wrapping;
 use std::panic;
 use std::path::PathBuf;
-use std::thread;
 use termion;
 use termion::event::{Event, Key, MouseButton, MouseEvent};
 

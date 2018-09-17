@@ -2,7 +2,6 @@ use core::Cursor;
 use core::CursorRange;
 use draw;
 use draw::{CharStyle, LinenumView, View};
-use racer;
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
