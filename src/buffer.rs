@@ -80,6 +80,7 @@ pub struct Buffer<'a> {
     pub snippet: BTreeMap<String, String>,
     pub racer_session: racer::Session<'a>,
     pub yank: Yank,
+    pub last_save: Wrapping<usize>,
     cache: RefCell<DrawCache<'a>>,
     buffer_update: Cell<Wrapping<usize>>,
 }
@@ -94,6 +95,7 @@ impl<'a> Buffer<'a> {
             snippet: BTreeMap::new(),
             racer_session: racer::Session::new(racer_cache),
             yank: Yank::default(),
+            last_save: Wrapping(0),
             syntax,
             buffer_update: Cell::new(Wrapping(0)),
         }
@@ -104,6 +106,7 @@ impl<'a> Buffer<'a> {
         let mut core = Core::new();
         core.set_string(&s, true);
 
+        self.last_save = core.buffer_changed;
         self.core = core;
         self.path = Some(path.as_ref().to_path_buf());
     }

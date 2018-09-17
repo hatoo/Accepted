@@ -576,6 +576,11 @@ impl Mode for Prefix {
             }
             Event::Key(Key::Char('s')) => {
                 if let Some(ref path) = buf.path {
+                    // Rustfmt
+                    let mut content = buf.core.get_string();
+                    if let Some(formatted) = rustfmt::system_rustfmt(&content) {
+                        buf.core.set_string(&formatted, false);
+                    }
                     let message = if buf.save().unwrap().is_ok() {
                         format!("Saved to {}", path.to_string_lossy())
                     } else {
