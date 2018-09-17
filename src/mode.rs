@@ -1,4 +1,5 @@
 use buffer::Buffer;
+use clipboard;
 use core::Core;
 use core::Cursor;
 use core::CursorRange;
@@ -193,6 +194,16 @@ impl Mode for Normal {
                     buf.core.insert(c);
                 }
                 buf.core.commit();
+            }
+            Event::Key(Key::Ctrl('p')) => {
+                if let Some(s) = clipboard::clipboard_paste() {
+                    for c in s.chars() {
+                        buf.core.insert(c);
+                    }
+                    buf.core.commit();
+                } else {
+                    self.message = "Failed to paste from clipboard".into();
+                }
             }
             Event::Key(Key::Char(' ')) => return Transition::Trans(Box::new(Prefix)),
 
@@ -587,6 +598,16 @@ impl Mode for Prefix {
                         path: String::new(),
                     }));
                 }
+            }
+            Event::Key(Key::Char('y')) => {
+                let result = clipboard::clipboard_copy(&buf.core.get_string());
+                return Transition::Trans(Box::new(Normal::with_message(
+                    if result {
+                        "Copied"
+                    } else {
+                        "Failed to copy to clipboard"
+                    }.into(),
+                )));
             }
             _ => {}
         }

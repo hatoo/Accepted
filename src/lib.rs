@@ -5,6 +5,7 @@ extern crate termion;
 extern crate unicode_width;
 
 mod buffer;
+mod clipboard;
 mod core;
 mod cursor;
 pub mod draw;
