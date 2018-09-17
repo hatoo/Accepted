@@ -883,11 +883,8 @@ impl Mode for Visual {
 impl Mode for ViewProcess {
     fn event(&mut self, _buf: &mut Buffer, event: termion::event::Event) -> Transition {
         if event == Event::Key(Key::Esc) {
-            if self.process.kill().is_ok() {
-                Transition::Trans(Box::new(Normal::new()))
-            } else {
-                Transition::Trans(Box::new(Normal::with_message("Failed to kill".into())))
-            }
+            let _result = self.process.kill();
+            Transition::Trans(Box::new(Normal::new()))
         } else {
             Transition::Nothing
         }
