@@ -60,7 +60,7 @@ fn main() {
             // Just ignore error.
             let _ = settings.merge(config::File::from(config_path));
             settings
-        }).unwrap_or(config::Config::default());
+        }).unwrap_or_default();
 
     let mut snippet = BTreeMap::new();
     if let Ok(arr) = config.get_array("snippet") {
