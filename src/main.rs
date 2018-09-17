@@ -119,7 +119,7 @@ fn main() {
 
     let mut state = BufferMode::new(buf);
 
-    let mut draw = DoubleBuffer::new();
+    let mut draw = DoubleBuffer::default();
 
     loop {
         if let Ok(evt) = rx.recv_timeout(Duration::from_millis(16)) {

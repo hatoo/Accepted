@@ -78,13 +78,8 @@ fn get_rows(s: &[char], width: usize) -> usize {
     y
 }
 
-impl Core {
-    fn windows_size() -> (usize, usize) {
-        let (cols, rows) = termion::terminal_size().unwrap();
-        (rows as usize, cols as usize)
-    }
-
-    pub fn new() -> Self {
+impl Default for Core {
+    fn default() -> Self {
         Self {
             buffer: vec![Vec::new()],
             cursor: Cursor { row: 0, col: 0 },
@@ -94,6 +89,13 @@ impl Core {
             redo: Vec::new(),
             buffer_changed: Wrapping(1),
         }
+    }
+}
+
+impl Core {
+    fn windows_size() -> (usize, usize) {
+        let (cols, rows) = termion::terminal_size().unwrap();
+        (rows as usize, cols as usize)
     }
 
     pub fn char_at_cursor(&self) -> Option<char> {
@@ -158,14 +160,12 @@ impl Core {
         if self.cursor.col < self.buffer[self.cursor.row].len() {
             self.cursor_right();
             true
+        } else if self.cursor.row + 1 < self.buffer.len() {
+            self.cursor.row += 1;
+            self.cursor.col = 0;
+            true
         } else {
-            if self.cursor.row + 1 < self.buffer.len() {
-                self.cursor.row += 1;
-                self.cursor.col = 0;
-                true
-            } else {
-                false
-            }
+            false
         }
     }
 
@@ -230,7 +230,7 @@ impl Core {
                 t.col = r.col;
             }
         }
-        for _ in 0..cnt + 1 {
+        for _ in 0..=cnt {
             let op = operation::Delete::new(l);
             self.perform(op);
         }
@@ -256,7 +256,7 @@ impl Core {
             }
             res.push('\n');
         } else {
-            for &c in &self.buffer[l.row][l.col..r.col + 1] {
+            for &c in &self.buffer[l.row][l.col..=r.col] {
                 res.push(c);
             }
         }

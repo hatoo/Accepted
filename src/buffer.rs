@@ -28,16 +28,16 @@ impl<'a> DrawCache<'a> {
         let highlighter = Highlighter::new(syntax.theme);
         let hstate = HighlightState::new(&highlighter, ScopeStack::new());
         Self {
-            highlighter: highlighter,
+            highlighter,
             parse_state: ParseState::new(syntax.syntax),
             highlight_state: hstate,
             cache: Vec::new(),
         }
     }
 
-    fn get_line(&mut self, buffer: &Vec<Vec<char>>, i: usize) -> &[(char, CharStyle)] {
-        for i in self.cache.len()..=i {
-            let line = &buffer[i].iter().collect::<String>();
+    fn get_line(&mut self, buffer: &[Vec<char>], i: usize) -> &[(char, CharStyle)] {
+        for line in &buffer[self.cache.len()..=i] {
+            let line = line.iter().collect::<String>();
             let ops = self.parse_state.parse_line(&line);
             let iter = HighlightIterator::new(
                 &mut self.highlight_state,
@@ -87,7 +87,7 @@ impl<'a> Buffer<'a> {
     pub fn new(syntax: syntax::Syntax<'a>) -> Self {
         Self {
             path: None,
-            core: Core::new(),
+            core: Core::default(),
             search: Vec::new(),
             cache: RefCell::new(DrawCache::new(&syntax)),
             snippet: BTreeMap::new(),
@@ -99,8 +99,8 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn open<P: AsRef<Path>>(&mut self, path: P) {
-        let s = fs::read_to_string(path.as_ref()).unwrap_or(String::new());
-        let mut core = Core::new();
+        let s = fs::read_to_string(path.as_ref()).unwrap_or_default();
+        let mut core = Core::default();
         core.set_string(&s, true);
 
         self.last_save = core.buffer_changed;
@@ -112,7 +112,7 @@ impl<'a> Buffer<'a> {
         self.path.as_ref().map(|path| {
             let mut f = fs::File::create(path)?;
             for line in self.core.buffer() {
-                write!(f, "{}\n", line.iter().collect::<String>());
+                writeln!(f, "{}", line.iter().collect::<String>());
             }
             Ok(())
         })
@@ -143,7 +143,7 @@ impl<'a> Buffer<'a> {
             let mut line = Cow::Borrowed(line_ref);
 
             if !self.search.is_empty() && line.len() >= self.search.len() {
-                for j in 0..line.len() - self.search.len() + 1 {
+                for j in 0..=line.len() - self.search.len() {
                     let m = self
                         .search
                         .iter()
@@ -157,8 +157,8 @@ impl<'a> Buffer<'a> {
                 }
             }
 
-            for j in 0..line.len() {
-                let (c, style) = line[j];
+            for (j, &c) in line.iter().enumerate() {
+                let (c, style) = c;
                 let t = Cursor { row: i, col: j };
 
                 let style = if selected.as_ref().map(|r| r.contains(t)) == Some(true) {
@@ -169,10 +169,8 @@ impl<'a> Buffer<'a> {
 
                 if self.core.cursor() == t {
                     cursor = view.put(c, style, Some(t));
-                } else {
-                    if view.put(c, style, Some(t)).is_none() {
-                        break 'outer;
-                    }
+                } else if view.put(c, style, Some(t)).is_none() {
+                    break 'outer;
                 }
             }
             let t = Cursor {

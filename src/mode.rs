@@ -272,7 +272,7 @@ impl Mode for Normal {
                 let row = y as usize - 1;
                 let cursor = Cursor { row, col };
 
-                let mut term = draw::Term::new();
+                let mut term = draw::Term::default();
                 let height = term.height;
                 let width = term.width;
                 buf.draw(term.view((0, 0), height, width));
@@ -315,7 +315,7 @@ impl Mode for Normal {
                 buf.path
                     .as_ref()
                     .map(|p| p.to_string_lossy())
-                    .unwrap_or("*".into()),
+                    .unwrap_or_else(|| "*".into()),
                 &self.message
             ),
             draw::CharStyle::Footer,
@@ -359,7 +359,7 @@ impl Insert {
         // racer
         if self.buf_update != buf.core.buffer_changed {
             self.racer_completion.clear();
-            if prefix.len() > 0 || start_completion {
+            if !prefix.is_empty() || start_completion {
                 let cursor = buf.core.cursor();
                 let src = buf.core.get_string();
                 // racer sometimes crash
@@ -400,10 +400,8 @@ impl Insert {
 
         if self.completion.is_empty() {
             self.completion_index = None;
-        } else {
-            if let Some(index) = self.completion_index {
-                self.completion_index = Some(min(index, self.completion.len() - 1));
-            }
+        } else if let Some(index) = self.completion_index {
+            self.completion_index = Some(min(index, self.completion.len() - 1));
         }
     }
 }
@@ -447,44 +445,42 @@ impl Mode for Insert {
 
                 if pairs.iter().any(|p| p.1 == c) && buf.core.char_at_cursor() == Some(c) {
                     buf.core.cursor_right();
-                } else {
-                    if c == '\n' && self.completion_index.is_some() {
-                        let (key, is_snip) = &self.completion[self.completion_index.unwrap()];
-                        let body = if *is_snip { &buf.snippet[key] } else { key };
-                        Self::remove_token(&mut buf.core);
-                        for c in body.chars() {
-                            buf.core.insert(c);
-                        }
-                        buf.core.set_offset();
-                        self.completion_index = None;
-                    } else {
+                } else if c == '\n' && self.completion_index.is_some() {
+                    let (key, is_snip) = &self.completion[self.completion_index.unwrap()];
+                    let body = if *is_snip { &buf.snippet[key] } else { key };
+                    Self::remove_token(&mut buf.core);
+                    for c in body.chars() {
                         buf.core.insert(c);
-                        let pair = pairs.iter().find(|p| p.0 == c);
-                        if let Some((_, r)) = pair {
-                            buf.core.insert(*r);
-                            buf.core.cursor_left();
-                        }
+                    }
+                    buf.core.set_offset();
+                    self.completion_index = None;
+                } else {
+                    buf.core.insert(c);
+                    let pair = pairs.iter().find(|p| p.0 == c);
+                    if let Some((_, r)) = pair {
+                        buf.core.insert(*r);
+                        buf.core.cursor_left();
+                    }
 
-                        if c == '\n' {
-                            let indent = indent::next_indent_level(
-                                &buf.core.buffer()[buf.core.cursor().row - 1],
-                            );
-                            for _ in 0..4 * indent {
+                    if c == '\n' {
+                        let indent = indent::next_indent_level(
+                            &buf.core.buffer()[buf.core.cursor().row - 1],
+                        );
+                        for _ in 0..4 * indent {
+                            buf.core.insert(' ');
+                        }
+                        let pos = buf.core.cursor();
+                        if ['}', ']']
+                            .into_iter()
+                            .any(|&c| buf.core.char_at_cursor() == Some(c))
+                        {
+                            buf.core.insert('\n');
+                            let i = if indent == 0 { 0 } else { indent - 1 };
+                            for _ in 0..4 * i {
                                 buf.core.insert(' ');
                             }
-                            let pos = buf.core.cursor();
-                            if ['}', ']']
-                                .into_iter()
-                                .any(|&c| buf.core.char_at_cursor() == Some(c))
-                            {
-                                buf.core.insert('\n');
-                                let i = if indent == 0 { 0 } else { indent - 1 };
-                                for _ in 0..4 * i {
-                                    buf.core.insert(' ');
-                                }
-                            }
-                            buf.core.set_cursor(pos);
                         }
+                        buf.core.set_cursor(pos);
                     }
                 }
             }
@@ -700,7 +696,7 @@ impl Mode for Prefix {
                     {
                         if let Some(mut stderr) = p.stderr.take() {
                             let mut buf = Vec::new();
-                            if stderr.read_to_end(&mut buf).is_ok() && buf.len() == 0 {
+                            if stderr.read_to_end(&mut buf).is_ok() && buf.is_empty() {
                                 if let Some(stem) = path.file_stem() {
                                     let mut prog = OsString::from("./");
                                     prog.push(stem);
@@ -773,7 +769,7 @@ impl Mode for Prefix {
 }
 
 impl Visual {
-    fn get_range(&self, to: Cursor, buf: &Vec<Vec<char>>) -> CursorRange {
+    fn get_range(&self, to: Cursor, buf: &[Vec<char>]) -> CursorRange {
         if self.line_mode {
             let mut l = min(self.cursor, to);
             let mut r = max(self.cursor, to);
@@ -886,19 +882,15 @@ impl Mode for Visual {
 
 impl Mode for ViewProcess {
     fn event(&mut self, _buf: &mut Buffer, event: termion::event::Event) -> Transition {
-        match event {
-            Event::Key(Key::Esc) => {
-                if self.process.kill().is_ok() {
-                    return Transition::Trans(Box::new(Normal::new()));
-                } else {
-                    return Transition::Trans(Box::new(Normal::with_message(
-                        "Failed to kill".into(),
-                    )));
-                }
+        if event == Event::Key(Key::Esc) {
+            if self.process.kill().is_ok() {
+                Transition::Trans(Box::new(Normal::new()))
+            } else {
+                Transition::Trans(Box::new(Normal::with_message("Failed to kill".into())))
             }
-            _ => {}
+        } else {
+            Transition::Nothing
         }
-        Transition::Nothing
     }
 
     fn draw(&mut self, _buf: &Buffer, term: &mut draw::Term) {

@@ -205,8 +205,8 @@ impl<'a> LinenumView<'a> {
     }
 }
 
-impl Term {
-    pub fn new() -> Self {
+impl Default for Term {
+    fn default() -> Self {
         let (cols, rows) = termion::terminal_size().unwrap();
         let height = rows as usize;
         let width = cols as usize;
@@ -217,7 +217,9 @@ impl Term {
             buf: vec![vec![Tile::Char(' ', CharStyle::Default, None); width]; height],
         }
     }
+}
 
+impl Term {
     pub fn pos(&self, cursor: Cursor) -> Option<Cursor> {
         for x in (0..=cursor.col).rev() {
             if let Tile::Char(_, _, Some(c)) = self.buf[cursor.row][x] {
@@ -249,7 +251,7 @@ impl Term {
             .iter()
             .map(|line| {
                 let mut res: Vec<(char, CharStyle)> = Vec::new();
-                for ref t in line {
+                for t in line {
                     match t {
                         Tile::Char(c, s, _) => {
                             res.push((*c, *s));
@@ -267,21 +269,22 @@ impl Term {
     }
 }
 
-impl DoubleBuffer {
-    pub fn new() -> Self {
+impl Default for DoubleBuffer {
+    fn default() -> Self {
         Self {
-            front: Term::new(),
-            back: Term::new(),
+            front: Term::default(),
+            back: Term::default(),
         }
     }
+}
 
+impl DoubleBuffer {
     pub fn view(&mut self, orig: (usize, usize), height: usize, width: usize) -> View {
         self.back.view(orig, height, width)
     }
 
     pub fn present<T: Write>(&mut self, out: &mut T) {
-        let mut edit = false;
-        if self.front.height != self.back.height || self.front.width != self.back.width {
+        let edit = if self.front.height != self.back.height || self.front.width != self.back.width {
             write!(
                 out,
                 "{}{}{}",
@@ -304,11 +307,12 @@ impl DoubleBuffer {
                     write!(out, "{}", termion::clear::UntilNewline);
                 }
                 if i < self.back.height - 1 {
-                    write!(out, "\r\n");
+                    writeln!(out, "\r");
                 }
             }
-            edit = true;
+            true
         } else {
+            let mut edit = false;
             let mut current_style = CharStyle::Default;
             write!(out, "{}", current_style);
 
@@ -335,13 +339,14 @@ impl DoubleBuffer {
                     write!(out, "{}", termion::clear::UntilNewline);
                 }
             }
-        }
+            edit
+        };
 
         if edit || self.front.cursor != self.back.cursor {
             write!(out, "{}", self.back.cursor);
         }
         std::mem::swap(&mut self.front, &mut self.back);
-        self.back = Term::new();
+        self.back = Term::default();
     }
 }
 
