@@ -33,6 +33,7 @@ impl Ord for Cursor {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct CursorRange(pub Cursor, pub Cursor);
 
 impl CursorRange {
@@ -234,6 +235,32 @@ impl Core {
             self.perform(op);
         }
         self.set_offset();
+    }
+
+    pub fn get_string_by_range(&mut self, range: CursorRange) -> String {
+        let mut res = String::new();
+        let mut l = range.l();
+        let r = range.r();
+
+        while l.row < r.row {
+            for &c in &self.buffer[l.row][l.col..] {
+                res.push(c);
+            }
+            res.push('\n');
+            l.row += 1;
+            l.col = 0;
+        }
+        if r.col == self.buffer[r.row].len() {
+            for &c in &self.buffer[l.row][l.col..r.col] {
+                res.push(c);
+            }
+            res.push('\n');
+        } else {
+            for &c in &self.buffer[l.row][l.col..r.col + 1] {
+                res.push(c);
+            }
+        }
+        res
     }
 
     pub fn get_string(&self) -> String {

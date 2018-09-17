@@ -58,6 +58,20 @@ impl<'a> DrawCache<'a> {
     }
 }
 
+pub struct Yank {
+    pub insert_newline: bool,
+    pub content: String,
+}
+
+impl Default for Yank {
+    fn default() -> Self {
+        Yank {
+            insert_newline: false,
+            content: String::new(),
+        }
+    }
+}
+
 pub struct Buffer<'a> {
     pub path: Option<PathBuf>,
     pub core: Core,
@@ -65,6 +79,7 @@ pub struct Buffer<'a> {
     pub syntax: syntax::Syntax<'a>,
     pub snippet: BTreeMap<String, String>,
     pub racer_session: racer::Session<'a>,
+    pub yank: Yank,
     cache: RefCell<DrawCache<'a>>,
     buffer_update: Cell<Wrapping<usize>>,
 }
@@ -77,9 +92,10 @@ impl<'a> Buffer<'a> {
             search: Vec::new(),
             cache: RefCell::new(DrawCache::new(&syntax)),
             snippet: BTreeMap::new(),
+            racer_session: racer::Session::new(racer_cache),
+            yank: Yank::default(),
             syntax,
             buffer_update: Cell::new(Wrapping(0)),
-            racer_session: racer::Session::new(racer_cache),
         }
     }
 

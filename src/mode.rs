@@ -184,6 +184,16 @@ impl Mode for Normal {
                     line_mode: true,
                 }))
             }
+            Event::Key(Key::Char('p')) => {
+                if buf.yank.insert_newline {
+                    buf.core.insert_newline();
+                }
+
+                for c in buf.yank.content.chars() {
+                    buf.core.insert(c);
+                }
+                buf.core.commit();
+            }
             Event::Key(Key::Char(' ')) => return Transition::Trans(Box::new(Prefix)),
 
             Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
@@ -671,10 +681,29 @@ impl Mode for Visual {
             }
             Event::Key(Key::Char('d')) => {
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
+                let s = if self.line_mode {
+                    buf.core.get_string_by_range(range).trim_right().to_string()
+                } else {
+                    buf.core.get_string_by_range(range)
+                };
                 buf.core.set_cursor(range.l());
                 buf.core.delete_from_cursor(range.r());
                 buf.core.commit();
-                return Transition::Trans(Box::new(Normal::new()));
+                buf.yank.insert_newline = self.line_mode;
+                buf.yank.content = s;
+                return Transition::Trans(Box::new(Normal::with_message("Deleted".into())));
+            }
+            Event::Key(Key::Char('y')) => {
+                let range = self.get_range(buf.core.cursor(), buf.core.buffer());
+                let s = if self.line_mode {
+                    buf.core.get_string_by_range(range).trim_right().to_string()
+                } else {
+                    buf.core.get_string_by_range(range)
+                };
+                buf.core.set_cursor(range.l());
+                buf.yank.insert_newline = self.line_mode;
+                buf.yank.content = s;
+                return Transition::Trans(Box::new(Normal::with_message("Yanked".into())));
             }
             _ => {}
         }
