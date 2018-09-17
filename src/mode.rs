@@ -290,7 +290,9 @@ impl Insert {
             );
 
             for m in matches {
-                self.completion.push((m.matchstr, false));
+                if prefix != m.matchstr {
+                    self.completion.push((m.matchstr, false));
+                }
             }
         }
         // snippet
