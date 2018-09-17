@@ -76,31 +76,34 @@ impl ViewProcess {
         let stdout = child.stdout.take()?;
         let stderr = child.stderr.take()?;
         let (tx, rx) = mpsc::channel();
+        let tx1 = tx.clone();
+        let tx2 = tx.clone();
+
         thread::spawn(move || {
             let mut line = String::new();
             let mut stdout = BufReader::new(stdout);
-            let mut stderr = BufReader::new(stderr);
             loop {
-                let mut fail = 0;
                 line.clear();
                 if stdout.read_line(&mut line).is_ok() && !line.is_empty() {
-                    if tx.send(line.trim_right().to_string()).is_err() {
+                    if tx1.send(line.trim_right().to_string()).is_err() {
                         return;
                     }
                 } else {
-                    fail += 1;
+                    return;
                 }
-
+            }
+        });
+        thread::spawn(move || {
+            let mut line = String::new();
+            let mut stderr = BufReader::new(stderr);
+            loop {
                 line.clear();
                 if stderr.read_line(&mut line).is_ok() && !line.is_empty() {
-                    if tx.send(line.trim_right().to_string()).is_err() {
+                    if tx2.send(line.trim_right().to_string()).is_err() {
                         return;
                     }
                 } else {
-                    fail += 1;
-                }
-                if fail == 2 {
-                    break;
+                    return;
                 }
             }
         });
@@ -899,7 +902,7 @@ impl Mode for ViewProcess {
     }
 
     fn draw(&mut self, _buf: &Buffer, term: &mut draw::Term) {
-        while let Ok(line) = self.reader.try_recv() {
+        if let Ok(line) = self.reader.try_recv() {
             self.buf.push(line);
         }
 
@@ -912,6 +915,7 @@ impl Mode for ViewProcess {
                 view.puts(line, draw::CharStyle::Default);
                 view.newline();
             }
+            view.puts(&format!("{}", self.buf.len()), draw::CharStyle::Default);
         }
         {
             let mut view = term.view((height - 1, 0), 1, width);
