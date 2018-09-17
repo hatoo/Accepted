@@ -3,6 +3,10 @@ name = "accepted"
 version = "0.1.0"
 authors = ["hatoo <hato2000@gmail.com>"]
 
+[[bin]]
+name = "acc"
+path = "src/main.rs"
+
 [dependencies]
 termion = "1.5"
 unicode-width = "0.1"
