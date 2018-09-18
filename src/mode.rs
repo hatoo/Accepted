@@ -695,9 +695,8 @@ impl Mode for Prefix {
                         rustc.arg(path);
                     }
                     if let Ok(mut p) = rustc.spawn() {
-                        if let Some(mut stderr) = p.stderr.take() {
-                            let mut buf = Vec::new();
-                            if stderr.read_to_end(&mut buf).is_ok() && buf.is_empty() {
+                        if let Ok(ecode) = p.wait() {
+                            if ecode.success() {
                                 if let Some(stem) = path.file_stem() {
                                     let mut prog = OsString::from("./");
                                     prog.push(stem);

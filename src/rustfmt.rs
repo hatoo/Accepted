@@ -9,12 +9,12 @@ pub fn system_rustfmt(src: &str) -> Option<String> {
         .spawn()
         .ok()?;
     {
-        let stdin = rustfmt.stdin.as_mut()?;
+        let mut stdin = rustfmt.stdin.take()?;
         write!(stdin, "{}", src).unwrap();
     }
     let out = rustfmt.wait_with_output().ok()?;
 
-    if !out.stderr.is_empty() {
+    if !out.status.success() {
         return None;
     }
 
