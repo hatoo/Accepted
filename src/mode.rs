@@ -40,16 +40,16 @@ pub struct Normal {
 struct Prefix;
 struct Insert {
     completion_index: Option<usize>,
-    completion: Vec<(String, bool)>,
-    racer_completion: Vec<(String, bool)>,
     buf_update: Wrapping<usize>,
+    racer_completion: Vec<String>,
+    snippet_completion: Vec<String>,
 }
 impl Default for Insert {
     fn default() -> Self {
         Insert {
             completion_index: None,
-            completion: Vec::new(),
             racer_completion: Vec::new(),
+            snippet_completion: Vec::new(),
             buf_update: Wrapping(0),
         }
     }
@@ -338,6 +338,19 @@ impl Insert {
         }
     }
 
+    fn completion_len(&self) -> usize {
+        self.racer_completion.len() + self.snippet_completion.len()
+    }
+
+    fn get_completion(&self, buf: &Buffer) -> Option<String> {
+        let index = self.completion_index?;
+        if index < self.racer_completion.len() {
+            Some(self.racer_completion[index].clone())
+        } else {
+            Some(buf.snippet[&self.snippet_completion[index - self.racer_completion.len()]].clone())
+        }
+    }
+
     fn build_completion(&mut self, buf: &mut Buffer) {
         let prefix = Self::token(&buf.core);
         let start_completion = {
@@ -371,25 +384,25 @@ impl Insert {
                 }) {
                     for m in matches {
                         if prefix != m.matchstr {
-                            self.racer_completion.push((m.matchstr, false));
+                            self.racer_completion.push(m.matchstr);
                         }
                     }
                 }
             }
             self.buf_update = buf.core.buffer_changed;
         }
-        self.completion = self.racer_completion.clone();
         // snippet
+        self.snippet_completion.clear();
         if !prefix.is_empty() {
             for keyword in buf.snippet.keys().filter(|k| k.starts_with(&prefix)) {
-                self.completion.push((keyword.to_string(), true));
+                self.snippet_completion.push(keyword.to_string());
             }
         }
 
-        if self.completion.is_empty() {
+        if self.completion_len() == 0 {
             self.completion_index = None;
         } else if let Some(index) = self.completion_index {
-            self.completion_index = Some(min(index, self.completion.len() - 1));
+            self.completion_index = Some(min(index, self.completion_len() - 1));
         }
     }
 }
@@ -412,10 +425,9 @@ impl Mode for Insert {
                 buf.core.delete();
             }
             Event::Key(Key::Char('\t')) => {
-                let comp_len = self.completion.len();
-                if comp_len > 0 {
+                if self.completion_len() > 0 {
                     if let Some(index) = self.completion_index {
-                        self.completion_index = Some((index + 1) % comp_len);
+                        self.completion_index = Some((index + 1) % self.completion_len());
                     } else {
                         self.completion_index = Some(0);
                     }
@@ -434,8 +446,7 @@ impl Mode for Insert {
                 if pairs.iter().any(|p| p.1 == c) && buf.core.char_at_cursor() == Some(c) {
                     buf.core.cursor_right();
                 } else if c == '\n' && self.completion_index.is_some() {
-                    let (key, is_snip) = &self.completion[self.completion_index.unwrap()];
-                    let body = if *is_snip { &buf.snippet[key] } else { key };
+                    let body = &self.get_completion(buf).unwrap();
                     Self::remove_token(&mut buf.core);
                     for c in body.chars() {
                         buf.core.insert(c);
@@ -492,7 +503,13 @@ impl Mode for Insert {
         if let Some(cursor) = cursor {
             if cursor.col + completion_width <= width && cursor.row + completion_height <= height {
                 let mut view = term.view(cursor.to_tuple(), completion_height, completion_width);
-                for (i, (s, _)) in self.completion.iter().take(completion_height).enumerate() {
+                for (i, s) in self
+                    .racer_completion
+                    .iter()
+                    .chain(self.snippet_completion.iter())
+                    .take(completion_height)
+                    .enumerate()
+                {
                     for c in s.chars().take(completion_width - 1) {
                         if Some(i) == self.completion_index {
                             view.put(c, draw::CharStyle::Highlight, None);
