@@ -41,16 +41,25 @@ struct Prefix;
 struct Insert {
     completion_index: Option<usize>,
     buf_update: Wrapping<usize>,
+    racer_count: usize,
+    current_racer_id: usize,
     racer_completion: Vec<String>,
     snippet_completion: Vec<String>,
+    racer_tx: mpsc::Sender<(usize, Vec<String>)>,
+    racer_rx: mpsc::Receiver<(usize, Vec<String>)>,
 }
 impl Default for Insert {
     fn default() -> Self {
+        let (tx, rx) = mpsc::channel();
         Insert {
             completion_index: None,
             racer_completion: Vec::new(),
             snippet_completion: Vec::new(),
             buf_update: Wrapping(0),
+            current_racer_id: 0,
+            racer_count: 1,
+            racer_tx: tx,
+            racer_rx: rx,
         }
     }
 }
@@ -351,6 +360,18 @@ impl Insert {
         }
     }
 
+    fn poll(&mut self) {
+        if let Ok((id, snips)) = self.racer_rx.try_recv() {
+            if id > self.current_racer_id {
+                self.racer_completion = snips;
+                self.current_racer_id = id;
+            }
+        }
+        if let Some(index) = self.completion_index {
+            self.completion_index = Some(index % self.completion_len());
+        }
+    }
+
     fn build_completion(&mut self, buf: &mut Buffer) {
         let prefix = Self::token(&buf.core);
         let start_completion = {
@@ -362,36 +383,38 @@ impl Insert {
         };
         // racer
         if self.buf_update != buf.core.buffer_changed {
-            self.racer_completion.clear();
+            let id = self.racer_count;
+            self.racer_count += 1;
+            let tx = self.racer_tx.clone();
+            let cursor = buf.core.cursor();
+            let src = buf.core.get_string();
             if !prefix.is_empty() || start_completion {
-                let cursor = buf.core.cursor();
-                let src = buf.core.get_string();
-                // racer sometimes crash
-                if let Ok(matches) = panic::catch_unwind(move || {
+                thread::spawn(move || {
+                    // racer sometimes crash
                     let cache = racer::FileCache::default();
                     let session = racer::Session::new(&cache);
 
                     session.cache_file_contents("main.rs", src);
 
-                    racer::complete_from_file(
+                    let completion = racer::complete_from_file(
                         "main.rs",
                         racer::Location::from(racer::Coordinate::new(
                             cursor.row as u32 + 1,
                             cursor.col as u32,
                         )),
                         &session,
-                    ).collect::<Vec<_>>()
-                }) {
-                    for m in matches {
-                        if prefix != m.matchstr {
-                            self.racer_completion.push(m.matchstr);
-                        }
-                    }
-                }
+                    ).into_iter()
+                    .map(|m| m.matchstr)
+                    .filter(|s| s != &prefix)
+                    .collect();
+
+                    let _ = tx.send((id, completion));
+                });
             }
             self.buf_update = buf.core.buffer_changed;
         }
         // snippet
+        let prefix = Self::token(&buf.core);
         self.snippet_completion.clear();
         if !prefix.is_empty() {
             for keyword in buf.snippet.keys().filter(|k| k.starts_with(&prefix)) {
@@ -490,6 +513,7 @@ impl Mode for Insert {
     }
 
     fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
+        self.poll();
         let height = term.height;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height, width));
