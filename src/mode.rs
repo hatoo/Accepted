@@ -364,9 +364,6 @@ impl Insert {
                 let src = buf.core.get_string();
                 // racer sometimes crash
                 if let Ok(matches) = panic::catch_unwind(move || {
-                    panic::set_hook(Box::new(|_| {
-                        println!("Custom panic hook");
-                    }));
                     let cache = racer::FileCache::default();
                     let session = racer::Session::new(&cache);
 
