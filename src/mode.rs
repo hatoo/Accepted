@@ -13,7 +13,6 @@ use std::cmp::{max, min};
 use std::ffi::OsString;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::io::Read;
 use std::io::Write;
 use std::num::Wrapping;
 use std::panic;
