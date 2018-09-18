@@ -1,3 +1,4 @@
+use indent;
 use std;
 use std::cmp::Ordering;
 use std::cmp::{max, min};
@@ -182,6 +183,16 @@ impl Core {
         }
 
         true
+    }
+
+    pub fn indent(&mut self) {
+        self.cursor.col = 0;
+        if !self.cursor.row > 0 {
+            let indent = indent::next_indent_level(&self.buffer[self.cursor.row - 1]);
+            for _ in 0..4 * indent {
+                self.insert(' ');
+            }
+        }
     }
 
     pub fn insert(&mut self, c: char) {

@@ -157,20 +157,14 @@ impl Mode for Normal {
             }
             Event::Key(Key::Char('r')) => return Transition::Trans(Box::new(R)),
             Event::Key(Key::Char('o')) => {
-                let indent = indent::next_indent_level(buf.core.current_line());
                 buf.core.insert_newline();
-                for _ in 0..4 * indent {
-                    buf.core.insert(' ');
-                }
+                buf.core.indent();
                 return Transition::Trans(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('O')) => {
                 buf.core.cursor_up();
-                let indent = indent::next_indent_level(buf.core.current_line());
                 buf.core.insert_newline();
-                for _ in 0..4 * indent {
-                    buf.core.insert(' ');
-                }
+                buf.core.indent();
                 return Transition::Trans(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('h')) => buf.core.cursor_left(),
@@ -838,7 +832,8 @@ impl Mode for Visual {
                     buf.core.cursor_dec();
                 }
             }
-            Event::Key(Key::Char('d')) => {
+            Event::Key(Key::Char('d')) | Event::Key(Key::Char('s')) => {
+                let to_insert = event == Event::Key(Key::Char('s'));
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
                 let s = if self.line_mode {
                     buf.core.get_string_by_range(range).trim_right().to_string()
@@ -850,7 +845,15 @@ impl Mode for Visual {
                 buf.core.commit();
                 buf.yank.insert_newline = self.line_mode;
                 buf.yank.content = s;
-                return Transition::Trans(Box::new(Normal::with_message("Deleted".into())));
+
+                return if to_insert {
+                    buf.core.cursor_up();
+                    buf.core.insert_newline();
+                    buf.core.indent();
+                    Transition::Trans(Box::new(Insert::default()))
+                } else {
+                    Transition::Trans(Box::new(Normal::with_message("Deleted".into())))
+                };
             }
             Event::Key(Key::Char('y')) => {
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
