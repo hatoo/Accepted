@@ -6,7 +6,6 @@ use core::CursorRange;
 use draw;
 use indent;
 use racer;
-use rustfmt;
 use shellexpand;
 use std;
 use std::cmp::{max, min};
@@ -834,14 +833,16 @@ impl Mode for Visual {
                 };
                 buf.core.set_cursor(range.l());
                 buf.core.delete_from_cursor(range.r());
+                if to_insert {
+                    buf.core.cursor_up();
+                    buf.core.insert_newline();
+                    buf.core.indent();
+                }
                 buf.core.commit();
                 buf.yank.insert_newline = self.line_mode;
                 buf.yank.content = s;
 
                 return if to_insert {
-                    buf.core.cursor_up();
-                    buf.core.insert_newline();
-                    buf.core.indent();
                     Transition::Trans(Box::new(Insert::default()))
                 } else {
                     Transition::Trans(Box::new(Normal::with_message("Deleted".into())))
