@@ -888,8 +888,13 @@ impl Mode for ViewProcess {
     }
 
     fn draw(&mut self, _buf: &Buffer, term: &mut draw::Term) {
-        if let Ok(line) = self.reader.try_recv() {
+        let mut read_cnt = 32;
+        while let Ok(line) = self.reader.try_recv() {
+            if read_cnt == 0 {
+                break;
+            }
             self.buf.push(line);
+            read_cnt -= 1;
         }
 
         let height = term.height;
