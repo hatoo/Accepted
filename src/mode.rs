@@ -14,7 +14,6 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
 use std::num::Wrapping;
-use std::panic;
 use std::path::PathBuf;
 use std::process;
 use std::sync::mpsc;
@@ -361,7 +360,7 @@ impl Insert {
     }
 
     fn poll(&mut self) {
-        if let Ok((id, snips)) = self.racer_rx.try_recv() {
+        while let Ok((id, snips)) = self.racer_rx.try_recv() {
             if id > self.current_racer_id {
                 self.racer_completion = snips;
                 self.current_racer_id = id;
