@@ -373,6 +373,10 @@ impl Insert {
     }
 
     fn build_completion(&mut self, buf: &mut Buffer) {
+        if self.buf_update == buf.core.buffer_changed {
+            return;
+        }
+        self.buf_update = buf.core.buffer_changed;
         let prefix = Self::token(&buf.core);
         let start_completion = {
             let i = buf.core.cursor().col;
@@ -382,36 +386,33 @@ impl Insert {
             }
         };
         // racer
-        if self.buf_update != buf.core.buffer_changed {
-            let id = self.racer_count;
-            self.racer_count += 1;
-            let tx = self.racer_tx.clone();
-            let cursor = buf.core.cursor();
-            let src = buf.core.get_string();
-            if !prefix.is_empty() || start_completion {
-                thread::spawn(move || {
-                    // racer sometimes crash
-                    let cache = racer::FileCache::default();
-                    let session = racer::Session::new(&cache);
+        let id = self.racer_count;
+        self.racer_count += 1;
+        let tx = self.racer_tx.clone();
+        let cursor = buf.core.cursor();
+        let src = buf.core.get_string();
+        if !prefix.is_empty() || start_completion {
+            thread::spawn(move || {
+                // racer sometimes crash
+                let cache = racer::FileCache::default();
+                let session = racer::Session::new(&cache);
 
-                    session.cache_file_contents("main.rs", src);
+                session.cache_file_contents("main.rs", src);
 
-                    let completion = racer::complete_from_file(
-                        "main.rs",
-                        racer::Location::from(racer::Coordinate::new(
-                            cursor.row as u32 + 1,
-                            cursor.col as u32,
-                        )),
-                        &session,
-                    ).into_iter()
-                    .map(|m| m.matchstr)
-                    .filter(|s| s != &prefix)
-                    .collect();
+                let completion = racer::complete_from_file(
+                    "main.rs",
+                    racer::Location::from(racer::Coordinate::new(
+                        cursor.row as u32 + 1,
+                        cursor.col as u32,
+                    )),
+                    &session,
+                ).into_iter()
+                .map(|m| m.matchstr)
+                .filter(|s| s != &prefix)
+                .collect();
 
-                    let _ = tx.send((id, completion));
-                });
-            }
-            self.buf_update = buf.core.buffer_changed;
+                let _ = tx.send((id, completion));
+            });
         }
         // snippet
         let prefix = Self::token(&buf.core);
