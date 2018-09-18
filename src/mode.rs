@@ -624,13 +624,7 @@ impl Mode for Prefix {
                 return Transition::Trans(Box::new(Normal::new()));
             }
             Event::Key(Key::Char(' ')) => {
-                let src = buf.core.get_string();
-                if let Some(formatted) = rustfmt::system_rustfmt(&src) {
-                    if formatted != src {
-                        buf.core.set_string(&formatted, false);
-                    }
-                }
-
+                buf.core.rustfmt();
                 return Transition::Trans(Box::new(Normal::new()));
             }
             Event::Key(Key::Char('q')) => {
@@ -639,10 +633,7 @@ impl Mode for Prefix {
             Event::Key(Key::Char('s')) => {
                 if let Some(ref path) = buf.path {
                     // Rustfmt
-                    let mut content = buf.core.get_string();
-                    if let Some(formatted) = rustfmt::system_rustfmt(&content) {
-                        buf.core.set_string(&formatted, false);
-                    }
+                    buf.core.rustfmt();
                     let message = if buf.save().unwrap().is_ok() {
                         format!("Saved to {}", path.to_string_lossy())
                     } else {
@@ -679,6 +670,7 @@ impl Mode for Prefix {
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
                 if let Some(path) = buf.path.as_ref() {
+                    buf.core.rustfmt();
                     buf.save();
                     let mut rustc = process::Command::new("rustc");
                     rustc.stderr(process::Stdio::piped());
