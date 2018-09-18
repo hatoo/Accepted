@@ -8,10 +8,8 @@ pub fn system_rustfmt(src: &str) -> Option<String> {
         .stderr(process::Stdio::piped())
         .spawn()
         .ok()?;
-    {
-        let mut stdin = rustfmt.stdin.take()?;
-        write!(stdin, "{}", src).unwrap();
-    }
+    let mut stdin = rustfmt.stdin.take()?;
+    write!(stdin, "{}", src).unwrap();
     let out = rustfmt.wait_with_output().ok()?;
 
     if !out.status.success() {
