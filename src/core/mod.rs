@@ -188,7 +188,7 @@ impl Core {
 
     pub fn indent(&mut self) {
         self.cursor.col = 0;
-        if !self.cursor.row > 0 {
+        if self.cursor.row > 0 {
             let indent = indent::next_indent_level(&self.buffer[self.cursor.row - 1]);
             for _ in 0..4 * indent {
                 self.insert(' ');
@@ -214,6 +214,19 @@ impl Core {
             c: '\n',
         };
         self.perform(op);
+    }
+
+    // O
+    pub fn insert_newline_here(&mut self) {
+        let op = operation::Insert {
+            cursor: Cursor {
+                row: self.cursor.row,
+                col: 0,
+            },
+            c: '\n',
+        };
+        self.perform(op);
+        self.cursor_up();
     }
 
     pub fn replace(&mut self, c: char) {

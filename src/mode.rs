@@ -161,8 +161,7 @@ impl Mode for Normal {
                 return Transition::Trans(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('O')) => {
-                buf.core.cursor_up();
-                buf.core.insert_newline();
+                buf.core.insert_newline_here();
                 buf.core.indent();
                 return Transition::Trans(Box::new(Insert::default()));
             }
@@ -831,11 +830,13 @@ impl Mode for Visual {
                 } else {
                     buf.core.get_string_by_range(range)
                 };
+                let delete_to_end = range.r().row == buf.core.buffer().len() - 1;
                 buf.core.set_cursor(range.l());
                 buf.core.delete_from_cursor(range.r());
                 if to_insert {
-                    buf.core.cursor_up();
-                    buf.core.insert_newline();
+                    if !delete_to_end {
+                        buf.core.insert_newline_here();
+                    }
                     buf.core.indent();
                 }
                 buf.core.commit();
