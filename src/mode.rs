@@ -683,14 +683,18 @@ impl Mode for Prefix {
                     }.into(),
                 )));
             }
-            Event::Key(Key::Char('t')) => {
+            Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
+                let is_optimize = event == Event::Key(Key::Char('T'));
                 if let Some(path) = buf.path.as_ref() {
                     buf.save();
-                    if let Ok(mut p) = process::Command::new("rustc")
-                        .arg(path)
-                        .stderr(process::Stdio::piped())
-                        .spawn()
-                    {
+                    let mut rustc = process::Command::new("rustc");
+                    rustc.stderr(process::Stdio::piped());
+                    if is_optimize {
+                        rustc.args([&OsString::from("-O"), path.as_os_str()].iter());
+                    } else {
+                        rustc.arg(path);
+                    }
+                    if let Ok(mut p) = rustc.spawn() {
                         if let Some(mut stderr) = p.stderr.take() {
                             let mut buf = Vec::new();
                             if stderr.read_to_end(&mut buf).is_ok() && buf.is_empty() {
