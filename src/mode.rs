@@ -872,8 +872,7 @@ impl Mode for Visual {
                     buf.core.get_string_by_range(range)
                 };
                 let delete_to_end = range.r().row == buf.core.buffer().len() - 1;
-                buf.core.set_cursor(range.l());
-                buf.core.delete_from_cursor(range.r());
+                buf.core.delete_range(range);
                 if to_insert && range.l().row != range.r().row {
                     if !delete_to_end {
                         buf.core.insert_newline_here();
