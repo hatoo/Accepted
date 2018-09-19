@@ -1,6 +1,8 @@
 Accepted
 ===
 
+[![crates.io](https://img.shields.io/crates/v/accepted.svg)](https://crates.io/crates/accepted)
+
 A terminal text editor to be **ACCEPTED**.
 
 ![Accepted screenshot](demo.png "acc")
