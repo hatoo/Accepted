@@ -29,6 +29,12 @@ pub enum Transition {
     Exit,
 }
 
+impl<T: Mode + 'static> From<T> for Transition {
+    fn from(mode: T) -> Transition {
+        Transition::Trans(Box::new(mode))
+    }
+}
+
 pub trait Mode {
     fn init(&mut self, &mut Buffer) {}
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition;
@@ -181,7 +187,7 @@ impl Mode for Normal {
         match event {
             Event::Key(Key::Char('u')) => buf.core.undo(),
             Event::Key(Key::Char('U')) => buf.core.redo(),
-            Event::Key(Key::Char('i')) => return Transition::Trans(Box::new(Insert::default())),
+            Event::Key(Key::Char('i')) => return Insert::default().into(),
             Event::Key(Key::Char('I')) => {
                 let mut i = 0;
                 {
@@ -193,28 +199,28 @@ impl Mode for Normal {
                 let mut c = buf.core.cursor();
                 c.col = i;
                 buf.core.set_cursor(c);
-                return Transition::Trans(Box::new(Insert::default()));
+                return Insert::default().into();
             }
             Event::Key(Key::Char('a')) => {
                 buf.core.cursor_right();
-                return Transition::Trans(Box::new(Insert::default()));
+                return Insert::default().into();
             }
             Event::Key(Key::Char('A')) => {
                 let mut c = buf.core.cursor();
                 c.col = buf.core.current_line().len();
                 buf.core.set_cursor(c);
-                return Transition::Trans(Box::new(Insert::default()));
+                return Insert::default().into();
             }
-            Event::Key(Key::Char('r')) => return Transition::Trans(Box::new(R)),
+            Event::Key(Key::Char('r')) => return R.into(),
             Event::Key(Key::Char('o')) => {
                 buf.core.insert_newline();
                 buf.core.indent();
-                return Transition::Trans(Box::new(Insert::default()));
+                return Insert::default().into();
             }
             Event::Key(Key::Char('O')) => {
                 buf.core.insert_newline_here();
                 buf.core.indent();
-                return Transition::Trans(Box::new(Insert::default()));
+                return Insert::default().into();
             }
             Event::Key(Key::Char('h')) => buf.core.cursor_left(),
             Event::Key(Key::Char('j')) => buf.core.cursor_down(),
@@ -274,18 +280,18 @@ impl Mode for Normal {
                 buf.core.delete();
                 buf.core.commit();
             }
-            Event::Key(Key::Char('/')) => return Transition::Trans(Box::new(Search)),
+            Event::Key(Key::Char('/')) => return Search.into(),
             Event::Key(Key::Char('v')) => {
-                return Transition::Trans(Box::new(Visual {
+                return Visual {
                     cursor: buf.core.cursor(),
                     line_mode: false,
-                }))
+                }.into();
             }
             Event::Key(Key::Char('V')) => {
-                return Transition::Trans(Box::new(Visual {
+                return Visual {
                     cursor: buf.core.cursor(),
                     line_mode: true,
-                }))
+                }.into();
             }
             Event::Key(Key::Char('p')) => {
                 if buf.yank.insert_newline {
@@ -319,8 +325,9 @@ impl Mode for Normal {
                     self.message = "Failed to paste from clipboard".into();
                 }
             }
-            Event::Key(Key::Char(' ')) => return Transition::Trans(Box::new(Prefix)),
-
+            Event::Key(Key::Char(' ')) => {
+                return Prefix.into();
+            }
             Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
                 let col = x as usize - 1;
                 let row = y as usize - 1;
@@ -336,10 +343,10 @@ impl Mode for Normal {
                 }
             }
             Event::Mouse(MouseEvent::Hold(_, _)) => {
-                return Transition::Trans(Box::new(Visual {
+                return Visual {
                     cursor: buf.core.cursor(),
                     line_mode: false,
-                }))
+                }.into()
             }
 
             Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
@@ -356,7 +363,7 @@ impl Mode for Normal {
             _ => {
                 if let Event::Key(Key::Char(c)) = event {
                     if let Some(action) = Action::from_char(c) {
-                        return Transition::Trans(Box::new(TextObjectOperation::new(action)));
+                        return TextObjectOperation::new(action).into();
                     }
                 }
             }
@@ -504,7 +511,7 @@ impl Mode for Insert {
         match event {
             Event::Key(Key::Esc) => {
                 buf.core.commit();
-                return Transition::Trans(Box::new(Normal::new()));
+                return Normal::new().into();
             }
             Event::Key(Key::Backspace) => {
                 buf.core.cursor_dec();
@@ -619,11 +626,11 @@ impl Mode for R {
         let core = &mut buf.core;
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::Trans(Box::new(Normal::new()));
+                return Normal::new().into();
             }
             Event::Key(Key::Char(c)) => {
                 core.replace(c);
-                return Transition::Trans(Box::new(Normal::new()));
+                return Normal::new().into();
             }
             _ => {}
         }
@@ -644,14 +651,14 @@ impl Mode for Search {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::Trans(Box::new(Normal::new()));
+                return Normal::new().into();
             }
             Event::Key(Key::Backspace) => {
                 buf.search.pop();
             }
             Event::Key(Key::Char(c)) => {
                 if c == '\n' {
-                    return Transition::Trans(Box::new(Normal::new()));
+                    return Normal::new().into();
                 }
                 buf.search.push(c);
             }
@@ -680,7 +687,7 @@ impl Mode for Save {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::Trans(Box::new(Normal::new()));
+                return Normal::new().into();
             }
             Event::Key(Key::Backspace) => {
                 self.path.pop();
@@ -694,7 +701,7 @@ impl Mode for Save {
                     } else {
                         format!("Failed to save {}", path)
                     };
-                    return Transition::Trans(Box::new(Normal::with_message(message)));
+                    return Normal::with_message(message).into();
                 }
                 self.path.push(c);
             }
@@ -726,11 +733,11 @@ impl Mode for Prefix {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::Trans(Box::new(Normal::new()));
+                return Normal::new().into();
             }
             Event::Key(Key::Char(' ')) => {
                 buf.core.rustfmt();
-                return Transition::Trans(Box::new(Normal::new()));
+                return Normal::new().into();
             }
             Event::Key(Key::Char('q')) => {
                 return Transition::Exit;
@@ -744,33 +751,33 @@ impl Mode for Prefix {
                     } else {
                         format!("Failed to save {}", path.to_string_lossy())
                     };
-                    return Transition::Trans(Box::new(Normal::with_message(message)));
+                    return Normal::with_message(message).into();
                 } else {
-                    return Transition::Trans(Box::new(Save {
+                    return Save {
                         path: String::new(),
-                    }));
+                    }.into();
                 }
             }
             Event::Key(Key::Char('a')) => {
                 if let Some(ref path) = buf.path {
-                    return Transition::Trans(Box::new(Save {
+                    return Save {
                         path: path.to_string_lossy().into(),
-                    }));
+                    }.into();
                 } else {
-                    return Transition::Trans(Box::new(Save {
+                    return Save {
                         path: String::new(),
-                    }));
+                    }.into();
                 }
             }
             Event::Key(Key::Char('y')) => {
                 let result = clipboard::clipboard_copy(&buf.core.get_string());
-                return Transition::Trans(Box::new(Normal::with_message(
+                return Normal::with_message(
                     if result {
                         "Copied"
                     } else {
                         "Failed to copy to clipboard"
                     }.into(),
-                )));
+                ).into();
             }
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
@@ -802,40 +809,31 @@ impl Mode for Prefix {
                                                 write!(stdin, "{}", input);
                                             }
                                             if let Some(next_state) = ViewProcess::new(child) {
-                                                return Transition::Trans(Box::new(next_state));
+                                                return next_state.into();
                                             } else {
-                                                return Transition::Trans(Box::new(
-                                                    Normal::with_message("Failed to test".into()),
-                                                ));
+                                                return Normal::with_message(
+                                                    "Failed to test".into(),
+                                                ).into();
                                             }
                                         } else {
-                                            return Transition::Trans(Box::new(
-                                                Normal::with_message("Failed to paste".into()),
-                                            ));
+                                            return Normal::with_message("Failed to paste".into())
+                                                .into();
                                         }
                                     } else {
-                                        return Transition::Trans(Box::new(Normal::with_message(
-                                            "Failed to run".into(),
-                                        )));
+                                        return Normal::with_message("Failed to run".into()).into();
                                     }
                                 } else {
-                                    return Transition::Trans(Box::new(Normal::with_message(
-                                        "Failed to run".into(),
-                                    )));
+                                    return Normal::with_message("Failed to run".into()).into();
                                 }
                             } else {
-                                return Transition::Trans(Box::new(Normal::with_message(
-                                    "Failed to compile".into(),
-                                )));
+                                return Normal::with_message("Failed to compile".into()).into();
                             }
                         }
                     } else {
-                        return Transition::Trans(Box::new(Normal::with_message(
-                            "Failed to compile".into(),
-                        )));
+                        return Normal::with_message("Failed to compile".into()).into();
                     }
                 } else {
-                    return Transition::Trans(Box::new(Normal::with_message("Save first".into())));
+                    return Normal::with_message("Save first".into()).into();
                 }
             }
             _ => {}
@@ -879,7 +877,7 @@ impl Mode for Visual {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::Trans(Box::new(Normal::new()));
+                return Normal::new().into();
             }
             Event::Key(Key::Char('h')) => buf.core.cursor_left(),
             Event::Key(Key::Char('j')) => buf.core.cursor_down(),
@@ -950,9 +948,9 @@ impl Mode for Visual {
                 buf.yank.content = s;
 
                 return if to_insert {
-                    Transition::Trans(Box::new(Insert::default()))
+                    Insert::default().into()
                 } else {
-                    Transition::Trans(Box::new(Normal::with_message("Deleted".into())))
+                    Normal::with_message("Deleted".into()).into()
                 };
             }
             Event::Key(Key::Char('y')) => {
@@ -965,7 +963,7 @@ impl Mode for Visual {
                 buf.core.set_cursor(range.l());
                 buf.yank.insert_newline = self.line_mode;
                 buf.yank.content = s;
-                return Transition::Trans(Box::new(Normal::with_message("Yanked".into())));
+                return Normal::with_message("Yanked".into()).into();
             }
             Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
                 let col = x as usize - 1;
@@ -980,7 +978,7 @@ impl Mode for Visual {
                 if let Some(c) = term.pos(cursor) {
                     buf.core.set_cursor(c);
                 }
-                return Transition::Trans(Box::new(Normal::new()));
+                return Normal::new().into();
             }
             Event::Mouse(MouseEvent::Hold(x, y)) => {
                 let col = x as usize - 1;
@@ -1016,7 +1014,7 @@ impl Mode for ViewProcess {
     fn event(&mut self, _buf: &mut Buffer, event: termion::event::Event) -> Transition {
         if event == Event::Key(Key::Esc) {
             let _result = self.process.kill();
-            Transition::Trans(Box::new(Normal::new()))
+            Normal::new().into()
         } else {
             Transition::Nothing
         }
@@ -1052,7 +1050,7 @@ impl Mode for ViewProcess {
 impl Mode for TextObjectOperation {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         if event == Event::Key(Key::Esc) {
-            return Transition::Trans(Box::new(Normal::new()));
+            return Normal::new().into();
         }
         if let Event::Key(Key::Char(c)) = event {
             if c == self.action.to_char() {
@@ -1081,10 +1079,10 @@ impl Mode for TextObjectOperation {
                             col: 0,
                         });
                         buf.core.commit();
-                        return Transition::Trans(Box::new(Normal::new()));
+                        return Normal::new().into();
                     }
                     Action::Yank => {
-                        return Transition::Trans(Box::new(Normal::new()));
+                        return Normal::new().into();
                     }
                     Action::Change => {
                         let pos = buf.core.cursor();
@@ -1097,7 +1095,7 @@ impl Mode for TextObjectOperation {
                         }
                         buf.core.commit();
                         buf.core.indent();
-                        return Transition::Trans(Box::new(Insert::default()));
+                        return Insert::default().into();
                     }
                 }
             }
@@ -1107,20 +1105,20 @@ impl Mode for TextObjectOperation {
                     Action::Delete => {
                         buf.core.delete_range(range);
                         buf.core.commit();
-                        return Transition::Trans(Box::new(Normal::new()));
+                        return Normal::new().into();
                     }
                     Action::Change => {
                         let range = self.parser.get_range(&buf.core).unwrap();
                         buf.core.delete_range(range);
                         buf.core.commit();
-                        return Transition::Trans(Box::new(Insert::default()));
+                        return Insert::default().into();
                     }
                     Action::Yank => {
                         buf.yank = Yank {
                             insert_newline: false,
                             content: buf.core.get_string_by_range(range),
                         };
-                        return Transition::Trans(Box::new(Normal::new()));
+                        return Normal::new().into();
                     }
                 }
             }
