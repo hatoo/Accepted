@@ -1051,6 +1051,9 @@ impl Mode for ViewProcess {
 
 impl Mode for TextObjectOperation {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+        if event == Event::Key(Key::Esc) {
+            return Transition::Trans(Box::new(Normal::new()));
+        }
         if let Event::Key(Key::Char(c)) = event {
             if c == self.action.to_char() {
                 // Yank current line
