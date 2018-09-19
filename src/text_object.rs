@@ -69,10 +69,6 @@ impl Default for TextObjectParser {
 }
 
 impl TextObjectParser {
-    pub fn is_parsed(&self) -> bool {
-        self.object.is_some()
-    }
-
     pub fn parse(&mut self, c: char) -> bool {
         match c {
             'a' => {
