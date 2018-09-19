@@ -9,7 +9,7 @@ A terminal text editor to be **ACCEPTED**.
 
 A modal text editor for competitive rust programmer written with Rust.
 
-A primary target is in competitive programmers.
+Primary target is in competitive Rust programmers.
 
 So this can Rustfmt and Test run with clipboard input which is useful to competitive programming by simple command.
 
@@ -70,11 +70,11 @@ SPACE -> q to Quit.
 
 This supports vscode style snippet.
 
-You can configure by toml file palaced in `[config_dir]/acc/init.toml`
+You can configure by toml file placed in `[config_dir]/acc/init.toml`
 
 config_dir is defined in [here](https://docs.rs/dirs/1.0.3/dirs/fn.config_dir.html).
 
-The only configurable this is snippet 
+The only configurable thing is snippet 
 
 ```
 snippet = ["path_to_snippet_file"]
