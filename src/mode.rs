@@ -290,6 +290,18 @@ impl Mode for Normal {
             Event::Key(Key::Char('p')) => {
                 if buf.yank.insert_newline {
                     buf.core.insert_newline();
+                } else {
+                    buf.core.cursor_right();
+                }
+
+                for c in buf.yank.content.chars() {
+                    buf.core.insert(c);
+                }
+                buf.core.commit();
+            }
+            Event::Key(Key::Char('P')) => {
+                if buf.yank.insert_newline {
+                    buf.core.insert_newline_here();
                 }
 
                 for c in buf.yank.content.chars() {
