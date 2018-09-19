@@ -61,11 +61,13 @@ SPACE -> s to Save.
 
 SPACE -> a to Save As.
 
+SPACE -> y to Copy all to clipboard
+
 SPACE -> SPACE to Rustfmt.
 
-SPACE -> t to conpile and run with clipboard input.
+SPACE -> t to compile and run with clipboard input.
 
-SPACE -> T to conpile (optimized) and run with clipboard input.
+SPACE -> T to compile (optimized) and run with clipboard input.
 
 SPACE -> q to Quit.
 
