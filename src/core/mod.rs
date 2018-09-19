@@ -239,10 +239,10 @@ impl Core {
         self.perform(op);
     }
 
-    pub fn delete_from_cursor(&mut self, to: Cursor) {
-        let range = CursorRange(self.cursor, to);
+    pub fn delete_range(&mut self, range: CursorRange) {
         let l = range.l();
         let r = range.r();
+        self.set_cursor(l);
         let mut t = l;
         let mut cnt = 0;
         while t != r {
