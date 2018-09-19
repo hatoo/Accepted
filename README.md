@@ -62,7 +62,7 @@ SPACE -> SPACE to Rustfmt.
 
 SPACE -> t to conpile and run with clipboard input.
 
-SPACE -> T to conpile and run with clipboard input.
+SPACE -> T to conpile (optimized) and run with clipboard input.
 
 SPACE -> q to Quit.
 
