@@ -3,7 +3,7 @@ Accepted
 
 A terminal text editor to be **ACCEPTED**.
 
-![Accepted screenshot](demo.png?raw=true "acc")
+![Accepted screenshot](demo.png "acc")
 
 ## Description
 
