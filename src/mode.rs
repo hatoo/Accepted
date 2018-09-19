@@ -335,6 +335,12 @@ impl Mode for Normal {
                     buf.core.set_cursor(c);
                 }
             }
+            Event::Mouse(MouseEvent::Hold(_, _)) => {
+                return Transition::Trans(Box::new(Visual {
+                    cursor: buf.core.cursor(),
+                    line_mode: false,
+                }))
+            }
 
             Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
                 if buf.core.row_offset < 3 {
@@ -960,6 +966,35 @@ impl Mode for Visual {
                 buf.yank.insert_newline = self.line_mode;
                 buf.yank.content = s;
                 return Transition::Trans(Box::new(Normal::with_message("Yanked".into())));
+            }
+            Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
+                let col = x as usize - 1;
+                let row = y as usize - 1;
+                let cursor = Cursor { row, col };
+
+                let mut term = draw::Term::default();
+                let height = term.height;
+                let width = term.width;
+                buf.draw(term.view((0, 0), height, width));
+
+                if let Some(c) = term.pos(cursor) {
+                    buf.core.set_cursor(c);
+                }
+                return Transition::Trans(Box::new(Normal::new()));
+            }
+            Event::Mouse(MouseEvent::Hold(x, y)) => {
+                let col = x as usize - 1;
+                let row = y as usize - 1;
+                let cursor = Cursor { row, col };
+
+                let mut term = draw::Term::default();
+                let height = term.height;
+                let width = term.width;
+                buf.draw(term.view((0, 0), height, width));
+
+                if let Some(c) = term.pos(cursor) {
+                    buf.core.set_cursor(c);
+                }
             }
             _ => {}
         }
