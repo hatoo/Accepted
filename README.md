@@ -21,6 +21,7 @@ So this can Rustfmt and Test run with clipboard input which is useful to competi
 * Completion with [Racer](https://github.com/racer-rust/racer)
 * Easy to test a single rust code
 * VScode style snippet support
+* Mouse support
 
 ## Install
 
