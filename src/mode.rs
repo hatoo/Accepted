@@ -170,13 +170,15 @@ impl ViewProcess {
     }
 }
 
-impl Normal {
-    pub fn new() -> Self {
+impl Default for Normal {
+    fn default() -> Self {
         Self {
             message: String::new(),
         }
     }
+}
 
+impl Normal {
     pub fn with_message(message: String) -> Self {
         Self { message }
     }
@@ -511,7 +513,7 @@ impl Mode for Insert {
         match event {
             Event::Key(Key::Esc) => {
                 buf.core.commit();
-                return Normal::new().into();
+                return Normal::default().into();
             }
             Event::Key(Key::Backspace) => {
                 buf.core.cursor_dec();
@@ -626,11 +628,11 @@ impl Mode for R {
         let core = &mut buf.core;
         match event {
             Event::Key(Key::Esc) => {
-                return Normal::new().into();
+                return Normal::default().into();
             }
             Event::Key(Key::Char(c)) => {
                 core.replace(c);
-                return Normal::new().into();
+                return Normal::default().into();
             }
             _ => {}
         }
@@ -651,14 +653,14 @@ impl Mode for Search {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Normal::new().into();
+                return Normal::default().into();
             }
             Event::Key(Key::Backspace) => {
                 buf.search.pop();
             }
             Event::Key(Key::Char(c)) => {
                 if c == '\n' {
-                    return Normal::new().into();
+                    return Normal::default().into();
                 }
                 buf.search.push(c);
             }
@@ -687,7 +689,7 @@ impl Mode for Save {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Normal::new().into();
+                return Normal::default().into();
             }
             Event::Key(Key::Backspace) => {
                 self.path.pop();
@@ -733,11 +735,11 @@ impl Mode for Prefix {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Normal::new().into();
+                return Normal::default().into();
             }
             Event::Key(Key::Char(' ')) => {
                 buf.core.rustfmt();
-                return Normal::new().into();
+                return Normal::default().into();
             }
             Event::Key(Key::Char('q')) => {
                 return Transition::Exit;
@@ -877,7 +879,7 @@ impl Mode for Visual {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Normal::new().into();
+                return Normal::default().into();
             }
             Event::Key(Key::Char('h')) => buf.core.cursor_left(),
             Event::Key(Key::Char('j')) => buf.core.cursor_down(),
@@ -978,7 +980,7 @@ impl Mode for Visual {
                 if let Some(c) = term.pos(cursor) {
                     buf.core.set_cursor(c);
                 }
-                return Normal::new().into();
+                return Normal::default().into();
             }
             Event::Mouse(MouseEvent::Hold(x, y)) => {
                 let col = x as usize - 1;
@@ -1014,7 +1016,7 @@ impl Mode for ViewProcess {
     fn event(&mut self, _buf: &mut Buffer, event: termion::event::Event) -> Transition {
         if event == Event::Key(Key::Esc) {
             let _result = self.process.kill();
-            Normal::new().into()
+            Normal::default().into()
         } else {
             Transition::Nothing
         }
@@ -1050,7 +1052,7 @@ impl Mode for ViewProcess {
 impl Mode for TextObjectOperation {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         if event == Event::Key(Key::Esc) {
-            return Normal::new().into();
+            return Normal::default().into();
         }
         if let Event::Key(Key::Char(c)) = event {
             if c == self.action.to_char() {
@@ -1079,10 +1081,10 @@ impl Mode for TextObjectOperation {
                             col: 0,
                         });
                         buf.core.commit();
-                        return Normal::new().into();
+                        return Normal::default().into();
                     }
                     Action::Yank => {
-                        return Normal::new().into();
+                        return Normal::default().into();
                     }
                     Action::Change => {
                         let pos = buf.core.cursor();
@@ -1105,7 +1107,7 @@ impl Mode for TextObjectOperation {
                     Action::Delete => {
                         buf.core.delete_range(range);
                         buf.core.commit();
-                        return Normal::new().into();
+                        return Normal::default().into();
                     }
                     Action::Change => {
                         let range = self.parser.get_range(&buf.core).unwrap();
@@ -1118,7 +1120,7 @@ impl Mode for TextObjectOperation {
                             insert_newline: false,
                             content: buf.core.get_string_by_range(range),
                         };
-                        return Normal::new().into();
+                        return Normal::default().into();
                     }
                 }
             }
