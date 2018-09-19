@@ -20,6 +20,7 @@ use std::sync::mpsc;
 use std::thread;
 use termion;
 use termion::event::{Event, Key, MouseButton, MouseEvent};
+use text_object;
 
 pub enum Transition {
     Nothing,
@@ -63,6 +64,27 @@ impl Default for Insert {
     }
 }
 struct R;
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum Action {
+    Delete,
+    Yank,
+    Change,
+}
+struct TextObjectOperation {
+    action: Action,
+    parser: text_object::TextObjectParser,
+}
+
+impl TextObjectOperation {
+    fn new(action: Action) -> Self {
+        Self {
+            Action,
+            parser: text_object::TextObjectParser::default(),
+        }
+    }
+}
+
 struct Search;
 struct Save {
     path: String,
@@ -954,3 +976,5 @@ impl Mode for ViewProcess {
         }
     }
 }
+
+// impl Mode for TextObjectOperation {}

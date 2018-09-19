@@ -13,6 +13,7 @@ mod indent;
 mod mode;
 mod rustfmt;
 pub mod syntax;
+mod text_object;
 pub mod theme;
 
 pub use buffer::Buffer;
