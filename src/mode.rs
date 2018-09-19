@@ -83,7 +83,7 @@ impl Action {
         }
     }
 
-    fn to_char(&self) -> char {
+    fn to_char(self) -> char {
         match self {
             Action::Delete => 'd',
             Action::Yank => 'y',
@@ -466,8 +466,7 @@ impl Insert {
                         cursor.col as u32,
                     )),
                     &session,
-                ).into_iter()
-                .map(|m| m.matchstr)
+                ).map(|m| m.matchstr)
                 .filter(|s| s != &prefix)
                 .collect();
 
