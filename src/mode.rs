@@ -1,4 +1,5 @@
 use buffer::Buffer;
+use buffer::Yank;
 use clipboard;
 use core::Core;
 use core::Cursor;
@@ -71,6 +72,26 @@ enum Action {
     Yank,
     Change,
 }
+
+impl Action {
+    fn from_char(c: char) -> Option<Self> {
+        match c {
+            'd' => Some(Action::Delete),
+            'y' => Some(Action::Yank),
+            'c' => Some(Action::Change),
+            _ => None,
+        }
+    }
+
+    fn to_char(&self) -> char {
+        match self {
+            Action::Delete => 'd',
+            Action::Yank => 'y',
+            Action::Change => 'c',
+        }
+    }
+}
+
 struct TextObjectOperation {
     action: Action,
     parser: text_object::TextObjectParser,
@@ -79,7 +100,7 @@ struct TextObjectOperation {
 impl TextObjectOperation {
     fn new(action: Action) -> Self {
         Self {
-            Action,
+            action,
             parser: text_object::TextObjectParser::default(),
         }
     }
@@ -314,7 +335,13 @@ impl Mode for Normal {
                 buf.core.row_offset =
                     std::cmp::min(buf.core.row_offset + 3, buf.core.buffer().len() - 1);
             }
-            _ => {}
+            _ => {
+                if let Event::Key(Key::Char(c)) = event {
+                    if let Some(action) = Action::from_char(c) {
+                        return Transition::Trans(Box::new(TextObjectOperation::new(action)));
+                    }
+                }
+            }
         }
         Transition::Nothing
     }
@@ -976,4 +1003,102 @@ impl Mode for ViewProcess {
     }
 }
 
-// impl Mode for TextObjectOperation {}
+impl Mode for TextObjectOperation {
+    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+        if let Event::Key(Key::Char(c)) = event {
+            if c == self.action.to_char() {
+                // Yank current line
+                buf.yank = Yank {
+                    insert_newline: true,
+                    content: buf.core.current_line().iter().collect(),
+                };
+                match self.action {
+                    // dd
+                    Action::Delete => {
+                        let len = buf.core.current_line().len();
+                        let pos = buf.core.cursor();
+                        buf.core.set_cursor(Cursor {
+                            row: pos.row,
+                            col: 0,
+                        });
+
+                        let len = if buf.core.cursor_dec() { len + 1 } else { len };
+                        for _ in 0..len {
+                            buf.core.delete();
+                        }
+                        let pos = buf.core.cursor();
+                        buf.core.set_cursor(Cursor {
+                            row: pos.row,
+                            col: 0,
+                        });
+                        buf.core.commit();
+                        return Transition::Trans(Box::new(Normal::new()));
+                    }
+                    Action::Yank => {
+                        return Transition::Trans(Box::new(Normal::new()));
+                    }
+                    Action::Change => {
+                        let pos = buf.core.cursor();
+                        buf.core.set_cursor(Cursor {
+                            row: pos.row,
+                            col: 0,
+                        });
+                        for _ in 0..buf.core.current_line().len() {
+                            buf.core.delete();
+                        }
+                        buf.core.commit();
+                        buf.core.indent();
+                        return Transition::Trans(Box::new(Insert::default()));
+                    }
+                }
+            }
+            if self.parser.parse(c) {
+                let range = self.parser.get_range(&buf.core).unwrap();
+                match self.action {
+                    Action::Delete => {
+                        buf.core.delete_range(range);
+                        buf.core.commit();
+                        return Transition::Trans(Box::new(Normal::new()));
+                    }
+                    Action::Change => {
+                        let range = self.parser.get_range(&buf.core).unwrap();
+                        buf.core.delete_range(range);
+                        buf.core.commit();
+                        return Transition::Trans(Box::new(Insert::default()));
+                    }
+                    Action::Yank => {
+                        buf.yank = Yank {
+                            insert_newline: false,
+                            content: buf.core.get_string_by_range(range),
+                        };
+                        return Transition::Trans(Box::new(Normal::new()));
+                    }
+                }
+            }
+        }
+        Transition::Nothing
+    }
+
+    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
+        let height = term.height - 1;
+        let width = term.width;
+        let cursor = buf.draw(term.view((0, 0), height, width));
+        term.cursor = cursor
+            .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
+            .unwrap_or(draw::CursorState::Hide);
+
+        let mut footer = term.view((height, 0), 1, width);
+
+        match self.action {
+            Action::Change => {
+                footer.puts("Change ", draw::CharStyle::Footer);
+            }
+            Action::Delete => {
+                footer.puts("Delete ", draw::CharStyle::Footer);
+            }
+            Action::Yank => {
+                footer.puts("Yank ", draw::CharStyle::Footer);
+            }
+        }
+    }
+}
