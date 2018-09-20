@@ -45,7 +45,7 @@ TODO: More precisely.
 
 Many commands of `acc` is same as Vim.
 
-i, I, a, A to insert mode and Esc to return.
+i, I, a, A, o, O to insert mode and Esc to return.
 
 hjkl, w, e, b to move cursor.
 
