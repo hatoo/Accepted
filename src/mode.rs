@@ -1102,26 +1102,29 @@ impl Mode for TextObjectOperation {
                 }
             }
             if self.parser.parse(c) {
-                let range = self.parser.get_range(&buf.core).unwrap();
-                match self.action {
-                    Action::Delete => {
-                        buf.core.delete_range(range);
-                        buf.core.commit();
-                        return Normal::default().into();
+                if let Some(range) = self.parser.get_range(&buf.core) {
+                    match self.action {
+                        Action::Delete => {
+                            buf.core.delete_range(range);
+                            buf.core.commit();
+                            return Normal::default().into();
+                        }
+                        Action::Change => {
+                            let range = self.parser.get_range(&buf.core).unwrap();
+                            buf.core.delete_range(range);
+                            buf.core.commit();
+                            return Insert::default().into();
+                        }
+                        Action::Yank => {
+                            buf.yank = Yank {
+                                insert_newline: false,
+                                content: buf.core.get_string_by_range(range),
+                            };
+                            return Normal::default().into();
+                        }
                     }
-                    Action::Change => {
-                        let range = self.parser.get_range(&buf.core).unwrap();
-                        buf.core.delete_range(range);
-                        buf.core.commit();
-                        return Insert::default().into();
-                    }
-                    Action::Yank => {
-                        buf.yank = Yank {
-                            insert_newline: false,
-                            content: buf.core.get_string_by_range(range),
-                        };
-                        return Normal::default().into();
-                    }
+                } else {
+                    return Normal::default().into();
                 }
             }
         }

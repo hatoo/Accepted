@@ -8,14 +8,54 @@ pub enum Prefix {
 }
 
 pub trait TextObject {
-    fn get_range(&self, prefix: Prefix, core: &Core) -> CursorRange;
+    fn get_range(&self, prefix: Prefix, core: &Core) -> Option<CursorRange>;
 }
 
 struct Word;
+pub struct Quote(char);
+
+impl TextObject for Quote {
+    fn get_range(&self, prefix: Prefix, core: &Core) -> Option<CursorRange> {
+        match prefix {
+            Prefix::A | Prefix::Inner => {
+                let mut l = Cursor { row: 0, col: 0 };
+                let mut t = Cursor { row: 0, col: 0 };
+                let mut level = false;
+
+                loop {
+                    if core.char_at(t) == Some(self.0) {
+                        level = !level;
+                        if !level && t >= core.cursor() && l <= core.cursor() {
+                            if prefix == Prefix::Inner {
+                                let l = core.next_cursor(l)?;
+                                let r = core.prev_cursor(t)?;
+                                return if l <= r {
+                                    Some(CursorRange(l, r))
+                                } else {
+                                    None
+                                };
+                            } else {
+                                return Some(CursorRange(l, t));
+                            }
+                        }
+                        l = t;
+                    }
+
+                    if t > core.cursor() && !level {
+                        return None;
+                    }
+
+                    t = core.next_cursor(t)?;
+                }
+            }
+            _ => return None,
+        }
+    }
+}
 
 impl TextObject for Word {
-    fn get_range(&self, prefix: Prefix, core: &Core) -> CursorRange {
-        match prefix {
+    fn get_range(&self, prefix: Prefix, core: &Core) -> Option<CursorRange> {
+        Some(match prefix {
             Prefix::None => {
                 let l = core.cursor();
                 let line = core.current_line();
@@ -50,7 +90,7 @@ impl TextObject for Word {
                     },
                 )
             }
-        }
+        })
     }
 }
 
@@ -81,9 +121,16 @@ impl TextObjectParser {
         }
 
         if self.object.is_none() {
-            if c == 'w' {
-                self.object = Some(Box::new(Word));
-                return true;
+            match c {
+                'w' => {
+                    self.object = Some(Box::new(Word));
+                    return true;
+                }
+                '\'' | '"' => {
+                    self.object = Some(Box::new(Quote(c)));
+                    return true;
+                }
+                _ => (),
             }
         }
         false
@@ -92,6 +139,6 @@ impl TextObjectParser {
     pub fn get_range(&self, core: &Core) -> Option<CursorRange> {
         self.object
             .as_ref()
-            .map(|obj| obj.get_range(self.prefix, core))
+            .and_then(|obj| obj.get_range(self.prefix, core))
     }
 }

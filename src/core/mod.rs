@@ -106,7 +106,7 @@ impl Core {
             .and_then(|line| line.get(self.cursor.col).cloned())
     }
 
-    pub fn char_ar(&self, cursor: Cursor) -> Option<char> {
+    pub fn char_at(&self, cursor: Cursor) -> Option<char> {
         self.buffer
             .get(cursor.row)
             .and_then(|line| line.get(cursor.col).cloned())
@@ -184,6 +184,42 @@ impl Core {
         }
 
         true
+    }
+
+    pub fn prev_cursor(&self, cursor: Cursor) -> Option<Cursor> {
+        if cursor.row == 0 && cursor.col == 0 {
+            return None;
+        }
+
+        Some(if cursor.col > 0 {
+            Cursor {
+                row: cursor.row,
+                col: cursor.col - 1,
+            }
+        } else {
+            Cursor {
+                row: cursor.row - 1,
+                col: self.buffer[cursor.row - 1].len(),
+            }
+        })
+    }
+
+    pub fn next_cursor(&self, cursor: Cursor) -> Option<Cursor> {
+        if cursor.row == self.buffer.len() - 1 && cursor.col == self.buffer[cursor.row].len() {
+            return None;
+        }
+
+        Some(if cursor.col < self.buffer[cursor.row].len() {
+            Cursor {
+                row: cursor.row,
+                col: cursor.col + 1,
+            }
+        } else {
+            Cursor {
+                row: cursor.row + 1,
+                col: 0,
+            }
+        })
     }
 
     pub fn indent(&mut self) {
