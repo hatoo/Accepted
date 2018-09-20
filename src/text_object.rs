@@ -12,7 +12,8 @@ pub trait TextObject {
 }
 
 struct Word;
-pub struct Quote(char);
+struct Quote(char);
+struct Parens(char, char);
 
 impl TextObject for Quote {
     fn get_range(&self, prefix: Prefix, core: &Core) -> Option<CursorRange> {
@@ -49,6 +50,44 @@ impl TextObject for Quote {
                 }
             }
             _ => return None,
+        }
+    }
+}
+
+impl TextObject for Parens {
+    fn get_range(&self, prefix: Prefix, core: &Core) -> Option<CursorRange> {
+        match prefix {
+            Prefix::A | Prefix::Inner => {
+                let mut stack = Vec::new();
+                let mut t = Cursor { row: 0, col: 0 };
+
+                loop {
+                    if core.char_at(t) == Some(self.0) {
+                        stack.push(t);
+                    } else if core.char_at(t) == Some(self.1) {
+                        if let Some(l) = stack.pop() {
+                            if l <= core.cursor() && t >= core.cursor() {
+                                if prefix == Prefix::Inner {
+                                    let l = core.next_cursor(l)?;
+                                    let r = core.prev_cursor(t)?;
+                                    return if l < r { Some(CursorRange(l, r)) } else { None };
+                                } else {
+                                    return Some(CursorRange(l, t));
+                                }
+                            }
+                        }
+                    }
+
+                    if t > core.cursor() && stack.get(0).map(|&c| c > core.cursor()).unwrap_or(true)
+                    {
+                        return None;
+                    }
+                    t = core.next_cursor(t)?;
+                }
+            }
+            _ => {
+                return None;
+            }
         }
     }
 }
@@ -128,6 +167,18 @@ impl TextObjectParser {
                 }
                 '\'' | '"' => {
                     self.object = Some(Box::new(Quote(c)));
+                    return true;
+                }
+                '{' | '}' => {
+                    self.object = Some(Box::new(Parens('{', '}')));
+                    return true;
+                }
+                '(' | ')' => {
+                    self.object = Some(Box::new(Parens('(', ')')));
+                    return true;
+                }
+                '[' | ']' => {
+                    self.object = Some(Box::new(Parens('[', ']')));
                     return true;
                 }
                 _ => (),
