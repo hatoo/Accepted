@@ -11,6 +11,7 @@ use std::io::Write;
 use std::num::Wrapping;
 use std::path::{Path, PathBuf};
 use syntax;
+use syntect::highlighting::Color;
 use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter};
 use syntect::parsing::{ParseState, ScopeStack};
 
@@ -20,25 +21,106 @@ struct DrawCache<'a> {
     highlighter: Highlighter<'a>,
     parse_state: ParseState,
     highlight_state: HighlightState,
+    // 3 of { ( [
+    parens_level: [usize; 3],
+    bg: Color,
     cache: Vec<Vec<(char, CharStyle)>>,
 }
 
 impl<'a> DrawCache<'a> {
+    const RAINBOW: [Color; 12] = [
+        Color {
+            r: 0xE6,
+            g: 0x0,
+            b: 0x12,
+            a: 0xff,
+        },
+        Color {
+            r: 0xf3,
+            g: 0x98,
+            b: 0x00,
+            a: 0xff,
+        },
+        Color {
+            r: 0xff,
+            g: 0xf1,
+            b: 0x00,
+            a: 0xff,
+        },
+        Color {
+            r: 0x8f,
+            g: 0xc3,
+            b: 0x1f,
+            a: 0xff,
+        },
+        Color {
+            r: 0x00,
+            g: 0x99,
+            b: 0x44,
+            a: 0xff,
+        },
+        Color {
+            r: 0x00,
+            g: 0x0e,
+            b: 0x96,
+            a: 0xff,
+        },
+        Color {
+            r: 0x00,
+            g: 0xa0,
+            b: 0xe9,
+            a: 0xff,
+        },
+        Color {
+            r: 0x00,
+            g: 0x68,
+            b: 0xb7,
+            a: 0xff,
+        },
+        Color {
+            r: 0x1d,
+            g: 0x20,
+            b: 0x88,
+            a: 0xff,
+        },
+        Color {
+            r: 0x92,
+            g: 0x07,
+            b: 0x83,
+            a: 0xff,
+        },
+        Color {
+            r: 0xe4,
+            g: 0x00,
+            b: 0x7f,
+            a: 0xff,
+        },
+        Color {
+            r: 0xe5,
+            g: 0x00,
+            b: 0x4f,
+            a: 0xff,
+        },
+    ];
+
     fn new(syntax: &syntax::Syntax<'a>) -> Self {
         let highlighter = Highlighter::new(syntax.theme);
         let hstate = HighlightState::new(&highlighter, ScopeStack::new());
+        let bg = syntax.theme.settings.background.unwrap();
         Self {
             highlighter,
             parse_state: ParseState::new(syntax.syntax),
             highlight_state: hstate,
             cache: Vec::new(),
+            bg,
+            parens_level: [0, 0, 0],
         }
     }
 
     fn get_line(&mut self, buffer: &[Vec<char>], i: usize) -> &[(char, CharStyle)] {
         if self.cache.len() <= i {
-            for line in &buffer[self.cache.len()..=i] {
-                let line = line.iter().collect::<String>();
+            for i in self.cache.len()..=i {
+                let line = buffer[i].iter().collect::<String>();
                 let ops = self.parse_state.parse_line(&line);
                 let iter = HighlightIterator::new(
                     &mut self.highlight_state,
@@ -50,6 +132,23 @@ impl<'a> DrawCache<'a> {
                 for (style, s) in iter {
                     for c in s.chars() {
                         line.push((c, draw::CharStyle::Style(style)));
+                    }
+                }
+                let parens = [('{', '}'), ('(', ')'), ('[', ']')];
+                for c in &mut line {
+                    for (k, (l, r)) in parens.into_iter().enumerate() {
+                        if c.0 == *l {
+                            if let Some(&fg) = Self::RAINBOW.get(self.parens_level[k]) {
+                                c.1 = CharStyle::fg_bg(fg, self.bg);
+                            }
+                            self.parens_level[k] += 1;
+                        }
+                        if c.0 == *r && self.parens_level[k] > 0 {
+                            self.parens_level[k] -= 1;
+                            if let Some(&fg) = Self::RAINBOW.get(self.parens_level[k]) {
+                                c.1 = CharStyle::fg_bg(fg, self.bg);
+                            }
+                        }
                     }
                 }
                 self.cache.push(line);

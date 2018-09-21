@@ -22,6 +22,14 @@ pub enum CharStyle {
 }
 
 impl CharStyle {
+    pub fn fg_bg(fg: syntect::highlighting::Color, bg: syntect::highlighting::Color) -> Self {
+        CharStyle::Style(Style {
+            foreground: fg,
+            background: bg,
+            font_style: FontStyle::default(),
+        })
+    }
+
     pub fn bg(color: syntect::highlighting::Color) -> Self {
         CharStyle::Style(Style {
             foreground: Color::WHITE,
