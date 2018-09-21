@@ -23,6 +23,9 @@ use mode::{Mode, Normal, Transition};
 pub struct BufferMode<'a> {
     buf: Buffer<'a>,
     mode: Box<Mode>,
+    is_recording: bool,
+    dot_macro: Vec<termion::event::Event>,
+    recording_macro: Vec<termion::event::Event>,
 }
 
 impl<'a> BufferMode<'a> {
@@ -30,11 +33,17 @@ impl<'a> BufferMode<'a> {
         Self {
             buf,
             mode: Box::new(Normal::default()),
+            is_recording: false,
+            dot_macro: Vec::new(),
+            recording_macro: Vec::new(),
         }
     }
 
     pub fn event(&mut self, event: termion::event::Event) -> bool {
-        match self.mode.event(&mut self.buf, event) {
+        if self.is_recording {
+            self.recording_macro.push(event.clone());
+        }
+        match self.mode.event(&mut self.buf, event.clone()) {
             Transition::Exit => {
                 return true;
             }
@@ -42,7 +51,44 @@ impl<'a> BufferMode<'a> {
                 t.init(&mut self.buf);
                 self.mode = t;
             }
-            _ => {}
+            Transition::DoMacro => {
+                for event in self.dot_macro.clone() {
+                    self.event(event);
+                }
+            }
+            Transition::Return(s) => {
+                if self.is_recording && !self.recording_macro.is_empty() {
+                    std::mem::swap(&mut self.dot_macro, &mut self.recording_macro);
+                    self.recording_macro.clear();
+                }
+                self.is_recording = false;
+                let mut t = if let Some(s) = s {
+                    Box::new(Normal::with_message(s))
+                } else {
+                    Box::new(Normal::default())
+                };
+                t.init(&mut self.buf);
+                self.mode = t;
+            }
+            Transition::ReturnDiscardMacro(s) => {
+                self.recording_macro.clear();
+                self.is_recording = false;
+                let mut t = if let Some(s) = s {
+                    Box::new(Normal::with_message(s))
+                } else {
+                    Box::new(Normal::default())
+                };
+                t.init(&mut self.buf);
+                self.mode = t;
+            }
+            Transition::RecordMacro(mut t) => {
+                self.is_recording = true;
+                self.recording_macro.clear();
+                self.recording_macro.push(event);
+                t.init(&mut self.buf);
+                self.mode = t;
+            }
+            Transition::Nothing => {}
         }
         false
     }
