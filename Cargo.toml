@@ -1,6 +1,6 @@
 [package]
 name = "accepted"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["hatoo <hato2000@gmail.com>"]
 description = "A text editor to be ACCEPTED."
 repository = "https://github.com/hatoo/Accepted"
