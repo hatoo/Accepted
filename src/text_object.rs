@@ -49,7 +49,7 @@ impl TextObject for Quote {
                     t = core.next_cursor(t)?;
                 }
             }
-            _ => return None,
+            _ => None,
         }
     }
 }
@@ -85,9 +85,7 @@ impl TextObject for Parens {
                     t = core.next_cursor(t)?;
                 }
             }
-            _ => {
-                return None;
-            }
+            _ => None,
         }
     }
 }
