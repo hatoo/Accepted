@@ -298,7 +298,7 @@ impl Core {
         self.set_offset();
     }
 
-    pub fn get_string_by_range(&mut self, range: CursorRange) -> String {
+    pub fn get_string_by_range(&self, range: CursorRange) -> String {
         let mut res = String::new();
         let mut l = range.l();
         let r = range.r();

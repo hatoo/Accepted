@@ -1076,22 +1076,17 @@ impl Mode for TextObjectOperation {
                 match self.action {
                     // dd
                     Action::Delete => {
-                        let len = buf.core.current_line().len();
-                        let pos = buf.core.cursor();
-                        buf.core.set_cursor(Cursor {
-                            row: pos.row,
-                            col: 0,
-                        });
-
-                        let len = if buf.core.cursor_dec() { len + 1 } else { len };
-                        for _ in 0..len {
-                            buf.core.delete();
-                        }
-                        let pos = buf.core.cursor();
-                        buf.core.set_cursor(Cursor {
-                            row: pos.row,
-                            col: 0,
-                        });
+                        let range = CursorRange(
+                            Cursor {
+                                row: buf.core.cursor().row,
+                                col: 0,
+                            },
+                            Cursor {
+                                row: buf.core.cursor().row,
+                                col: buf.core.current_line().len(),
+                            },
+                        );
+                        buf.core.delete_range(range);
                         buf.core.commit();
                         return Transition::Return(None, true);
                     }
@@ -1113,6 +1108,63 @@ impl Mode for TextObjectOperation {
                     }
                 }
             }
+
+            if c == 'j' || c == 'k' {
+                let range = if c == 'j' {
+                    if buf.core.cursor().row == buf.core.buffer().len() - 1 {
+                        return Transition::Return(None, false);
+                    }
+                    let next_line = buf.core.buffer()[buf.core.cursor().row + 1].len();
+                    CursorRange(
+                        Cursor {
+                            row: buf.core.cursor().row,
+                            col: 0,
+                        },
+                        Cursor {
+                            row: buf.core.cursor().row + 1,
+                            col: next_line,
+                        },
+                    )
+                } else {
+                    if buf.core.cursor().row == 0 {
+                        return Transition::Return(None, false);
+                    }
+                    CursorRange(
+                        Cursor {
+                            row: buf.core.cursor().row - 1,
+                            col: 0,
+                        },
+                        Cursor {
+                            row: buf.core.cursor().row,
+                            col: buf.core.current_line().len(),
+                        },
+                    )
+                };
+
+                buf.yank = Yank {
+                    insert_newline: true,
+                    content: buf.core.get_string_by_range(range).trim_right().to_string(),
+                };
+                match self.action {
+                    // dj or dk
+                    Action::Delete => {
+                        buf.core.delete_range(range);
+                        buf.core.commit();
+                        return Transition::Return(None, true);
+                    }
+                    Action::Yank => {
+                        return Transition::Return(None, false);
+                    }
+                    Action::Change => {
+                        buf.core.delete_range(range);
+                        buf.core.insert_newline_here();
+                        buf.core.commit();
+                        buf.core.indent();
+                        return Insert::default().into();
+                    }
+                }
+            }
+
             if self.parser.parse(c) {
                 if let Some(range) = self.parser.get_range(&buf.core) {
                     match self.action {
