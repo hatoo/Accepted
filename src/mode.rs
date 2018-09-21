@@ -28,9 +28,8 @@ pub enum Transition {
     Trans(Box<Mode>),
     RecordMacro(Box<Mode>),
     DoMacro,
-    // Set macro and Return to Normal mode.
-    Return(Option<String>),
-    ReturnDiscardMacro(Option<String>),
+    // Message, is commit dot macro?
+    Return(Option<String>, bool),
     Exit,
 }
 
@@ -523,7 +522,7 @@ impl Mode for Insert {
         match event {
             Event::Key(Key::Esc) => {
                 buf.core.commit();
-                return Transition::Return(None);
+                return Transition::Return(None, true);
             }
             Event::Key(Key::Backspace) => {
                 buf.core.cursor_dec();
@@ -638,11 +637,11 @@ impl Mode for R {
         let core = &mut buf.core;
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::ReturnDiscardMacro(None);
+                return Transition::Return(None, false);
             }
             Event::Key(Key::Char(c)) => {
                 core.replace(c);
-                return Transition::Return(None);
+                return Transition::Return(None, true);
             }
             _ => {}
         }
@@ -663,14 +662,14 @@ impl Mode for Search {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::Return(None);
+                return Transition::Return(None, false);
             }
             Event::Key(Key::Backspace) => {
                 buf.search.pop();
             }
             Event::Key(Key::Char(c)) => {
                 if c == '\n' {
-                    return Transition::Return(None);
+                    return Transition::Return(None, false);
                 }
                 buf.search.push(c);
             }
@@ -699,7 +698,7 @@ impl Mode for Save {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::ReturnDiscardMacro(None);
+                return Transition::Return(None, false);
             }
             Event::Key(Key::Backspace) => {
                 self.path.pop();
@@ -745,11 +744,11 @@ impl Mode for Prefix {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::ReturnDiscardMacro(None);
+                return Transition::Return(None, false);
             }
             Event::Key(Key::Char(' ')) => {
                 buf.core.rustfmt();
-                return Transition::ReturnDiscardMacro(None);
+                return Transition::Return(None, false);
             }
             Event::Key(Key::Char('q')) => {
                 return Transition::Exit;
@@ -763,7 +762,7 @@ impl Mode for Prefix {
                     } else {
                         format!("Failed to save {}", path.to_string_lossy())
                     };
-                    return Transition::ReturnDiscardMacro(Some(message));
+                    return Transition::Return(Some(message), false);
                 } else {
                     return Save {
                         path: String::new(),
@@ -783,13 +782,16 @@ impl Mode for Prefix {
             }
             Event::Key(Key::Char('y')) => {
                 let result = clipboard::clipboard_copy(&buf.core.get_string());
-                return Transition::ReturnDiscardMacro(Some(
-                    if result {
-                        "Copied"
-                    } else {
-                        "Failed to copy to clipboard"
-                    }.into(),
-                ));
+                return Transition::Return(
+                    Some(
+                        if result {
+                            "Copied"
+                        } else {
+                            "Failed to copy to clipboard"
+                        }.into(),
+                    ),
+                    false,
+                );
             }
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
@@ -889,7 +891,7 @@ impl Mode for Visual {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::ReturnDiscardMacro(None);
+                return Transition::Return(None, false);
             }
             Event::Key(Key::Char('h')) => buf.core.cursor_left(),
             Event::Key(Key::Char('j')) => buf.core.cursor_down(),
@@ -962,7 +964,7 @@ impl Mode for Visual {
                 return if to_insert {
                     Insert::default().into()
                 } else {
-                    Transition::Return(Some("Deleted".into()))
+                    Transition::Return(Some("Deleted".into()), true)
                 };
             }
             Event::Key(Key::Char('y')) => {
@@ -975,7 +977,7 @@ impl Mode for Visual {
                 buf.core.set_cursor(range.l());
                 buf.yank.insert_newline = self.line_mode;
                 buf.yank.content = s;
-                return Transition::ReturnDiscardMacro(Some("Yanked".into()));
+                return Transition::Return(Some("Yanked".into()), false);
             }
             Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
                 let col = x as usize - 1;
@@ -1062,7 +1064,7 @@ impl Mode for ViewProcess {
 impl Mode for TextObjectOperation {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         if event == Event::Key(Key::Esc) {
-            return Transition::ReturnDiscardMacro(None);
+            return Transition::Return(None, false);
         }
         if let Event::Key(Key::Char(c)) = event {
             if c == self.action.to_char() {
@@ -1091,10 +1093,10 @@ impl Mode for TextObjectOperation {
                             col: 0,
                         });
                         buf.core.commit();
-                        return Transition::Return(None);
+                        return Transition::Return(None, true);
                     }
                     Action::Yank => {
-                        return Transition::ReturnDiscardMacro(None);
+                        return Transition::Return(None, false);
                     }
                     Action::Change => {
                         let pos = buf.core.cursor();
@@ -1117,7 +1119,7 @@ impl Mode for TextObjectOperation {
                         Action::Delete => {
                             buf.core.delete_range(range);
                             buf.core.commit();
-                            return Transition::Return(None);
+                            return Transition::Return(None, true);
                         }
                         Action::Change => {
                             let range = self.parser.get_range(&buf.core).unwrap();
@@ -1130,11 +1132,11 @@ impl Mode for TextObjectOperation {
                                 insert_newline: false,
                                 content: buf.core.get_string_by_range(range),
                             };
-                            return Transition::ReturnDiscardMacro(None);
+                            return Transition::Return(None, false);
                         }
                     }
                 } else {
-                    return Transition::ReturnDiscardMacro(None);
+                    return Transition::Return(None, true);
                 }
             }
         }

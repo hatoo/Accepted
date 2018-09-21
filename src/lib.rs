@@ -56,22 +56,11 @@ impl<'a> BufferMode<'a> {
                     self.event(event);
                 }
             }
-            Transition::Return(s) => {
-                if self.is_recording && !self.recording_macro.is_empty() {
+            Transition::Return(s, is_commit_macro) => {
+                if self.is_recording && !self.recording_macro.is_empty() && is_commit_macro {
                     std::mem::swap(&mut self.dot_macro, &mut self.recording_macro);
                     self.recording_macro.clear();
                 }
-                self.is_recording = false;
-                let mut t = if let Some(s) = s {
-                    Box::new(Normal::with_message(s))
-                } else {
-                    Box::new(Normal::default())
-                };
-                t.init(&mut self.buf);
-                self.mode = t;
-            }
-            Transition::ReturnDiscardMacro(s) => {
-                self.recording_macro.clear();
                 self.is_recording = false;
                 let mut t = if let Some(s) = s {
                     Box::new(Normal::with_message(s))
