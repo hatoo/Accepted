@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use core::{Core, Cursor, CursorRange};
 use serde_json;
 use serde_json::Value;
 
@@ -7,16 +8,28 @@ pub struct RustcOutput {
     pub message: String,
     pub line: usize,
     pub level: String,
+    pub span: CursorRange,
 }
 
-pub fn parse_rustc_json(json: &str) -> Option<RustcOutput> {
+pub fn parse_rustc_json(json: &str, core: &Core) -> Option<RustcOutput> {
     let d: Diagnostic = serde_json::from_str(json).ok()?;
-    let line = d.spans.get(0)?.line_start - 1;
+    let span = d.spans.iter().filter(|s| s.is_primary).next()?;
+    let line = span.line_start - 1;
+    let start = Cursor {
+        row: span.line_start - 1,
+        col: span.column_start - 1,
+    };
+    let end = core.prev_cursor(Cursor {
+        row: span.line_end - 1,
+        col: span.column_end - 1,
+    })?;
+    let span = CursorRange(start, end);
 
     Some(RustcOutput {
         message: d.message,
         line,
         level: d.level,
+        span,
     })
 }
 

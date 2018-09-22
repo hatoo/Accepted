@@ -51,37 +51,48 @@ impl fmt::Display for CharStyle {
             ),
             CharStyle::Highlight => write!(
                 f,
-                "{}{}",
+                "{}{}{}",
                 Bg(termion::color::Reset),
-                termion::color::Fg(termion::color::Rgb(255, 0, 0))
+                termion::color::Fg(termion::color::Rgb(255, 0, 0)),
+                termion::style::NoUnderline
             ),
             CharStyle::UI => write!(
                 f,
-                "{}{}",
+                "{}{}{}",
                 Bg(termion::color::Reset),
-                termion::color::Fg(termion::color::Rgb(128, 128, 128))
+                termion::color::Fg(termion::color::Rgb(128, 128, 128)),
+                termion::style::NoUnderline
             ),
             CharStyle::Footer => write!(
                 f,
-                "{}{}",
+                "{}{}{}",
                 Bg(termion::color::Rgb(200, 200, 200)),
-                termion::color::Fg(termion::color::Rgb(64, 64, 64))
+                termion::color::Fg(termion::color::Rgb(64, 64, 64)),
+                termion::style::NoUnderline
             ),
             CharStyle::Selected => write!(
                 f,
-                "{}{}",
+                "{}{}{}",
                 Bg(termion::color::Rgb(0, 0, 0)),
-                termion::color::Fg(termion::color::Rgb(200, 200, 200))
+                termion::color::Fg(termion::color::Rgb(200, 200, 200)),
+                termion::style::NoUnderline
             ),
             CharStyle::Style(style) => {
                 let fg = style.foreground;
                 let bg = style.background;
+                let font_style = style.font_style;
+
                 write!(
                     f,
                     "{}{}",
                     Fg(Rgb(fg.r, fg.g, fg.b)),
                     Bg(Rgb(bg.r, bg.g, bg.b)),
-                )
+                );
+                if font_style.contains(FontStyle::UNDERLINE) {
+                    write!(f, "{}", termion::style::Underline)
+                } else {
+                    write!(f, "{}", termion::style::NoUnderline)
+                }
             }
         }
     }
@@ -170,7 +181,7 @@ impl<'a> LinenumView<'a> {
         rustc_outputs: &'a [RustcOutput],
         view: View<'a>,
     ) -> Self {
-        let width = format!("{}", max_linenum + 1).len() + 1;
+        let width = format!("{}", max_linenum + 1).len() + 2;
         let mut res = Self {
             view,
             width,

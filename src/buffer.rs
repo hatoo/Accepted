@@ -17,9 +17,9 @@ use std::path::{Path, PathBuf};
 use std::process;
 use syntax;
 use syntect::highlighting::Color;
+use syntect::highlighting::FontStyle;
 use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter};
 use syntect::parsing::{ParseState, ScopeStack};
-
 use Core;
 
 struct DrawCache<'a> {
@@ -215,6 +215,7 @@ impl<'a> Buffer<'a> {
         self.core = core;
         self.path = Some(path.as_ref().to_path_buf());
         self.cache.replace(DrawCache::new(&self.syntax));
+        self.rustc();
     }
 
     pub fn rustc(&mut self) {
@@ -240,12 +241,16 @@ impl<'a> Buffer<'a> {
                     line.clear();
                     reader.read_line(&mut line).is_ok() && !line.is_empty()
                 } {
-                    if let Some(rustc_output) = rustc::parse_rustc_json(&line) {
+                    if let Some(rustc_output) = rustc::parse_rustc_json(&line, &self.core) {
                         self.rustc_outputs.push(rustc_output);
                     }
                 }
             }
         }
+    }
+
+    fn is_annotate(&self, cursor: Cursor) -> bool {
+        self.rustc_outputs.iter().any(|r| r.span.contains(cursor))
     }
 
     pub fn rustc_message(&self) -> Option<&str> {
@@ -320,8 +325,14 @@ impl<'a> Buffer<'a> {
             }
 
             for (j, &c) in line.iter().enumerate() {
-                let (c, style) = c;
+                let (c, mut style) = c;
                 let t = Cursor { row: i, col: j };
+
+                if self.is_annotate(t) {
+                    if let CharStyle::Style(s) = &mut style {
+                        s.font_style = FontStyle::UNDERLINE;
+                    }
+                }
 
                 let style = if selected.as_ref().map(|r| r.contains(t)) == Some(true) {
                     CharStyle::Selected
