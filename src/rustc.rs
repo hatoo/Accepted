@@ -13,7 +13,7 @@ pub struct RustcOutput {
 
 pub fn parse_rustc_json(json: &str, core: &Core) -> Option<RustcOutput> {
     let d: Diagnostic = serde_json::from_str(json).ok()?;
-    let span = d.spans.iter().filter(|s| s.is_primary).next()?;
+    let span = d.spans.iter().find(|s| s.is_primary)?;
     let line = span.line_start - 1;
     let start = Cursor {
         row: span.line_start - 1,

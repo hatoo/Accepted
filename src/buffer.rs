@@ -338,8 +338,7 @@ impl<'a> Buffer<'a> {
         let line = self.core.cursor().row;
         self.rustc_outputs
             .iter()
-            .filter(|r| r.line == line)
-            .next()
+            .find(|r| r.line == line)
             .map(|r| r.message.as_str())
     }
 

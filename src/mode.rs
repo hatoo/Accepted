@@ -829,7 +829,7 @@ impl Mode for Prefix {
             }
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
-                if let Some(path) = buf.path.as_ref().map(|p| p.clone()) {
+                if let Some(path) = buf.path.as_ref().cloned() {
                     buf.core.rustfmt();
                     buf.save(is_optimize);
                     if let Some(stem) = path.file_stem() {

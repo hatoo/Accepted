@@ -206,8 +206,7 @@ impl<'a> LinenumView<'a> {
         if let Some(o) = self
             .rustc_outputs
             .iter()
-            .filter(|o| o.line == self.current_linenum)
-            .next()
+            .find(|o| o.line == self.current_linenum)
         {
             for _ in 0..self.width - w - 1 {
                 self.view.put(' ', CharStyle::UI, None);
