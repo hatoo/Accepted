@@ -578,13 +578,8 @@ impl Mode for Insert {
                 }
                 return Transition::Nothing;
             }
-            Event::Key(Key::Char(c)) => {
-                // Auto pair
-                let pairs = [('(', ')'), ('{', '}'), ('[', ']'), ('"', '"')];
-
-                if pairs.iter().any(|p| p.1 == c) && buf.core.char_at_cursor() == Some(c) {
-                    buf.core.cursor_right();
-                } else if c == '\n' && self.completion_index.is_some() {
+            Event::Key(Key::Char('\n')) => {
+                if self.completion_index.is_some() {
                     let body = &self.get_completion(buf).unwrap();
                     Self::remove_token(&mut buf.core);
                     for c in body.chars() {
@@ -594,32 +589,38 @@ impl Mode for Insert {
                     buf.show_cursor();
                     self.completion_index = None;
                 } else {
+                    buf.core.insert('\n');
+                    let indent =
+                        indent::next_indent_level(&buf.core.buffer()[buf.core.cursor().row - 1]);
+                    for _ in 0..4 * indent {
+                        buf.core.insert(' ');
+                    }
+                    let pos = buf.core.cursor();
+                    if ['}', ']']
+                        .into_iter()
+                        .any(|&c| buf.core.char_at_cursor() == Some(c))
+                    {
+                        buf.core.insert('\n');
+                        let i = if indent == 0 { 0 } else { indent - 1 };
+                        for _ in 0..4 * i {
+                            buf.core.insert(' ');
+                        }
+                    }
+                    buf.core.set_cursor(pos);
+                }
+            }
+            Event::Key(Key::Char(c)) if !c.is_control() => {
+                // Auto pair
+                let pairs = [('(', ')'), ('{', '}'), ('[', ']'), ('"', '"')];
+
+                if pairs.iter().any(|p| p.1 == c) && buf.core.char_at_cursor() == Some(c) {
+                    buf.core.cursor_right();
+                } else {
                     buf.core.insert(c);
                     let pair = pairs.iter().find(|p| p.0 == c);
                     if let Some((_, r)) = pair {
                         buf.core.insert(*r);
                         buf.core.cursor_left();
-                    }
-
-                    if c == '\n' {
-                        let indent = indent::next_indent_level(
-                            &buf.core.buffer()[buf.core.cursor().row - 1],
-                        );
-                        for _ in 0..4 * indent {
-                            buf.core.insert(' ');
-                        }
-                        let pos = buf.core.cursor();
-                        if ['}', ']']
-                            .into_iter()
-                            .any(|&c| buf.core.char_at_cursor() == Some(c))
-                        {
-                            buf.core.insert('\n');
-                            let i = if indent == 0 { 0 } else { indent - 1 };
-                            for _ in 0..4 * i {
-                                buf.core.insert(' ');
-                            }
-                        }
-                        buf.core.set_cursor(pos);
                     }
                 }
             }
