@@ -232,6 +232,29 @@ impl Core {
         }
     }
 
+    pub fn w(&mut self) {
+        if self
+            .char_at_cursor()
+            .map(|c| ['{', '(', '['].into_iter().any(|&p| p == c))
+            == Some(true)
+        {
+            self.cursor_inc();
+        } else {
+            while {
+                self.char_at_cursor()
+                    .map(|c| c.is_alphanumeric())
+                    .unwrap_or(true)
+                    && self.cursor_inc()
+            } {}
+        }
+        while {
+            self.char_at_cursor()
+                .map(|c| !c.is_alphanumeric() && !['{', '(', '['].into_iter().any(|&p| p == c))
+                .unwrap_or(true)
+                && self.cursor_inc()
+        } {}
+    }
+
     pub fn insert(&mut self, c: char) {
         let op = operation::Insert {
             cursor: self.cursor,

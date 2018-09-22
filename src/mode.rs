@@ -238,20 +238,7 @@ impl Mode for Normal {
             Event::Key(Key::Char('k')) => buf.core.cursor_up(),
             Event::Key(Key::Char('l')) => buf.core.cursor_right(),
             Event::Key(Key::Char('w')) => {
-                while {
-                    buf.core
-                        .char_at_cursor()
-                        .map(|c| c.is_alphanumeric())
-                        .unwrap_or(true)
-                        && buf.core.cursor_inc()
-                } {}
-                while {
-                    buf.core
-                        .char_at_cursor()
-                        .map(|c| !c.is_alphanumeric())
-                        .unwrap_or(true)
-                        && buf.core.cursor_inc()
-                } {}
+                buf.core.w();
             }
             Event::Key(Key::Char('b')) => {
                 buf.core.cursor_dec();
@@ -902,20 +889,7 @@ impl Mode for Visual {
             Event::Key(Key::Char('k')) => buf.core.cursor_up(),
             Event::Key(Key::Char('l')) => buf.core.cursor_right(),
             Event::Key(Key::Char('w')) => {
-                while {
-                    buf.core
-                        .char_at_cursor()
-                        .map(|c| c.is_alphanumeric())
-                        .unwrap_or(true)
-                        && buf.core.cursor_inc()
-                } {}
-                while {
-                    buf.core
-                        .char_at_cursor()
-                        .map(|c| !c.is_alphanumeric())
-                        .unwrap_or(true)
-                        && buf.core.cursor_inc()
-                } {}
+                buf.core.w();
             }
             Event::Key(Key::Char('b')) => {
                 buf.core.cursor_dec();
