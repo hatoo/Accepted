@@ -242,7 +242,7 @@ impl<'a> Buffer<'a> {
         self.core = core;
         self.path = Some(path.as_ref().to_path_buf());
         self.cache.replace(DrawCache::new(&self.syntax));
-        self.rustc();
+        self.rustc(false);
     }
 
     pub fn show_cursor(&mut self) {
@@ -286,10 +286,22 @@ impl<'a> Buffer<'a> {
         }
     }
 
-    pub fn rustc(&mut self) {
+    pub fn rustc(&mut self, is_optimize: bool) {
         if let Some(path) = self.path.as_ref() {
-            if let Ok(rustc) = process::Command::new("rustc")
-                .args(
+            let mut rustc = process::Command::new("rustc");
+            if is_optimize {
+                rustc.args(
+                    [
+                        &OsString::from("-Z"),
+                        &OsString::from("unstable-options"),
+                        &OsString::from("--error-format=json"),
+                        &OsString::from("-O"),
+                        path.as_os_str(),
+                    ]
+                        .iter(),
+                );
+            } else {
+                rustc.args(
                     [
                         &OsString::from("-Z"),
                         &OsString::from("unstable-options"),
@@ -297,9 +309,10 @@ impl<'a> Buffer<'a> {
                         path.as_os_str(),
                     ]
                         .iter(),
-                ).stderr(process::Stdio::piped())
-                .output()
-            {
+                );
+            }
+
+            if let Ok(rustc) = rustc.stderr(process::Stdio::piped()).output() {
                 let mut buf = rustc.stderr;
                 let mut reader = io::Cursor::new(buf);
                 let mut line = String::new();
@@ -330,7 +343,7 @@ impl<'a> Buffer<'a> {
             .map(|r| r.message.as_str())
     }
 
-    pub fn save(&mut self) -> bool {
+    pub fn save(&mut self, is_optimize: bool) -> bool {
         let saved = if let Some(path) = self.path.as_ref() {
             if let Ok(mut f) = fs::File::create(path) {
                 for line in self.core.buffer() {
@@ -344,7 +357,7 @@ impl<'a> Buffer<'a> {
             false
         };
         if saved {
-            self.rustc();
+            self.rustc(is_optimize);
         }
         saved
     }

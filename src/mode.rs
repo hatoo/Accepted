@@ -741,7 +741,7 @@ impl Mode for Save {
                 if c == '\n' {
                     let path: String = shellexpand::tilde(&self.path).into();
                     buf.path = Some(PathBuf::from(path.clone()));
-                    let message = if buf.save() {
+                    let message = if buf.save(false) {
                         format!("Saved to {}", path)
                     } else {
                         format!("Failed to save {}", path)
@@ -791,7 +791,7 @@ impl Mode for Prefix {
                 if let Some(path) = buf.path.as_ref().map(|p| p.to_string_lossy().into_owned()) {
                     // Rustfmt
                     buf.core.rustfmt();
-                    let message = if buf.save() {
+                    let message = if buf.save(false) {
                         format!("Saved to {}", path)
                     } else {
                         format!("Failed to save {}", path)
@@ -831,57 +831,35 @@ impl Mode for Prefix {
                 let is_optimize = event == Event::Key(Key::Char('T'));
                 if let Some(path) = buf.path.as_ref().map(|p| p.clone()) {
                     buf.core.rustfmt();
-                    buf.save();
-                    let mut rustc = process::Command::new("rustc");
-                    rustc.stderr(process::Stdio::piped());
-                    if is_optimize {
-                        rustc.args([&OsString::from("-O"), path.as_os_str()].iter());
-                    } else {
-                        rustc.arg(&path);
-                    }
-                    if let Ok(mut p) = rustc.spawn() {
-                        if let Ok(ecode) = p.wait() {
-                            if ecode.success() {
-                                if let Some(stem) = path.file_stem() {
-                                    let mut prog = OsString::from("./");
-                                    prog.push(stem);
-                                    if let Ok(mut child) = process::Command::new("time")
-                                        .arg(prog)
-                                        .stdout(process::Stdio::piped())
-                                        .stderr(process::Stdio::piped())
-                                        .stdin(process::Stdio::piped())
-                                        .spawn()
-                                    {
-                                        if let Some(input) = clipboard::clipboard_paste() {
-                                            if let Some(mut stdin) = child.stdin.take() {
-                                                write!(stdin, "{}", input);
-                                            }
-                                            if let Some(next_state) = ViewProcess::new(child) {
-                                                return next_state.into();
-                                            } else {
-                                                return Normal::with_message(
-                                                    "Failed to test".into(),
-                                                ).into();
-                                            }
-                                        } else {
-                                            return Normal::with_message("Failed to paste".into())
-                                                .into();
-                                        }
-                                    } else {
-                                        return Normal::with_message("Failed to run".into()).into();
-                                    }
+                    buf.save(is_optimize);
+                    if let Some(stem) = path.file_stem() {
+                        let mut prog = OsString::from("./");
+                        prog.push(stem);
+                        if let Ok(mut child) = process::Command::new("time")
+                            .arg(prog)
+                            .stdout(process::Stdio::piped())
+                            .stderr(process::Stdio::piped())
+                            .stdin(process::Stdio::piped())
+                            .spawn()
+                        {
+                            if let Some(input) = clipboard::clipboard_paste() {
+                                if let Some(mut stdin) = child.stdin.take() {
+                                    write!(stdin, "{}", input);
+                                }
+                                if let Some(next_state) = ViewProcess::new(child) {
+                                    return next_state.into();
                                 } else {
-                                    return Normal::with_message("Failed to run".into()).into();
+                                    return Normal::with_message("Failed to test".into()).into();
                                 }
                             } else {
-                                return Normal::with_message("Failed to compile".into()).into();
+                                return Normal::with_message("Failed to paste".into()).into();
                             }
+                        } else {
+                            return Normal::with_message("Failed to run".into()).into();
                         }
                     } else {
-                        return Normal::with_message("Failed to compile".into()).into();
+                        return Normal::with_message("Failed to run".into()).into();
                     }
-                } else {
-                    return Normal::with_message("Save first".into()).into();
                 }
             }
             _ => {}
