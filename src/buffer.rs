@@ -2,14 +2,19 @@ use core::Cursor;
 use core::CursorRange;
 use draw;
 use draw::{CharStyle, LinenumView, View};
+use rustc;
+use rustc::RustcOutput;
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
+use std::ffi::OsString;
 use std::fs;
 use std::io;
+use std::io::BufRead;
 use std::io::Write;
 use std::num::Wrapping;
 use std::path::{Path, PathBuf};
+use std::process;
 use syntax;
 use syntect::highlighting::Color;
 use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter};
@@ -180,6 +185,7 @@ pub struct Buffer<'a> {
     pub snippet: BTreeMap<String, String>,
     pub yank: Yank,
     pub last_save: Wrapping<usize>,
+    rustc_outputs: Vec<RustcOutput>,
     cache: RefCell<DrawCache<'a>>,
     buffer_update: Cell<Wrapping<usize>>,
 }
@@ -194,6 +200,7 @@ impl<'a> Buffer<'a> {
             snippet: BTreeMap::new(),
             yank: Yank::default(),
             last_save: Wrapping(0),
+            rustc_outputs: Vec::new(),
             syntax,
             buffer_update: Cell::new(Wrapping(0)),
         }
@@ -210,14 +217,63 @@ impl<'a> Buffer<'a> {
         self.cache.replace(DrawCache::new(&self.syntax));
     }
 
-    pub fn save(&self) -> Option<io::Result<()>> {
-        self.path.as_ref().map(|path| {
-            let mut f = fs::File::create(path)?;
-            for line in self.core.buffer() {
-                writeln!(f, "{}", line.iter().collect::<String>());
+    pub fn rustc(&mut self) {
+        if let Some(path) = self.path.as_ref() {
+            if let Ok(rustc) = process::Command::new("rustc")
+                .args(
+                    [
+                        &OsString::from("-Z"),
+                        &OsString::from("unstable-options"),
+                        &OsString::from("--error-format=json"),
+                        path.as_os_str(),
+                    ]
+                        .iter(),
+                ).stderr(process::Stdio::piped())
+                .output()
+            {
+                let mut buf = rustc.stderr;
+                let mut reader = io::Cursor::new(buf);
+                let mut line = String::new();
+
+                self.rustc_outputs.clear();
+                while {
+                    line.clear();
+                    reader.read_line(&mut line).is_ok() && !line.is_empty()
+                } {
+                    if let Some(rustc_output) = rustc::parse_rustc_json(&line) {
+                        self.rustc_outputs.push(rustc_output);
+                    }
+                }
             }
-            Ok(())
-        })
+        }
+    }
+
+    pub fn rustc_message(&self) -> Option<&str> {
+        let line = self.core.cursor().row;
+        self.rustc_outputs
+            .iter()
+            .filter(|r| r.line == line)
+            .next()
+            .map(|r| r.message.as_str())
+    }
+
+    pub fn save(&mut self) -> bool {
+        let saved = if let Some(path) = self.path.as_ref() {
+            if let Ok(mut f) = fs::File::create(path) {
+                for line in self.core.buffer() {
+                    writeln!(f, "{}", line.iter().collect::<String>());
+                }
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        if saved {
+            self.rustc();
+        }
+        saved
     }
 
     pub fn draw(&self, view: View) -> Option<Cursor> {
@@ -230,8 +286,12 @@ impl<'a> Buffer<'a> {
         selected: Option<CursorRange>,
     ) -> Option<Cursor> {
         view.bg = self.syntax.theme.settings.background;
-        let mut view =
-            LinenumView::new(self.core.row_offset + 1, self.core.buffer().len() + 1, view);
+        let mut view = LinenumView::new(
+            self.core.row_offset,
+            self.core.buffer().len(),
+            &self.rustc_outputs,
+            view,
+        );
         let mut cursor = None;
 
         if self.core.buffer_changed != self.buffer_update.get() {

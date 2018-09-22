@@ -391,19 +391,23 @@ impl Mode for Normal {
             .unwrap_or(draw::CursorState::Hide);
 
         let mut footer = term.view((height - 1, 0), 1, width);
-        footer.puts(
-            &format!(
-                "[Normal] ({} {}) [{}] {}",
-                buf.core.cursor().row + 1,
-                buf.core.cursor().col + 1,
-                buf.path
-                    .as_ref()
-                    .map(|p| p.to_string_lossy())
-                    .unwrap_or_else(|| "*".into()),
-                &self.message
-            ),
-            draw::CharStyle::Footer,
-        );
+        if let Some(message) = buf.rustc_message() {
+            footer.puts(message, draw::CharStyle::Footer);
+        } else {
+            footer.puts(
+                &format!(
+                    "[Normal] ({} {}) [{}] {}",
+                    buf.core.cursor().row + 1,
+                    buf.core.cursor().col + 1,
+                    buf.path
+                        .as_ref()
+                        .map(|p| p.to_string_lossy())
+                        .unwrap_or_else(|| "*".into()),
+                    &self.message
+                ),
+                draw::CharStyle::Footer,
+            );
+        }
     }
 }
 
@@ -707,7 +711,7 @@ impl Mode for Save {
                 if c == '\n' {
                     let path: String = shellexpand::tilde(&self.path).into();
                     buf.path = Some(PathBuf::from(path.clone()));
-                    let message = if buf.save().unwrap().is_ok() {
+                    let message = if buf.save() {
                         format!("Saved to {}", path)
                     } else {
                         format!("Failed to save {}", path)
@@ -754,13 +758,13 @@ impl Mode for Prefix {
                 return Transition::Exit;
             }
             Event::Key(Key::Char('s')) => {
-                if let Some(ref path) = buf.path {
+                if let Some(path) = buf.path.as_ref().map(|p| p.to_string_lossy().into_owned()) {
                     // Rustfmt
                     buf.core.rustfmt();
-                    let message = if buf.save().unwrap().is_ok() {
-                        format!("Saved to {}", path.to_string_lossy())
+                    let message = if buf.save() {
+                        format!("Saved to {}", path)
                     } else {
-                        format!("Failed to save {}", path.to_string_lossy())
+                        format!("Failed to save {}", path)
                     };
                     return Transition::Return(Some(message), false);
                 } else {
@@ -795,7 +799,7 @@ impl Mode for Prefix {
             }
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
-                if let Some(path) = buf.path.as_ref() {
+                if let Some(path) = buf.path.as_ref().map(|p| p.clone()) {
                     buf.core.rustfmt();
                     buf.save();
                     let mut rustc = process::Command::new("rustc");
@@ -803,7 +807,7 @@ impl Mode for Prefix {
                     if is_optimize {
                         rustc.args([&OsString::from("-O"), path.as_os_str()].iter());
                     } else {
-                        rustc.arg(path);
+                        rustc.arg(&path);
                     }
                     if let Ok(mut p) = rustc.spawn() {
                         if let Ok(ecode) = p.wait() {

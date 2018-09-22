@@ -1,8 +1,13 @@
 extern crate racer;
+extern crate serde;
+extern crate serde_json;
 extern crate shellexpand;
 extern crate syntect;
 extern crate termion;
 extern crate unicode_width;
+
+#[macro_use]
+extern crate serde_derive;
 
 mod buffer;
 mod clipboard;
@@ -11,6 +16,7 @@ mod cursor;
 pub mod draw;
 mod indent;
 mod mode;
+mod rustc;
 mod rustfmt;
 pub mod syntax;
 mod text_object;

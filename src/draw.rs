@@ -1,5 +1,6 @@
 use core::Cursor;
 use cursor;
+use rustc::RustcOutput;
 use std;
 use std::fmt;
 use std::io::Write;
@@ -159,28 +160,49 @@ pub struct LinenumView<'a> {
     view: View<'a>,
     current_linenum: usize,
     width: usize,
+    rustc_outputs: &'a [RustcOutput],
 }
 
 impl<'a> LinenumView<'a> {
-    pub fn new(current_linenum: usize, max_linenum: usize, view: View<'a>) -> Self {
-        let width = format!("{}", max_linenum).len() + 1;
+    pub fn new(
+        current_linenum: usize,
+        max_linenum: usize,
+        rustc_outputs: &'a [RustcOutput],
+        view: View<'a>,
+    ) -> Self {
+        let width = format!("{}", max_linenum + 1).len() + 1;
         let mut res = Self {
             view,
             width,
             current_linenum,
+            rustc_outputs,
         };
         res.put_linenum();
         res
     }
 
     fn put_linenum(&mut self) {
-        let s = format!("{}", self.current_linenum);
+        let s = format!("{}", self.current_linenum + 1);
         let w = s.len();
         for c in s.chars() {
             self.view.put(c, CharStyle::UI, None);
         }
-        for _ in 0..self.width - w {
-            self.view.put(' ', CharStyle::UI, None);
+
+        if let Some(o) = self
+            .rustc_outputs
+            .iter()
+            .filter(|o| o.line == self.current_linenum)
+            .next()
+        {
+            for _ in 0..self.width - w - 1 {
+                self.view.put(' ', CharStyle::UI, None);
+            }
+            self.view
+                .put(o.level.chars().next().unwrap(), CharStyle::Highlight, None);
+        } else {
+            for _ in 0..self.width - w {
+                self.view.put(' ', CharStyle::UI, None);
+            }
         }
     }
 
