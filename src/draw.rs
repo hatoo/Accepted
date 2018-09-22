@@ -192,6 +192,10 @@ impl<'a> LinenumView<'a> {
         res
     }
 
+    pub fn prefix_width(max_linenum: usize) -> usize {
+        format!("{}", max_linenum + 1).len() + 2
+    }
+
     fn put_linenum(&mut self) {
         let s = format!("{}", self.current_linenum + 1);
         let w = s.len();

@@ -6,6 +6,7 @@ use rustc;
 use rustc::RustcOutput;
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
+use std::cmp::{max, min};
 use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::fs;
@@ -20,6 +21,8 @@ use syntect::highlighting::Color;
 use syntect::highlighting::FontStyle;
 use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter};
 use syntect::parsing::{ParseState, ScopeStack};
+use termion;
+use unicode_width::UnicodeWidthChar;
 use Core;
 
 struct DrawCache<'a> {
@@ -177,6 +180,22 @@ impl Default for Yank {
     }
 }
 
+fn get_rows(s: &[char], width: usize) -> usize {
+    let mut x = 0;
+    let mut y = 1;
+
+    for &c in s {
+        let w = c.width().unwrap_or(0);
+        if x + w < width {
+            x += w;
+        } else {
+            y += 1;
+            x = w;
+        }
+    }
+    y
+}
+
 pub struct Buffer<'a> {
     pub path: Option<PathBuf>,
     pub core: Core,
@@ -185,12 +204,18 @@ pub struct Buffer<'a> {
     pub snippet: BTreeMap<String, String>,
     pub yank: Yank,
     pub last_save: Wrapping<usize>,
+    row_offset: usize,
     rustc_outputs: Vec<RustcOutput>,
     cache: RefCell<DrawCache<'a>>,
     buffer_update: Cell<Wrapping<usize>>,
 }
 
 impl<'a> Buffer<'a> {
+    fn windows_size() -> (usize, usize) {
+        let (cols, rows) = termion::terminal_size().unwrap();
+        (rows as usize, cols as usize)
+    }
+
     pub fn new(syntax: syntax::Syntax<'a>) -> Self {
         Self {
             path: None,
@@ -200,6 +225,7 @@ impl<'a> Buffer<'a> {
             snippet: BTreeMap::new(),
             yank: Yank::default(),
             last_save: Wrapping(0),
+            row_offset: 0,
             rustc_outputs: Vec::new(),
             syntax,
             buffer_update: Cell::new(Wrapping(0)),
@@ -211,11 +237,53 @@ impl<'a> Buffer<'a> {
         let mut core = Core::default();
         core.set_string(&s, true);
 
+        self.row_offset = 0;
         self.last_save = core.buffer_changed;
         self.core = core;
         self.path = Some(path.as_ref().to_path_buf());
         self.cache.replace(DrawCache::new(&self.syntax));
         self.rustc();
+    }
+
+    pub fn show_cursor(&mut self) {
+        if self.row_offset >= self.core.cursor().row {
+            self.row_offset = self.core.cursor().row;
+        } else {
+            let (rows, cols) = Self::windows_size();
+            if cols < LinenumView::prefix_width(self.core.buffer().len()) {
+                return;
+            }
+            let cols = cols - LinenumView::prefix_width(self.core.buffer().len());
+            let rows = rows - 1;
+            let mut i = self.core.cursor().row + 1;
+            let mut sum = 0;
+            while i > 0 && sum + get_rows(&self.core.buffer()[i - 1], cols) <= rows {
+                sum += get_rows(&self.core.buffer()[i - 1], cols);
+                i -= 1;
+            }
+            self.row_offset = max(i, self.row_offset);
+        }
+    }
+
+    pub fn scroll_up(&mut self) {
+        if self.row_offset < 3 {
+            self.row_offset = 0;
+        } else {
+            self.row_offset -= 3;
+        }
+    }
+
+    pub fn scroll_down(&mut self) {
+        self.row_offset = min(self.row_offset + 3, self.core.buffer().len() - 1);
+    }
+
+    pub fn show_cursor_middle(&mut self) {
+        let (rows, _) = Self::windows_size();
+        if rows / 2 > self.core.cursor().row {
+            self.row_offset = 0;
+        } else {
+            self.row_offset = self.core.cursor().row - rows / 2;
+        }
     }
 
     pub fn rustc(&mut self) {
@@ -292,7 +360,7 @@ impl<'a> Buffer<'a> {
     ) -> Option<Cursor> {
         view.bg = self.syntax.theme.settings.background;
         let mut view = LinenumView::new(
-            self.core.row_offset,
+            self.row_offset,
             self.core.buffer().len(),
             &self.rustc_outputs,
             view,
@@ -304,7 +372,7 @@ impl<'a> Buffer<'a> {
             self.cache.replace(DrawCache::new(&self.syntax));
         }
 
-        'outer: for i in self.core.row_offset..self.core.buffer().len() {
+        'outer: for i in self.row_offset..self.core.buffer().len() {
             let mut cache = self.cache.borrow_mut();
             let line_ref = cache.get_line(self.core.buffer(), i);
             let mut line = Cow::Borrowed(line_ref);

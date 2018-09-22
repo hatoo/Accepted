@@ -194,10 +194,17 @@ impl Mode for Normal {
             Event::Key(Key::Char('.')) => {
                 return Transition::DoMacro;
             }
-            Event::Key(Key::Char('u')) => buf.core.undo(),
-            Event::Key(Key::Char('U')) => buf.core.redo(),
+            Event::Key(Key::Char('u')) => {
+                buf.core.undo();
+                buf.show_cursor();
+            }
+            Event::Key(Key::Char('U')) => {
+                buf.core.redo();
+                buf.show_cursor();
+            }
             Event::Key(Key::Char('i')) => {
-                return Transition::RecordMacro(Box::new(Insert::default()))
+                buf.show_cursor();
+                return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('I')) => {
                 let mut i = 0;
@@ -210,35 +217,58 @@ impl Mode for Normal {
                 let mut c = buf.core.cursor();
                 c.col = i;
                 buf.core.set_cursor(c);
+                buf.show_cursor();
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('a')) => {
                 buf.core.cursor_right();
+                buf.show_cursor();
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('A')) => {
                 let mut c = buf.core.cursor();
                 c.col = buf.core.current_line().len();
                 buf.core.set_cursor(c);
+                buf.show_cursor();
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
-            Event::Key(Key::Char('r')) => return Transition::RecordMacro(Box::new(R)),
+            Event::Key(Key::Char('r')) => {
+                return {
+                    buf.show_cursor();
+                    Transition::RecordMacro(Box::new(R))
+                }
+            }
             Event::Key(Key::Char('o')) => {
                 buf.core.insert_newline();
                 buf.core.indent();
+                buf.show_cursor();
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('O')) => {
                 buf.core.insert_newline_here();
                 buf.core.indent();
+                buf.show_cursor();
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
-            Event::Key(Key::Char('h')) => buf.core.cursor_left(),
-            Event::Key(Key::Char('j')) => buf.core.cursor_down(),
-            Event::Key(Key::Char('k')) => buf.core.cursor_up(),
-            Event::Key(Key::Char('l')) => buf.core.cursor_right(),
+            Event::Key(Key::Char('h')) => {
+                buf.core.cursor_left();
+                buf.show_cursor();
+            }
+            Event::Key(Key::Char('j')) => {
+                buf.core.cursor_down();
+                buf.show_cursor();
+            }
+            Event::Key(Key::Char('k')) => {
+                buf.core.cursor_up();
+                buf.show_cursor();
+            }
+            Event::Key(Key::Char('l')) => {
+                buf.core.cursor_right();
+                buf.show_cursor();
+            }
             Event::Key(Key::Char('w')) => {
                 buf.core.w();
+                buf.show_cursor();
             }
             Event::Key(Key::Char('b')) => {
                 buf.core.cursor_dec();
@@ -253,6 +283,7 @@ impl Mode for Normal {
                 if buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) {
                     buf.core.cursor_inc();
                 }
+                buf.show_cursor();
             }
             Event::Key(Key::Char('e')) => {
                 buf.core.cursor_inc();
@@ -267,16 +298,18 @@ impl Mode for Normal {
                 if buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) {
                     buf.core.cursor_dec();
                 }
+                buf.show_cursor();
             }
             Event::Key(Key::Char('G')) => {
                 let row = buf.core.buffer().len() - 1;
                 let col = buf.core.buffer()[row].len();
                 buf.core.set_cursor(Cursor { row, col });
-                buf.core.set_offset();
+                buf.show_cursor();
             }
             Event::Key(Key::Char('x')) => {
                 buf.core.delete();
                 buf.core.commit();
+                buf.show_cursor();
             }
             Event::Key(Key::Char('/')) => return Search.into(),
             Event::Key(Key::Char('v')) => {
@@ -302,6 +335,7 @@ impl Mode for Normal {
                     buf.core.insert(c);
                 }
                 buf.core.commit();
+                buf.show_cursor();
             }
             Event::Key(Key::Char('P')) => {
                 if buf.yank.insert_newline {
@@ -312,6 +346,7 @@ impl Mode for Normal {
                     buf.core.insert(c);
                 }
                 buf.core.commit();
+                buf.show_cursor();
             }
             Event::Key(Key::Ctrl('p')) => {
                 if let Some(s) = clipboard::clipboard_paste() {
@@ -322,9 +357,13 @@ impl Mode for Normal {
                 } else {
                     self.message = "Failed to paste from clipboard".into();
                 }
+                buf.show_cursor();
             }
             Event::Key(Key::Char(' ')) => {
                 return Prefix.into();
+            }
+            Event::Key(Key::Char('z')) => {
+                buf.show_cursor_middle();
             }
             Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
                 let col = x as usize - 1;
@@ -346,17 +385,11 @@ impl Mode for Normal {
                     line_mode: false,
                 }.into()
             }
-
             Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
-                if buf.core.row_offset < 3 {
-                    buf.core.row_offset = 0;
-                } else {
-                    buf.core.row_offset -= 3;
-                }
+                buf.scroll_up();
             }
             Event::Mouse(MouseEvent::Press(MouseButton::WheelDown, _, _)) => {
-                buf.core.row_offset =
-                    std::cmp::min(buf.core.row_offset + 3, buf.core.buffer().len() - 1);
+                buf.scroll_down();
             }
             _ => {
                 if let Event::Key(Key::Char(c)) = event {
@@ -515,12 +548,20 @@ impl Mode for Insert {
                 buf.core.commit();
                 return Transition::Return(None, true);
             }
+            Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
+                buf.scroll_up();
+            }
+            Event::Mouse(MouseEvent::Press(MouseButton::WheelDown, _, _)) => {
+                buf.scroll_down();
+            }
             Event::Key(Key::Backspace) => {
                 buf.core.cursor_dec();
                 buf.core.delete();
+                buf.show_cursor();
             }
             Event::Key(Key::Delete) => {
                 buf.core.delete();
+                buf.show_cursor();
             }
             Event::Key(Key::Char('\t')) => {
                 if self.completion_len() > 0 {
@@ -549,7 +590,8 @@ impl Mode for Insert {
                     for c in body.chars() {
                         buf.core.insert(c);
                     }
-                    buf.core.set_offset();
+                    // buf.core.set_offset();
+                    buf.show_cursor();
                     self.completion_index = None;
                 } else {
                     buf.core.insert(c);
@@ -584,6 +626,7 @@ impl Mode for Insert {
             _ => {}
         }
         self.build_completion(buf);
+        buf.show_cursor();
         Transition::Nothing
     }
 
@@ -884,12 +927,25 @@ impl Mode for Visual {
             Event::Key(Key::Esc) => {
                 return Transition::Return(None, false);
             }
-            Event::Key(Key::Char('h')) => buf.core.cursor_left(),
-            Event::Key(Key::Char('j')) => buf.core.cursor_down(),
-            Event::Key(Key::Char('k')) => buf.core.cursor_up(),
-            Event::Key(Key::Char('l')) => buf.core.cursor_right(),
+            Event::Key(Key::Char('h')) => {
+                buf.core.cursor_left();
+                buf.show_cursor();
+            }
+            Event::Key(Key::Char('j')) => {
+                buf.core.cursor_down();
+                buf.show_cursor();
+            }
+            Event::Key(Key::Char('k')) => {
+                buf.core.cursor_up();
+                buf.show_cursor();
+            }
+            Event::Key(Key::Char('l')) => {
+                buf.core.cursor_right();
+                buf.show_cursor();
+            }
             Event::Key(Key::Char('w')) => {
                 buf.core.w();
+                buf.show_cursor();
             }
             Event::Key(Key::Char('b')) => {
                 buf.core.cursor_dec();
@@ -904,6 +960,7 @@ impl Mode for Visual {
                 if buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) {
                     buf.core.cursor_inc();
                 }
+                buf.show_cursor();
             }
             Event::Key(Key::Char('e')) => {
                 buf.core.cursor_inc();
@@ -918,6 +975,7 @@ impl Mode for Visual {
                 if buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) {
                     buf.core.cursor_dec();
                 }
+                buf.show_cursor();
             }
             Event::Key(Key::Char('d')) | Event::Key(Key::Char('s')) => {
                 let to_insert = event == Event::Key(Key::Char('s'));
@@ -939,6 +997,7 @@ impl Mode for Visual {
                 buf.yank.insert_newline = self.line_mode;
                 buf.yank.content = s;
 
+                buf.show_cursor();
                 return if to_insert {
                     Insert::default().into()
                 } else {

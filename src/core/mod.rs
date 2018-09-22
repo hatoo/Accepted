@@ -4,8 +4,6 @@ use std;
 use std::cmp::Ordering;
 use std::cmp::{max, min};
 use std::num::Wrapping;
-use termion;
-use unicode_width::UnicodeWidthChar;
 
 pub mod operation;
 
@@ -59,25 +57,7 @@ pub struct Core {
     history: Vec<Vec<Box<Operation>>>,
     history_tmp: Vec<Box<Operation>>,
     redo: Vec<Vec<Box<Operation>>>,
-    // TODO: Consider to move this to Buffer.
-    pub row_offset: usize,
     pub buffer_changed: Wrapping<usize>,
-}
-
-fn get_rows(s: &[char], width: usize) -> usize {
-    let mut x = 0;
-    let mut y = 1;
-
-    for &c in s {
-        let w = c.width().unwrap_or(0);
-        if x + w < width {
-            x += w;
-        } else {
-            y += 1;
-            x = w;
-        }
-    }
-    y
 }
 
 impl Default for Core {
@@ -85,7 +65,6 @@ impl Default for Core {
         Self {
             buffer: vec![Vec::new()],
             cursor: Cursor { row: 0, col: 0 },
-            row_offset: 0,
             history: Vec::new(),
             history_tmp: Vec::new(),
             redo: Vec::new(),
@@ -95,11 +74,6 @@ impl Default for Core {
 }
 
 impl Core {
-    fn windows_size() -> (usize, usize) {
-        let (cols, rows) = termion::terminal_size().unwrap();
-        (rows as usize, cols as usize)
-    }
-
     pub fn char_at_cursor(&self) -> Option<char> {
         self.buffer
             .get(self.cursor.row)
@@ -116,32 +90,14 @@ impl Core {
         &self.buffer[self.cursor.row]
     }
 
-    pub fn set_offset(&mut self) {
-        if self.row_offset >= self.cursor.row {
-            self.row_offset = self.cursor.row;
-        } else {
-            let (rows, cols) = Self::windows_size();
-            let rows = rows - 1;
-            let mut i = self.cursor.row + 1;
-            let mut sum = 0;
-            while i > 0 && sum + get_rows(&self.buffer[i - 1], cols) <= rows {
-                sum += get_rows(&self.buffer[i - 1], cols);
-                i -= 1;
-            }
-            self.row_offset = max(i, self.row_offset);
-        }
-    }
-
     pub fn cursor_left(&mut self) {
         if self.cursor.col != 0 {
             self.cursor.col -= 1;
         }
-        self.set_offset();
     }
 
     pub fn cursor_right(&mut self) {
         self.cursor.col = min(self.buffer[self.cursor.row].len(), self.cursor.col + 1);
-        self.set_offset();
     }
 
     pub fn cursor_up(&mut self) {
@@ -149,13 +105,11 @@ impl Core {
             self.cursor.row -= 1;
             self.cursor.col = min(self.buffer[self.cursor.row].len(), self.cursor.col);
         }
-        self.set_offset();
     }
 
     pub fn cursor_down(&mut self) {
         self.cursor.row = min(self.buffer.len() - 1, self.cursor.row + 1);
         self.cursor.col = min(self.buffer[self.cursor.row].len(), self.cursor.col);
-        self.set_offset();
     }
 
     pub fn cursor_inc(&mut self) -> bool {
@@ -318,7 +272,6 @@ impl Core {
             let op = operation::Delete::new(l);
             self.perform(op);
         }
-        self.set_offset();
     }
 
     pub fn get_string_by_range(&self, range: CursorRange) -> String {
@@ -434,7 +387,6 @@ impl Core {
             self.redo.push(ops);
             self.buffer_changed += Wrapping(1);
         }
-        self.set_offset();
     }
 
     pub fn redo(&mut self) {
@@ -445,6 +397,5 @@ impl Core {
             self.history.push(ops);
             self.buffer_changed += Wrapping(1);
         }
-        self.set_offset();
     }
 }
