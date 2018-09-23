@@ -208,6 +208,7 @@ pub struct Buffer<'a> {
     rustc_outputs: Vec<RustcOutput>,
     cache: RefCell<DrawCache<'a>>,
     buffer_update: Cell<Wrapping<usize>>,
+    last_rustc: (Wrapping<usize>, bool),
 }
 
 impl<'a> Buffer<'a> {
@@ -229,6 +230,7 @@ impl<'a> Buffer<'a> {
             rustc_outputs: Vec::new(),
             syntax,
             buffer_update: Cell::new(Wrapping(0)),
+            last_rustc: (Wrapping(0), false),
         }
     }
 
@@ -287,6 +289,10 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn rustc(&mut self, is_optimize: bool) {
+        if self.last_rustc == (self.core.buffer_changed, is_optimize) {
+            return;
+        }
+        self.last_rustc = (self.core.buffer_changed, is_optimize);
         if let Some(path) = self.path.as_ref() {
             let mut rustc = process::Command::new("rustc");
             if is_optimize {
