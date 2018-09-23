@@ -479,7 +479,9 @@ impl Insert {
                 self.current_racer_id = id;
             }
         }
-        if let Some(index) = self.completion_index {
+        if self.completion_len() == 0 {
+            self.completion_index = None;
+        } else if let Some(index) = self.completion_index {
             self.completion_index = Some(index % self.completion_len());
         }
     }
