@@ -596,7 +596,7 @@ impl Mode for Insert {
                         buf.core.insert(' ');
                     }
                     let pos = buf.core.cursor();
-                    if ['}', ']']
+                    if ['}', ']', ')']
                         .into_iter()
                         .any(|&c| buf.core.char_at_cursor() == Some(c))
                     {
