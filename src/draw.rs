@@ -392,6 +392,11 @@ impl DoubleBuffer {
         std::mem::swap(&mut self.front, &mut self.back);
         self.back = Term::default();
     }
+
+    pub fn redraw(&mut self) {
+        self.front.height = 0;
+        self.front.width = 0;
+    }
 }
 
 impl<'a> View<'a> {

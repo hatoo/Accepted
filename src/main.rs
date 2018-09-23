@@ -12,6 +12,7 @@ extern crate shellexpand;
 extern crate syntect;
 extern crate termion;
 
+use termion::event::{Event, Key};
 use termion::input::{MouseTerminal, TermRead};
 use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
@@ -123,6 +124,9 @@ fn main() {
 
     loop {
         if let Ok(evt) = rx.recv_timeout(Duration::from_millis(16)) {
+            if evt == Event::Key(Key::Ctrl('l')) {
+                draw.redraw();
+            }
             if state.event(evt) {
                 return;
             }
