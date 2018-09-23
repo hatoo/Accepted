@@ -75,6 +75,7 @@ impl Default for Insert {
     }
 }
 struct R;
+struct S(CursorRange);
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 enum Action {
@@ -998,6 +999,10 @@ impl Mode for Visual {
                 buf.yank.content = s;
                 return Transition::Return(Some("Yanked".into()), false);
             }
+            Event::Key(Key::Char('S')) => {
+                let range = self.get_range(buf.core.cursor(), buf.core.buffer());
+                return S(range).into();
+            }
             Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
                 let col = x as usize - 1;
                 let row = y as usize - 1;
@@ -1235,5 +1240,46 @@ impl Mode for TextObjectOperation {
                 footer.puts("Yank ", draw::CharStyle::Footer);
             }
         }
+    }
+}
+impl Mode for S {
+    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+        match event {
+            Event::Key(Key::Esc) => {
+                return Transition::Return(None, false);
+            }
+            Event::Key(Key::Char(c)) if !c.is_control() => {
+                let l = self.0.l();
+                let r = self.0.r();
+
+                let pairs = [('(', ')'), ('{', '}'), ('[', ']')];
+                let (cl, cr) = pairs
+                    .into_iter()
+                    .map(|(l, r)| (*l, *r))
+                    .find(|&(l, r)| c == l || c == r)
+                    .unwrap_or((c, c));
+
+                buf.core.set_cursor(r);
+                buf.core.cursor_inc();
+                buf.core.insert(cr);
+                buf.core.set_cursor(l);
+                buf.core.insert(cl);
+                buf.core.commit();
+
+                return Transition::Return(None, false);
+            }
+            _ => {}
+        }
+        Transition::Nothing
+    }
+
+    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
+        let height = term.height;
+        let width = term.width;
+        let range = self.0;
+        let cursor = buf.draw_with_selected(term.view((0, 0), height, width), Some(range));
+        term.cursor = cursor
+            .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
+            .unwrap_or(draw::CursorState::Hide);
     }
 }
