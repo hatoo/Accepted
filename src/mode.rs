@@ -233,10 +233,13 @@ impl Mode for Normal {
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('r')) => {
-                return {
-                    buf.show_cursor();
-                    Transition::RecordMacro(Box::new(R))
-                }
+                buf.show_cursor();
+                return Transition::RecordMacro(Box::new(R));
+            }
+            Event::Key(Key::Char('s')) => {
+                buf.core.delete();
+                buf.show_cursor();
+                return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('o')) => {
                 buf.core.insert_newline();
