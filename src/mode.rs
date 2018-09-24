@@ -221,6 +221,22 @@ impl Mode for Normal {
                 buf.show_cursor();
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
+            Event::Key(Key::Char('S')) => {
+                let mut c = buf.core.cursor();
+                c.col = 0;
+                buf.core.set_cursor(c);
+                for _ in 0..buf.core.current_line().len() {
+                    buf.core.delete()
+                }
+                buf.core.indent();
+                return Transition::RecordMacro(Box::new(Insert::default()));
+            }
+            Event::Key(Key::Char('C')) => {
+                while buf.core.char_at_cursor().is_some() {
+                    buf.core.delete()
+                }
+                return Transition::RecordMacro(Box::new(Insert::default()));
+            }
             Event::Key(Key::Char('a')) => {
                 buf.core.cursor_right();
                 buf.show_cursor();
