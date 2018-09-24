@@ -488,11 +488,17 @@ impl Insert {
         }
     }
 
-    fn poll(&mut self) {
-        while let Ok((id, snips)) = self.racer_rx.try_recv() {
-            if id > self.current_racer_id {
-                self.racer_completion = snips;
-                self.current_racer_id = id;
+    fn poll(&mut self, buf: &Buffer) {
+        if let Some(lsp) = buf.lsp.as_ref() {
+            if let Some(completion) = lsp.poll() {
+                self.racer_completion = completion;
+            }
+        } else {
+            while let Ok((id, snips)) = self.racer_rx.try_recv() {
+                if id > self.current_racer_id {
+                    self.racer_completion = snips;
+                    self.current_racer_id = id;
+                }
             }
         }
         if self.completion_len() == 0 {
@@ -522,26 +528,30 @@ impl Insert {
         let cursor = buf.core.cursor();
         let src = buf.core.get_string();
         if !prefix.is_empty() || start_completion {
-            thread::spawn(move || {
-                // racer sometimes crash
-                let cache = racer::FileCache::default();
-                let session = racer::Session::new(&cache);
+            if let Some(lsp) = buf.lsp.as_mut() {
+                lsp.request_completion(buf.core.get_string(), buf.core.cursor());
+            } else {
+                thread::spawn(move || {
+                    // racer sometimes crash
+                    let cache = racer::FileCache::default();
+                    let session = racer::Session::new(&cache);
 
-                session.cache_file_contents("main.rs", src);
+                    session.cache_file_contents("main.rs", src);
 
-                let completion = racer::complete_from_file(
-                    "main.rs",
-                    racer::Location::from(racer::Coordinate::new(
-                        cursor.row as u32 + 1,
-                        cursor.col as u32,
-                    )),
-                    &session,
-                ).map(|m| m.matchstr)
-                .filter(|s| s != &prefix)
-                .collect();
+                    let completion = racer::complete_from_file(
+                        "main.rs",
+                        racer::Location::from(racer::Coordinate::new(
+                            cursor.row as u32 + 1,
+                            cursor.col as u32,
+                        )),
+                        &session,
+                    ).map(|m| m.matchstr)
+                    .filter(|s| s != &prefix)
+                    .collect();
 
-                let _ = tx.send((id, completion));
-            });
+                    let _ = tx.send((id, completion));
+                });
+            }
         }
         // snippet
         let prefix = Self::token(&buf.core);
@@ -562,6 +572,10 @@ impl Insert {
 
 impl Mode for Insert {
     fn init(&mut self, buf: &mut Buffer) {
+        // Flush completion
+        if let Some(lsp) = buf.lsp.as_mut() {
+            lsp.poll();
+        }
         self.build_completion(buf);
     }
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
@@ -654,7 +668,7 @@ impl Mode for Insert {
     }
 
     fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
-        self.poll();
+        self.poll(buf);
         let height = term.height;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height, width));

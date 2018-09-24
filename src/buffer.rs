@@ -2,6 +2,7 @@ use core::Cursor;
 use core::CursorRange;
 use draw;
 use draw::{CharStyle, LinenumView, View};
+use lsp::LSPClient;
 use rustc;
 use rustc::RustcOutput;
 use std::borrow::Cow;
@@ -204,6 +205,7 @@ pub struct Buffer<'a> {
     pub snippet: BTreeMap<String, String>,
     pub yank: Yank,
     pub last_save: Wrapping<usize>,
+    pub lsp: Option<LSPClient>,
     row_offset: usize,
     rustc_outputs: Vec<RustcOutput>,
     cache: RefCell<DrawCache<'a>>,
@@ -226,6 +228,7 @@ impl<'a> Buffer<'a> {
             snippet: BTreeMap::new(),
             yank: Yank::default(),
             last_save: Wrapping(0),
+            lsp: LSPClient::new(),
             row_offset: 0,
             rustc_outputs: Vec::new(),
             syntax,
