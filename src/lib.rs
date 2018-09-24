@@ -1,3 +1,5 @@
+extern crate jsonrpc_core;
+extern crate languageserver_types;
 extern crate racer;
 extern crate serde;
 extern crate serde_json;
@@ -15,6 +17,7 @@ mod core;
 mod cursor;
 pub mod draw;
 mod indent;
+mod lsp;
 mod mode;
 mod rustc;
 mod rustfmt;
