@@ -1,6 +1,6 @@
 use core::Cursor;
 use jsonrpc_core;
-use jsonrpc_core::{Call, Notification, Output};
+use jsonrpc_core::Output;
 use languageserver_types;
 use serde;
 use serde_json;
@@ -14,6 +14,12 @@ pub struct LSPClient {
     process: process::Child,
     completion_req: Sender<(String, Cursor)>,
     completion_recv: Receiver<Vec<String>>,
+}
+
+impl Drop for LSPClient {
+    fn drop(&mut self) {
+        let _ = self.process.kill();
+    }
 }
 
 const ID_INIT: u64 = 0;
@@ -41,7 +47,8 @@ impl LSPClient {
         let mut stdin: process::ChildStdin = rls.stdin.take()?;
         let mut reader = BufReader::new(rls.stdout.take()?);
 
-        send_request::<_, languageserver_types::request::Initialize>(&mut stdin, ID_INIT, init);
+        send_request::<_, languageserver_types::request::Initialize>(&mut stdin, ID_INIT, init)
+            .ok()?;
 
         let (init_tx, init_rx) = channel::<()>();
         let (tx, rx) = channel();
@@ -49,7 +56,7 @@ impl LSPClient {
         let (c_tx, c_rx) = channel::<(String, Cursor)>();
         thread::spawn(move || {
             // Wait initialize
-            init_rx.recv();
+            init_rx.recv().unwrap();
 
             while let Ok((src, cursor)) = c_rx.recv() {
                 let open = languageserver_types::DidOpenTextDocumentParams {
@@ -62,7 +69,7 @@ impl LSPClient {
                 };
                 send_notify::<_, languageserver_types::notification::DidOpenTextDocument>(
                     &mut stdin, open,
-                );
+                ).unwrap();
                 let completion = languageserver_types::CompletionParams {
                     text_document: languageserver_types::TextDocumentIdentifier {
                         uri: languageserver_types::Url::parse("file://localhost/main.rs").unwrap(),
@@ -75,7 +82,7 @@ impl LSPClient {
                 };
                 send_request::<_, languageserver_types::request::Completion>(
                     &mut stdin, 1, completion,
-                );
+                ).unwrap();
             }
         });
 
@@ -106,7 +113,7 @@ impl LSPClient {
                 match output {
                     Ok(Output::Success(suc)) => {
                         if suc.id == jsonrpc_core::id::Id::Num(ID_INIT) {
-                            init_tx.send(());
+                            init_tx.send(()).unwrap();
                         } else if suc.id == jsonrpc_core::id::Id::Num(ID_COMPLETION) {
                             let completion = serde_json::from_value::<
                                 languageserver_types::CompletionResponse,
@@ -114,7 +121,7 @@ impl LSPClient {
 
                             let mut completion = extract_completion(completion);
                             completion.dedup();
-                            tx.send(completion);
+                            tx.send(completion).unwrap();
                         }
                     }
                     _ => (),
@@ -130,7 +137,7 @@ impl LSPClient {
     }
 
     pub fn request_completion(&self, src: String, cursor: Cursor) {
-        self.completion_req.send((src, cursor));
+        let _ = self.completion_req.send((src, cursor));
     }
 
     pub fn poll(&self) -> Option<Vec<String>> {
