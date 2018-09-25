@@ -54,7 +54,7 @@ struct Insert {
     buf_update: Wrapping<usize>,
     racer_count: usize,
     current_racer_id: usize,
-    racer_completion: Vec<String>,
+    completion: Vec<String>,
     snippet_completion: Vec<String>,
     racer_tx: mpsc::Sender<(usize, Vec<String>)>,
     racer_rx: mpsc::Receiver<(usize, Vec<String>)>,
@@ -64,7 +64,7 @@ impl Default for Insert {
         let (tx, rx) = mpsc::channel();
         Insert {
             completion_index: None,
-            racer_completion: Vec::new(),
+            completion: Vec::new(),
             snippet_completion: Vec::new(),
             buf_update: Wrapping(0),
             current_racer_id: 0,
@@ -476,15 +476,15 @@ impl Insert {
     }
 
     fn completion_len(&self) -> usize {
-        self.racer_completion.len() + self.snippet_completion.len()
+        self.completion.len() + self.snippet_completion.len()
     }
 
     fn get_completion(&self, buf: &Buffer) -> Option<String> {
         let index = self.completion_index?;
-        if index < self.racer_completion.len() {
-            Some(self.racer_completion[index].clone())
+        if index < self.completion.len() {
+            Some(self.completion[index].clone())
         } else {
-            Some(buf.snippet[&self.snippet_completion[index - self.racer_completion.len()]].clone())
+            Some(buf.snippet[&self.snippet_completion[index - self.completion.len()]].clone())
         }
     }
 
@@ -493,12 +493,12 @@ impl Insert {
             if let Some(mut completion) = lsp.poll() {
                 let token = Self::token(&buf.core);
                 completion.retain(|s| s != &token);
-                self.racer_completion = completion;
+                self.completion = completion;
             }
         } else {
             while let Ok((id, snips)) = self.racer_rx.try_recv() {
                 if id > self.current_racer_id {
-                    self.racer_completion = snips;
+                    self.completion = snips;
                     self.current_racer_id = id;
                 }
             }
@@ -523,7 +523,6 @@ impl Insert {
                 c == ':' || c == '.'
             }
         };
-        // racer
         let id = self.racer_count;
         self.racer_count += 1;
         let tx = self.racer_tx.clone();
@@ -531,8 +530,10 @@ impl Insert {
         let src = buf.core.get_string();
         if !prefix.is_empty() || start_completion {
             if let Some(lsp) = buf.lsp.as_mut() {
+                // LSP
                 lsp.request_completion(buf.core.get_string(), buf.core.cursor());
             } else {
+                // racer
                 thread::spawn(move || {
                     // racer sometimes crash
                     let cache = racer::FileCache::default();
@@ -685,7 +686,7 @@ impl Mode for Insert {
             if cursor.col + completion_width <= width && cursor.row + completion_height <= height {
                 let mut view = term.view(cursor.to_tuple(), completion_height, completion_width);
                 for (i, s) in self
-                    .racer_completion
+                    .completion
                     .iter()
                     .chain(self.snippet_completion.iter())
                     .take(completion_height)
