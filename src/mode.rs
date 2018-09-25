@@ -490,7 +490,9 @@ impl Insert {
 
     fn poll(&mut self, buf: &Buffer) {
         if let Some(lsp) = buf.lsp.as_ref() {
-            if let Some(completion) = lsp.poll() {
+            if let Some(mut completion) = lsp.poll() {
+                let token = Self::token(&buf.core);
+                completion.retain(|s| s != &token);
                 self.racer_completion = completion;
             }
         } else {
