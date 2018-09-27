@@ -707,19 +707,29 @@ impl Mode for Insert {
         if let Some(cursor) = cursor {
             if cursor.col + completion_width <= width && cursor.row + completion_height <= height {
                 let mut view = term.view(cursor.to_tuple(), completion_height, completion_width);
-                for (i, s) in self
-                    .completions
-                    .iter()
-                    .map(|c| format!("{} {}", c.keyword, c.doc))
-                    .chain(self.snippet_completions.iter().cloned())
-                    .take(completion_height)
-                    .enumerate()
-                {
-                    for c in s.chars().take(completion_width - 1) {
-                        if Some(i) == self.completion_index {
-                            view.put(c, draw::CharStyle::Highlight, None);
-                        } else {
-                            view.put(c, draw::CharStyle::UI, None);
+                for i in 0..min(completion_height, self.completion_len()) {
+                    let is_selected = Some(i) == self.completion_index;
+                    if i < self.completions.len() {
+                        let c = &self.completions[i];
+                        for c in c.keyword.chars() {
+                            if is_selected {
+                                view.put_inline(c, draw::CharStyle::Highlight, None);
+                            } else {
+                                view.put_inline(c, draw::CharStyle::UI, None);
+                            }
+                        }
+                        view.put_inline(' ', draw::CharStyle::Default, None);
+                        for c in c.doc.chars() {
+                            view.put_inline(c, draw::CharStyle::Selected, None);
+                        }
+                    } else {
+                        let i = i - self.completions.len();
+                        for c in self.snippet_completions[i].chars() {
+                            if is_selected {
+                                view.put_inline(c, draw::CharStyle::Highlight, None);
+                            } else {
+                                view.put_inline(c, draw::CharStyle::UI, None);
+                            }
                         }
                     }
                     view.newline();

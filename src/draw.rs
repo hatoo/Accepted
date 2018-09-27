@@ -460,4 +460,12 @@ impl<'a> View<'a> {
             self.put(c, style, None);
         }
     }
+
+    pub fn put_inline(&mut self, c: char, style: CharStyle, pos: Option<Cursor>) -> Option<Cursor> {
+        if self.cause_newline(c) {
+            None
+        } else {
+            self.put(c, style, pos)
+        }
+    }
 }
