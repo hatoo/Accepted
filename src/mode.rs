@@ -625,6 +625,20 @@ impl Mode for Insert {
                 }
                 return Transition::Nothing;
             }
+            Event::Unsupported(v) => {
+                // Shift Tab
+                if &v == &[27, 91, 90] {
+                    if self.completion_len() > 0 {
+                        if let Some(index) = self.completion_index {
+                            self.completion_index =
+                                Some((index + self.completion_len() - 1) % self.completion_len());
+                        } else {
+                            self.completion_index = Some(self.completion_len() - 1);
+                        }
+                    }
+                    return Transition::Nothing;
+                }
+            }
             Event::Key(Key::Char('\n')) => {
                 if self.completion_index.is_some() {
                     let body = &self.get_completion(buf).unwrap();
