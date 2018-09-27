@@ -2,6 +2,7 @@ use core::Cursor;
 use jsonrpc_core;
 use jsonrpc_core::Output;
 use languageserver_types;
+use mode::Completion;
 use serde;
 use serde_json;
 use std::collections::HashMap;
@@ -13,7 +14,7 @@ use std::thread;
 pub struct LSPClient {
     process: process::Child,
     completion_req: Sender<(String, Cursor)>,
-    completion_recv: Receiver<Vec<String>>,
+    completion_recv: Receiver<Vec<Completion>>,
 }
 
 impl Drop for LSPClient {
@@ -120,7 +121,6 @@ impl LSPClient {
                             >(suc.result).unwrap();
 
                             let mut completion = extract_completion(completion);
-                            completion.dedup();
                             tx.send(completion).unwrap();
                         }
                     }
@@ -140,7 +140,7 @@ impl LSPClient {
         let _ = self.completion_req.send((src, cursor));
     }
 
-    pub fn poll(&self) -> Option<Vec<String>> {
+    pub fn poll(&self) -> Option<Vec<Completion>> {
         let mut res = None;
         while let Ok(completion) = self.completion_recv.try_recv() {
             res = Some(completion);
@@ -191,13 +191,20 @@ where
     }
 }
 
-fn extract_completion(completion: languageserver_types::CompletionResponse) -> Vec<String> {
+fn extract_completion(completion: languageserver_types::CompletionResponse) -> Vec<Completion> {
     match completion {
-        languageserver_types::CompletionResponse::Array(array) => {
-            array.into_iter().map(|item| item.label).collect()
-        }
-        languageserver_types::CompletionResponse::List(list) => {
-            list.items.into_iter().map(|item| item.label).collect()
-        }
+        languageserver_types::CompletionResponse::Array(array) => array
+            .into_iter()
+            .map(|item| Completion {
+                keyword: item.label,
+                doc: item.detail.unwrap_or(String::new()),
+            }).collect(),
+        languageserver_types::CompletionResponse::List(list) => list
+            .items
+            .into_iter()
+            .map(|item| Completion {
+                keyword: item.label,
+                doc: item.detail.unwrap_or(String::new()),
+            }).collect(),
     }
 }

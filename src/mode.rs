@@ -48,24 +48,30 @@ pub trait Mode {
 pub struct Normal {
     message: String,
 }
+
+pub struct Completion {
+    pub keyword: String,
+    pub doc: String,
+}
+
 struct Prefix;
 struct Insert {
     completion_index: Option<usize>,
     buf_update: Wrapping<usize>,
     racer_count: usize,
     current_racer_id: usize,
-    completion: Vec<String>,
-    snippet_completion: Vec<String>,
-    racer_tx: mpsc::Sender<(usize, Vec<String>)>,
-    racer_rx: mpsc::Receiver<(usize, Vec<String>)>,
+    completions: Vec<Completion>,
+    snippet_completions: Vec<String>,
+    racer_tx: mpsc::Sender<(usize, Vec<Completion>)>,
+    racer_rx: mpsc::Receiver<(usize, Vec<Completion>)>,
 }
 impl Default for Insert {
     fn default() -> Self {
         let (tx, rx) = mpsc::channel();
         Insert {
             completion_index: None,
-            completion: Vec::new(),
-            snippet_completion: Vec::new(),
+            completions: Vec::new(),
+            snippet_completions: Vec::new(),
             buf_update: Wrapping(0),
             current_racer_id: 0,
             racer_count: 1,
@@ -476,29 +482,29 @@ impl Insert {
     }
 
     fn completion_len(&self) -> usize {
-        self.completion.len() + self.snippet_completion.len()
+        self.completions.len() + self.snippet_completions.len()
     }
 
     fn get_completion(&self, buf: &Buffer) -> Option<String> {
         let index = self.completion_index?;
-        if index < self.completion.len() {
-            Some(self.completion[index].clone())
+        if index < self.completions.len() {
+            Some(self.completions[index].keyword.clone())
         } else {
-            Some(buf.snippet[&self.snippet_completion[index - self.completion.len()]].clone())
+            Some(buf.snippet[&self.snippet_completions[index - self.completions.len()]].clone())
         }
     }
 
     fn poll(&mut self, buf: &Buffer) {
         if let Some(lsp) = buf.lsp.as_ref() {
-            if let Some(mut completion) = lsp.poll() {
+            if let Some(mut completions) = lsp.poll() {
                 let token = Self::token(&buf.core);
-                completion.retain(|s| s != &token);
-                self.completion = completion;
+                completions.retain(|s| s.keyword != token);
+                self.completions = completions;
             }
         } else {
             while let Ok((id, snips)) = self.racer_rx.try_recv() {
                 if id > self.current_racer_id {
-                    self.completion = snips;
+                    self.completions = snips;
                     self.current_racer_id = id;
                 }
             }
@@ -548,8 +554,10 @@ impl Insert {
                             cursor.col as u32,
                         )),
                         &session,
-                    ).map(|m| m.matchstr)
-                    .filter(|s| s != &prefix)
+                    ).map(|m| Completion {
+                        keyword: m.matchstr,
+                        doc: m.docs,
+                    }).filter(|s| &s.keyword != &prefix)
                     .collect();
 
                     let _ = tx.send((id, completion));
@@ -558,10 +566,10 @@ impl Insert {
         }
         // snippet
         let prefix = Self::token(&buf.core);
-        self.snippet_completion.clear();
+        self.snippet_completions.clear();
         if !prefix.is_empty() {
             for keyword in buf.snippet.keys().filter(|k| k.starts_with(&prefix)) {
-                self.snippet_completion.push(keyword.to_string());
+                self.snippet_completions.push(keyword.to_string());
             }
         }
 
@@ -686,9 +694,10 @@ impl Mode for Insert {
             if cursor.col + completion_width <= width && cursor.row + completion_height <= height {
                 let mut view = term.view(cursor.to_tuple(), completion_height, completion_width);
                 for (i, s) in self
-                    .completion
+                    .completions
                     .iter()
-                    .chain(self.snippet_completion.iter())
+                    .map(|c| format!("{} {}", c.keyword, c.doc))
+                    .chain(self.snippet_completions.iter().cloned())
                     .take(completion_height)
                     .enumerate()
                 {
