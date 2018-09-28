@@ -16,6 +16,11 @@ pub fn clipboard_copy(s: &str) -> bool {
                 .arg("-bi")
                 .stdin(process::Stdio::piped())
                 .spawn()
+        }).or_else(|_| {
+            Command::new("xclip")
+                .arg("-i")
+                .stdin(process::Stdio::piped())
+                .spawn()
         }) {
         if let Some(mut stdin) = p.stdin.take() {
             write!(stdin, "{}", s).unwrap();
@@ -37,6 +42,11 @@ pub fn clipboard_paste() -> Option<String> {
         }).or_else(|_| {
             Command::new("xsel")
                 .arg("-bo")
+                .stdout(process::Stdio::piped())
+                .spawn()
+        }).or_else(|_| {
+            Command::new("xclip")
+                .arg("-o")
                 .stdout(process::Stdio::piped())
                 .spawn()
         }) {
