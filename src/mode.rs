@@ -6,6 +6,7 @@ use core::Cursor;
 use core::CursorRange;
 use draw;
 use indent;
+use lsp::LSPClient;
 use racer;
 use shellexpand;
 use std;
@@ -895,6 +896,19 @@ impl Mode for Prefix {
                             "Copied"
                         } else {
                             "Failed to copy to clipboard"
+                        }.into(),
+                    ),
+                    false,
+                );
+            }
+            Event::Key(Key::Char('l')) => {
+                buf.lsp = LSPClient::new();
+                return Transition::Return(
+                    Some(
+                        if buf.lsp.is_some() {
+                            "LSP Restarted"
+                        } else {
+                            "Failed to restart LSP"
                         }.into(),
                     ),
                     false,
