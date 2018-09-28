@@ -18,7 +18,7 @@ So this can Rustfmt and Test run with clipboard input which is useful to competi
 ### Features
 
 * Autoformat with [Rustfmt](https://github.com/rust-lang-nursery/rustfmt) 
-* Completion with [Racer](https://github.com/racer-rust/racer)
+* Completion with [RLS](https://github.com/rust-lang-nursery/rls) / [Racer](https://github.com/racer-rust/racer)
 * Auto compile and show compiler messages
 * Easy to test a single rust code
 * VScode style snippet support
