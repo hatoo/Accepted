@@ -20,6 +20,7 @@ use std::path::PathBuf;
 use std::process;
 use std::sync::mpsc;
 use std::thread;
+use std::time::Instant;
 use termion;
 use termion::event::{Event, Key, MouseButton, MouseEvent};
 use text_object;
@@ -136,10 +137,13 @@ struct ViewProcess {
     pub buf: Vec<String>,
     pub reader: mpsc::Receiver<String>,
     pub process: process::Child,
+    pub start: Instant,
+    pub end: Option<Instant>,
 }
 
 impl ViewProcess {
     fn new(mut child: process::Child) -> Option<Self> {
+        let now = Instant::now();
         let stdout = child.stdout.take()?;
         let stderr = child.stderr.take()?;
         let (tx, rx) = mpsc::channel();
@@ -178,6 +182,8 @@ impl ViewProcess {
             buf: Vec::new(),
             reader: rx,
             process: child,
+            start: now,
+            end: None,
         })
     }
 }
@@ -922,8 +928,7 @@ impl Mode for Prefix {
                     if let Some(stem) = path.file_stem() {
                         let mut prog = OsString::from("./");
                         prog.push(stem);
-                        if let Ok(mut child) = process::Command::new("time")
-                            .arg(prog)
+                        if let Ok(mut child) = process::Command::new(prog)
                             .stdout(process::Stdio::piped())
                             .stderr(process::Stdio::piped())
                             .stdin(process::Stdio::piped())
@@ -947,6 +952,8 @@ impl Mode for Prefix {
                     } else {
                         return Normal::with_message("Failed to run".into()).into();
                     }
+                } else {
+                    return Normal::with_message("Save first".into()).into();
                 }
             }
             _ => {}
@@ -1141,6 +1148,14 @@ impl Mode for ViewProcess {
     }
 
     fn draw(&mut self, _buf: &Buffer, term: &mut draw::Term) {
+        if self.end.is_none() {
+            match self.process.try_wait() {
+                Ok(Some(_)) => {
+                    self.end = Some(Instant::now());
+                }
+                _ => {}
+            }
+        }
         let mut read_cnt = 32;
         while let Ok(line) = self.reader.try_recv() {
             if read_cnt == 0 {
@@ -1158,6 +1173,12 @@ impl Mode for ViewProcess {
             for line in &self.buf {
                 view.puts(line, draw::CharStyle::Default);
                 view.newline();
+            }
+            if let Some(end) = self.end {
+                view.puts(
+                    &format!("{:?}", end - self.start),
+                    draw::CharStyle::Highlight,
+                );
             }
         }
         {
