@@ -928,7 +928,7 @@ impl Mode for Prefix {
                     if let Some(stem) = path.file_stem() {
                         let mut prog = OsString::from("./");
                         prog.push(stem);
-                        if let Ok(mut child) = process::Command::new(prog)
+                        if let Ok(mut child) = process::Command::new(&prog)
                             .stdout(process::Stdio::piped())
                             .stderr(process::Stdio::piped())
                             .stdin(process::Stdio::piped())
@@ -947,7 +947,7 @@ impl Mode for Prefix {
                                 return Normal::with_message("Failed to paste".into()).into();
                             }
                         } else {
-                            return Normal::with_message("Failed to run".into()).into();
+                            return Normal::with_message(format!("Failed to run {:?}", prog)).into();
                         }
                     } else {
                         return Normal::with_message("Failed to run".into()).into();
