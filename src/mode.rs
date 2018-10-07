@@ -349,13 +349,15 @@ impl Mode for Normal {
                 return Visual {
                     cursor: buf.core.cursor(),
                     line_mode: false,
-                }.into();
+                }
+                .into();
             }
             Event::Key(Key::Char('V')) => {
                 return Visual {
                     cursor: buf.core.cursor(),
                     line_mode: true,
-                }.into();
+                }
+                .into();
             }
             Event::Key(Key::Char('p')) => {
                 if buf.yank.insert_newline {
@@ -416,7 +418,8 @@ impl Mode for Normal {
                 return Visual {
                     cursor: buf.core.cursor(),
                     line_mode: false,
-                }.into()
+                }
+                .into()
             }
             Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
                 buf.scroll_up();
@@ -561,10 +564,12 @@ impl Insert {
                             cursor.col as u32,
                         )),
                         &session,
-                    ).map(|m| Completion {
+                    )
+                    .map(|m| Completion {
                         keyword: m.matchstr,
                         doc: m.docs,
-                    }).filter(|s| &s.keyword != &prefix)
+                    })
+                    .filter(|s| &s.keyword != &prefix)
                     .collect();
 
                     let _ = tx.send((id, completion));
@@ -880,18 +885,21 @@ impl Mode for Prefix {
                 } else {
                     return Save {
                         path: String::new(),
-                    }.into();
+                    }
+                    .into();
                 }
             }
             Event::Key(Key::Char('a')) => {
                 if let Some(ref path) = buf.path {
                     return Save {
                         path: path.to_string_lossy().into(),
-                    }.into();
+                    }
+                    .into();
                 } else {
                     return Save {
                         path: String::new(),
-                    }.into();
+                    }
+                    .into();
                 }
             }
             Event::Key(Key::Char('y')) => {
@@ -902,7 +910,8 @@ impl Mode for Prefix {
                             "Copied"
                         } else {
                             "Failed to copy to clipboard"
-                        }.into(),
+                        }
+                        .into(),
                     ),
                     false,
                 );
@@ -915,7 +924,8 @@ impl Mode for Prefix {
                             "LSP Restarted"
                         } else {
                             "Failed to restart LSP"
-                        }.into(),
+                        }
+                        .into(),
                     ),
                     false,
                 );
@@ -1075,6 +1085,16 @@ impl Mode for Visual {
                 } else {
                     Transition::Return(Some("Deleted".into()), true)
                 };
+            }
+            Event::Key(Key::Char('p')) => {
+                let range = self.get_range(buf.core.cursor(), buf.core.buffer());
+                buf.core.delete_range(range);
+                for c in buf.yank.content.chars() {
+                    buf.core.insert(c);
+                }
+                buf.core.commit();
+                buf.show_cursor();
+                return Transition::Return(None, true);
             }
             Event::Key(Key::Char('y')) => {
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
