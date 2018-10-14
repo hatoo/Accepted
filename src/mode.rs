@@ -708,11 +708,14 @@ impl Mode for Insert {
         self.poll(buf);
         let height = term.height;
         let width = term.width;
-        let cursor = buf.draw(term.view((0, 0), height, width));
+        let mut cursor = buf.draw(term.view((0, 0), height, width));
         term.cursor = cursor
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Bar))
             .unwrap_or(draw::CursorState::Hide);
 
+        if let Some(cursor) = cursor.as_mut() {
+            cursor.row += 1;
+        }
         let completion_height = height - cursor.map(|c| c.row).unwrap_or(0);
         let completion_width = width - cursor.map(|c| c.col).unwrap_or(0);
 
