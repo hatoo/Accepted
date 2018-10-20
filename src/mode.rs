@@ -1062,7 +1062,9 @@ impl Mode for Visual {
                 }
                 buf.show_cursor();
             }
-            Event::Key(Key::Char('d')) | Event::Key(Key::Char('s')) => {
+            Event::Key(Key::Char('d'))
+            | Event::Key(Key::Char('x'))
+            | Event::Key(Key::Char('s')) => {
                 let to_insert = event == Event::Key(Key::Char('s'));
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
                 let s = if self.line_mode {
