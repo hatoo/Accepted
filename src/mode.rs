@@ -349,15 +349,13 @@ impl Mode for Normal {
                 return Visual {
                     cursor: buf.core.cursor(),
                     line_mode: false,
-                }
-                .into();
+                }.into();
             }
             Event::Key(Key::Char('V')) => {
                 return Visual {
                     cursor: buf.core.cursor(),
                     line_mode: true,
-                }
-                .into();
+                }.into();
             }
             Event::Key(Key::Char('p')) => {
                 if buf.yank.insert_newline {
@@ -418,8 +416,7 @@ impl Mode for Normal {
                 return Visual {
                     cursor: buf.core.cursor(),
                     line_mode: false,
-                }
-                .into()
+                }.into()
             }
             Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
                 buf.scroll_up();
@@ -564,12 +561,10 @@ impl Insert {
                             cursor.col as u32,
                         )),
                         &session,
-                    )
-                    .map(|m| Completion {
+                    ).map(|m| Completion {
                         keyword: m.matchstr,
                         doc: m.docs,
-                    })
-                    .filter(|s| &s.keyword != &prefix)
+                    }).filter(|s| &s.keyword != &prefix)
                     .collect();
 
                     let _ = tx.send((id, completion));
@@ -614,8 +609,14 @@ impl Mode for Insert {
                 buf.scroll_down();
             }
             Event::Key(Key::Backspace) => {
+                let parens = [('{', '}'), ('(', ')'), ('[', ']')];
                 buf.core.cursor_dec();
+                let c = buf.core.char_at_cursor();
                 buf.core.delete();
+                if buf.core.char_at_cursor() == parens.iter().find(|t| c == Some(t.0)).map(|t| t.1)
+                {
+                    buf.core.delete();
+                }
                 buf.show_cursor();
             }
             Event::Key(Key::Delete) => {
@@ -888,21 +889,18 @@ impl Mode for Prefix {
                 } else {
                     return Save {
                         path: String::new(),
-                    }
-                    .into();
+                    }.into();
                 }
             }
             Event::Key(Key::Char('a')) => {
                 if let Some(ref path) = buf.path {
                     return Save {
                         path: path.to_string_lossy().into(),
-                    }
-                    .into();
+                    }.into();
                 } else {
                     return Save {
                         path: String::new(),
-                    }
-                    .into();
+                    }.into();
                 }
             }
             Event::Key(Key::Char('y')) => {
@@ -913,8 +911,7 @@ impl Mode for Prefix {
                             "Copied"
                         } else {
                             "Failed to copy to clipboard"
-                        }
-                        .into(),
+                        }.into(),
                     ),
                     false,
                 );
@@ -927,8 +924,7 @@ impl Mode for Prefix {
                             "LSP Restarted"
                         } else {
                             "Failed to restart LSP"
-                        }
-                        .into(),
+                        }.into(),
                     ),
                     false,
                 );
