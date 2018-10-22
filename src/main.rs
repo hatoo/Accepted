@@ -107,6 +107,7 @@ fn main() {
 
     // TODO Make configurable
     let syntax = accepted::syntax::Syntax {
+        syntax_set: &ps,
         syntax: ps.find_syntax_by_extension("rs").unwrap(),
         theme: &ts.themes["Solarized (dark)"],
     };

@@ -27,6 +27,7 @@ use unicode_width::UnicodeWidthChar;
 use Core;
 
 struct DrawCache<'a> {
+    syntax_set: &'a syntect::parsing::SyntaxSet,
     highlighter: Highlighter<'a>,
     parse_state: ParseState,
     highlight_state: HighlightState,
@@ -105,6 +106,7 @@ impl<'a> DrawCache<'a> {
         let hstate = HighlightState::new(&highlighter, ScopeStack::new());
         let bg = syntax.theme.settings.background.unwrap();
         Self {
+            syntax_set: syntax.syntax_set,
             highlighter,
             parse_state: ParseState::new(syntax.syntax),
             highlight_state: hstate,
@@ -118,7 +120,7 @@ impl<'a> DrawCache<'a> {
         if self.cache.len() <= i {
             for i in self.cache.len()..=i {
                 let line = buffer[i].iter().collect::<String>();
-                let ops = self.parse_state.parse_line(&line);
+                let ops = self.parse_state.parse_line(&line, self.syntax_set);
                 let iter = HighlightIterator::new(
                     &mut self.highlight_state,
                     &ops[..],

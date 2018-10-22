@@ -2,7 +2,8 @@ use syntect;
 use syntect::easy::HighlightLines;
 
 pub struct Syntax<'a> {
-    pub syntax: &'a syntect::parsing::SyntaxDefinition,
+    pub syntax_set: &'a syntect::parsing::SyntaxSet,
+    pub syntax: &'a syntect::parsing::SyntaxReference,
     pub theme: &'a syntect::highlighting::Theme,
 }
 
