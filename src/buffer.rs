@@ -37,7 +37,7 @@ struct DrawCache<'a> {
 }
 
 impl<'a> DrawCache<'a> {
-    const RAINBOW: [Color; 12] = [
+    const RAINBOW: [Color; 10] = [
         Color {
             r: 0xE6,
             g: 0x0,
@@ -70,12 +70,6 @@ impl<'a> DrawCache<'a> {
         },
         Color {
             r: 0x00,
-            g: 0x0e,
-            b: 0x96,
-            a: 0xff,
-        },
-        Color {
-            r: 0x00,
             g: 0xa0,
             b: 0xe9,
             a: 0xff,
@@ -84,12 +78,6 @@ impl<'a> DrawCache<'a> {
             r: 0x00,
             g: 0x68,
             b: 0xb7,
-            a: 0xff,
-        },
-        Color {
-            r: 0x1d,
-            g: 0x20,
-            b: 0x88,
             a: 0xff,
         },
         Color {
@@ -147,16 +135,14 @@ impl<'a> DrawCache<'a> {
                 for c in &mut line {
                     for (k, (l, r)) in parens.into_iter().enumerate() {
                         if c.0 == *l {
-                            if let Some(&fg) = Self::RAINBOW.get(self.parens_level[k]) {
-                                c.1 = CharStyle::fg_bg(fg, self.bg);
-                            }
+                            let fg = Self::RAINBOW[self.parens_level[k] % Self::RAINBOW.len()];
+                            c.1 = CharStyle::fg_bg(fg, self.bg);
                             self.parens_level[k] += 1;
                         }
                         if c.0 == *r && self.parens_level[k] > 0 {
                             self.parens_level[k] -= 1;
-                            if let Some(&fg) = Self::RAINBOW.get(self.parens_level[k]) {
-                                c.1 = CharStyle::fg_bg(fg, self.bg);
-                            }
+                            let fg = Self::RAINBOW[self.parens_level[k] % Self::RAINBOW.len()];
+                            c.1 = CharStyle::fg_bg(fg, self.bg);
                         }
                     }
                 }
