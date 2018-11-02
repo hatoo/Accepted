@@ -134,6 +134,7 @@ struct Visual {
     line_mode: bool,
 }
 struct ViewProcess {
+    row_offset: usize,
     pub buf: Vec<String>,
     pub reader: mpsc::Receiver<String>,
     pub process: process::Child,
@@ -179,6 +180,7 @@ impl ViewProcess {
             }
         });
         Some(Self {
+            row_offset: 0,
             buf: Vec::new(),
             reader: rx,
             process: child,
@@ -1172,11 +1174,21 @@ impl Mode for Visual {
 
 impl Mode for ViewProcess {
     fn event(&mut self, _buf: &mut Buffer, event: termion::event::Event) -> Transition {
-        if event == Event::Key(Key::Esc) {
-            let _result = self.process.kill();
-            Normal::default().into()
-        } else {
-            Transition::Nothing
+        match event {
+            Event::Key(Key::Esc) => Normal::default().into(),
+            Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
+                if self.row_offset <= 3 {
+                    self.row_offset = 0;
+                } else {
+                    self.row_offset -= 3;
+                }
+                Transition::Nothing
+            }
+            Event::Mouse(MouseEvent::Press(MouseButton::WheelDown, _, _)) => {
+                self.row_offset = min(self.buf.len() - 1, self.row_offset + 3);
+                Transition::Nothing
+            }
+            _ => Transition::Nothing,
         }
     }
 
@@ -1203,7 +1215,7 @@ impl Mode for ViewProcess {
         term.cursor = draw::CursorState::Hide;
         {
             let mut view = term.view((0, 0), height - 1, width);
-            for line in &self.buf {
+            for line in &self.buf[self.row_offset..] {
                 view.puts(line, draw::CharStyle::Default);
                 view.newline();
             }
