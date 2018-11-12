@@ -1076,6 +1076,16 @@ impl Mode for Visual {
                 }
                 buf.show_cursor();
             }
+            Event::Key(Key::Char('g')) => {
+                buf.core.set_cursor(Cursor { row: 0, col: 0 });
+                buf.show_cursor();
+            }
+            Event::Key(Key::Char('G')) => {
+                let row = buf.core.buffer().len() - 1;
+                let col = buf.core.buffer()[row].len();
+                buf.core.set_cursor(Cursor { row, col });
+                buf.show_cursor();
+            }
             Event::Key(Key::Char('d'))
             | Event::Key(Key::Char('x'))
             | Event::Key(Key::Char('s')) => {
