@@ -70,7 +70,8 @@ impl LSPClient {
                 };
                 send_notify::<_, languageserver_types::notification::DidOpenTextDocument>(
                     &mut stdin, open,
-                ).unwrap();
+                )
+                .unwrap();
                 let completion = languageserver_types::CompletionParams {
                     text_document: languageserver_types::TextDocumentIdentifier {
                         uri: languageserver_types::Url::parse("file://localhost/main.rs").unwrap(),
@@ -83,7 +84,8 @@ impl LSPClient {
                 };
                 send_request::<_, languageserver_types::request::Completion>(
                     &mut stdin, 1, completion,
-                ).unwrap();
+                )
+                .unwrap();
             }
         });
 
@@ -118,7 +120,8 @@ impl LSPClient {
                         } else if suc.id == jsonrpc_core::id::Id::Num(ID_COMPLETION) {
                             let completion = serde_json::from_value::<
                                 languageserver_types::CompletionResponse,
-                            >(suc.result).unwrap();
+                            >(suc.result)
+                            .unwrap();
 
                             let mut completion = extract_completion(completion);
                             tx.send(completion).unwrap();
@@ -161,7 +164,7 @@ where
         let req = jsonrpc_core::Call::MethodCall(jsonrpc_core::MethodCall {
             jsonrpc: None,
             method: R::METHOD.to_string(),
-            params: Some(jsonrpc_core::Params::Map(params)),
+            params: jsonrpc_core::Params::Map(params),
             id: jsonrpc_core::Id::Num(id),
         });
         let request = serde_json::to_string(&req).unwrap();
@@ -182,7 +185,7 @@ where
         let req = jsonrpc_core::Notification {
             jsonrpc: None,
             method: R::METHOD.to_string(),
-            params: Some(jsonrpc_core::Params::Map(params)),
+            params: jsonrpc_core::Params::Map(params),
         };
         let request = serde_json::to_string(&req).unwrap();
         write!(t, "Content-Length: {}\r\n\r\n{}", request.len(), request)
@@ -198,13 +201,15 @@ fn extract_completion(completion: languageserver_types::CompletionResponse) -> V
             .map(|item| Completion {
                 keyword: item.label,
                 doc: item.detail.unwrap_or(String::new()),
-            }).collect(),
+            })
+            .collect(),
         languageserver_types::CompletionResponse::List(list) => list
             .items
             .into_iter()
             .map(|item| Completion {
                 keyword: item.label,
                 doc: item.detail.unwrap_or(String::new()),
-            }).collect(),
+            })
+            .collect(),
     }
 }
