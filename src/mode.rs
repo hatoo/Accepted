@@ -1105,17 +1105,27 @@ impl Mode for Visual {
                     Transition::Return(Some("Deleted".into()), true)
                 };
             }
-            Event::Key(Key::Char('p')) => {
+            Event::Key(Key::Char('p')) | Event::Key(Key::Ctrl('p')) => {
+                let is_clipboard = event == Event::Key(Key::Ctrl('p'));
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
                 buf.core.delete_range(range);
-                for c in buf.yank.content.chars() {
-                    buf.core.insert(c);
+                if is_clipboard {
+                    if let Some(s) = clipboard::clipboard_paste() {
+                        for c in s.chars() {
+                            buf.core.insert(c);
+                        }
+                    }
+                } else {
+                    for c in buf.yank.content.chars() {
+                        buf.core.insert(c);
+                    }
                 }
                 buf.core.commit();
                 buf.show_cursor();
                 return Transition::Return(None, true);
             }
-            Event::Key(Key::Char('y')) => {
+            Event::Key(Key::Char('y')) | Event::Key(Key::Ctrl('y')) => {
+                let is_clipboard = event == Event::Key(Key::Ctrl('y'));
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
                 let s = if self.line_mode {
                     buf.core.get_string_by_range(range).trim_right().to_string()
@@ -1123,8 +1133,12 @@ impl Mode for Visual {
                     buf.core.get_string_by_range(range)
                 };
                 buf.core.set_cursor(range.l());
-                buf.yank.insert_newline = self.line_mode;
-                buf.yank.content = s;
+                if is_clipboard {
+                    clipboard::clipboard_copy(&s);
+                } else {
+                    buf.yank.insert_newline = self.line_mode;
+                    buf.yank.content = s;
+                }
                 return Transition::Return(Some("Yanked".into()), false);
             }
             Event::Key(Key::Char('S')) => {
