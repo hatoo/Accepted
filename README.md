@@ -32,7 +32,13 @@ You need nightly Rust.
 $ cargo install accepted
 ```
 
-If you haven't install [Rustfmt](https://github.com/rust-lang-nursery/rustfmt), i recommend to install it.
+Install rust components.
+
+```
+$ rustup component add rls-preview
+$ rustup component add rust-src
+$ rustup component add rustfmt-preview
+```
 
 # Usage
 
