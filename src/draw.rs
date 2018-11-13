@@ -228,6 +228,10 @@ impl<'a> LinenumView<'a> {
         }
     }
 
+    pub fn cause_newline(&self, c: char) -> bool {
+        self.view.cause_newline(c)
+    }
+
     fn put_space(&mut self) {
         for _ in 0..self.width {
             self.view.put(' ', CharStyle::UI, None);
@@ -309,7 +313,8 @@ impl Term {
                 }
 
                 res
-            }).collect()
+            })
+            .collect()
     }
 }
 

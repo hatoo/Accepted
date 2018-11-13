@@ -441,6 +441,15 @@ impl<'a> Buffer<'a> {
             }
 
             if i != self.core.buffer().len() - 1 {
+                if let Some(col) = self.syntax.theme.settings.background {
+                    while !view.cause_newline(' ') {
+                        view.put(' ', CharStyle::bg(col), Some(t));
+                    }
+                } else {
+                    while !view.cause_newline(' ') {
+                        view.put(' ', CharStyle::Default, Some(t));
+                    }
+                }
                 view.newline();
             }
         }
