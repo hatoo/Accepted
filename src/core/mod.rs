@@ -224,12 +224,35 @@ impl Core {
 
     pub fn e(&mut self) {
         self.cursor_inc();
+        if self
+            .char_at_cursor()
+            .map(|c| ['}', ')', ']'].into_iter().any(|&p| p == c))
+            == Some(true)
+        {
+            return;
+        }
         while {
             self.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) && self.cursor_inc()
-        } {}
+        } {
+            if self
+                .char_at_cursor()
+                .map(|c| ['}', ')', ']'].into_iter().any(|&p| p == c))
+                == Some(true)
+            {
+                return;
+            }
+        }
         while {
             self.char_at_cursor().map(|c| c.is_alphanumeric()) == Some(true) && self.cursor_inc()
-        } {}
+        } {
+            if self
+                .char_at_cursor()
+                .map(|c| ['}', ')', ']'].into_iter().any(|&p| p == c))
+                == Some(true)
+            {
+                return;
+            }
+        }
         if self.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) {
             self.cursor_dec();
         }
