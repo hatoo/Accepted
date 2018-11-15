@@ -295,7 +295,7 @@ impl<'a> Buffer<'a> {
                         &OsString::from("-O"),
                         path.as_os_str(),
                     ]
-                        .iter(),
+                    .iter(),
                 );
             } else {
                 rustc.args(
@@ -305,7 +305,7 @@ impl<'a> Buffer<'a> {
                         &OsString::from("--error-format=json"),
                         path.as_os_str(),
                     ]
-                        .iter(),
+                    .iter(),
                 );
             }
 

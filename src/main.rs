@@ -56,12 +56,14 @@ fn main() {
             p.push("acc");
             p.push("init.toml");
             p
-        }).map(|config_path| {
+        })
+        .map(|config_path| {
             let mut settings = config::Config::default();
             // Just ignore error.
             let _ = settings.merge(config::File::from(config_path));
             settings
-        }).unwrap_or_default();
+        })
+        .unwrap_or_default();
 
     let mut snippet = BTreeMap::new();
     if let Ok(arr) = config.get_array("snippet") {

@@ -11,12 +11,14 @@ pub fn clipboard_copy(s: &str) -> bool {
                 .arg("-i")
                 .stdin(process::Stdio::piped())
                 .spawn()
-        }).or_else(|_| {
+        })
+        .or_else(|_| {
             Command::new("xsel")
                 .arg("-bi")
                 .stdin(process::Stdio::piped())
                 .spawn()
-        }).or_else(|_| {
+        })
+        .or_else(|_| {
             Command::new("xclip")
                 .arg("-i")
                 .stdin(process::Stdio::piped())
@@ -39,12 +41,14 @@ pub fn clipboard_paste() -> Option<String> {
                 .arg("-o")
                 .stdout(process::Stdio::piped())
                 .spawn()
-        }).or_else(|_| {
+        })
+        .or_else(|_| {
             Command::new("xsel")
                 .arg("-bo")
                 .stdout(process::Stdio::piped())
                 .spawn()
-        }).or_else(|_| {
+        })
+        .or_else(|_| {
             Command::new("xclip")
                 .arg("-o")
                 .stdout(process::Stdio::piped())
