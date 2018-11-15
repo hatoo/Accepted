@@ -427,7 +427,7 @@ impl<'a> View<'a> {
 
     pub fn cause_newline(&self, c: char) -> bool {
         if self.is_out() {
-            return false;
+            return true;
         }
 
         let w = c.width().unwrap_or(0);
