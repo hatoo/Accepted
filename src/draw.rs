@@ -87,7 +87,8 @@ impl fmt::Display for CharStyle {
                     "{}{}",
                     Fg(Rgb(fg.r, fg.g, fg.b)),
                     Bg(Rgb(bg.r, bg.g, bg.b)),
-                );
+                )
+                .unwrap();
                 if font_style.contains(FontStyle::UNDERLINE) {
                     write!(f, "{}", termion::style::Underline)
                 } else {
@@ -340,30 +341,31 @@ impl DoubleBuffer {
                 CharStyle::Default,
                 termion::clear::All,
                 termion::cursor::Goto(1, 1)
-            );
+            )
+            .unwrap();
 
             let mut current_style = CharStyle::Default;
             for (i, line) in self.back.render().into_iter().enumerate() {
                 for &(c, s) in &line {
                     if current_style != s {
                         current_style = s;
-                        write!(out, "{}", current_style);
+                        write!(out, "{}", current_style).unwrap();
                     }
-                    write!(out, "{}", c);
+                    write!(out, "{}", c).unwrap();
                 }
 
                 if !line.is_empty() {
-                    write!(out, "{}", termion::clear::UntilNewline);
+                    write!(out, "{}", termion::clear::UntilNewline).unwrap();
                 }
                 if i < self.back.height - 1 {
-                    writeln!(out, "\r");
+                    writeln!(out, "\r").unwrap();
                 }
             }
             true
         } else {
             let mut edit = false;
             let mut current_style = CharStyle::Default;
-            write!(out, "{}", current_style);
+            write!(out, "{}", current_style).unwrap();
 
             for (i, (f, b)) in self
                 .front
@@ -375,24 +377,24 @@ impl DoubleBuffer {
                 if f != b {
                     edit = true;
                     current_style = CharStyle::Default;
-                    write!(out, "{}", termion::cursor::Goto(1, i as u16 + 1));
-                    write!(out, "{}", current_style);
+                    write!(out, "{}", termion::cursor::Goto(1, i as u16 + 1)).unwrap();
+                    write!(out, "{}", current_style).unwrap();
 
                     for (c, s) in b {
                         if current_style != s {
                             current_style = s;
-                            write!(out, "{}", current_style);
+                            write!(out, "{}", current_style).unwrap();
                         }
-                        write!(out, "{}", c);
+                        write!(out, "{}", c).unwrap();
                     }
-                    write!(out, "{}", termion::clear::UntilNewline);
+                    write!(out, "{}", termion::clear::UntilNewline).unwrap();
                 }
             }
             edit
         };
 
         if edit || self.front.cursor != self.back.cursor {
-            write!(out, "{}", self.back.cursor);
+            write!(out, "{}", self.back.cursor).unwrap();
         }
         std::mem::swap(&mut self.front, &mut self.back);
         self.back = Term::default();

@@ -343,7 +343,7 @@ impl<'a> Buffer<'a> {
         let saved = if let Some(path) = self.path.as_ref() {
             if let Ok(mut f) = fs::File::create(path) {
                 for line in self.core.buffer() {
-                    writeln!(f, "{}", line.iter().collect::<String>());
+                    writeln!(f, "{}", line.iter().collect::<String>()).unwrap();
                 }
                 true
             } else {

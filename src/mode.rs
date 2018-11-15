@@ -963,7 +963,7 @@ impl Mode for Prefix {
                         {
                             if let Some(input) = clipboard::clipboard_paste() {
                                 if let Some(mut stdin) = child.stdin.take() {
-                                    write!(stdin, "{}", input);
+                                    write!(stdin, "{}", input).unwrap();
                                 }
                                 if let Some(next_state) = ViewProcess::new(child) {
                                     return next_state.into();
