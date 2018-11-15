@@ -209,6 +209,19 @@ impl Core {
         } {}
     }
 
+    pub fn b(&mut self) {
+        self.cursor_dec();
+        while {
+            self.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) && self.cursor_dec()
+        } {}
+        while {
+            self.char_at_cursor().map(|c| c.is_alphanumeric()) == Some(true) && self.cursor_dec()
+        } {}
+        if self.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) {
+            self.cursor_inc();
+        }
+    }
+
     pub fn e(&mut self) {
         self.cursor_inc();
         while {

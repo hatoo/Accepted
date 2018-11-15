@@ -306,18 +306,7 @@ impl Mode for Normal {
                 buf.show_cursor();
             }
             Event::Key(Key::Char('b')) => {
-                buf.core.cursor_dec();
-                while {
-                    buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true)
-                        && buf.core.cursor_dec()
-                } {}
-                while {
-                    buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) == Some(true)
-                        && buf.core.cursor_dec()
-                } {}
-                if buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) {
-                    buf.core.cursor_inc();
-                }
+                buf.core.b();
                 buf.show_cursor();
             }
             Event::Key(Key::Char('e')) => {
@@ -1036,18 +1025,7 @@ impl Mode for Visual {
                 buf.show_cursor();
             }
             Event::Key(Key::Char('b')) => {
-                buf.core.cursor_dec();
-                while {
-                    buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true)
-                        && buf.core.cursor_dec()
-                } {}
-                while {
-                    buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) == Some(true)
-                        && buf.core.cursor_dec()
-                } {}
-                if buf.core.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) {
-                    buf.core.cursor_inc();
-                }
+                buf.core.b();
                 buf.show_cursor();
             }
             Event::Key(Key::Char('e')) => {
