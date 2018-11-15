@@ -209,6 +209,19 @@ impl Core {
         } {}
     }
 
+    pub fn e(&mut self) {
+        self.cursor_inc();
+        while {
+            self.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) && self.cursor_inc()
+        } {}
+        while {
+            self.char_at_cursor().map(|c| c.is_alphanumeric()) == Some(true) && self.cursor_inc()
+        } {}
+        if self.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) {
+            self.cursor_dec();
+        }
+    }
+
     pub fn insert(&mut self, c: char) {
         let op = operation::Insert {
             cursor: self.cursor,
