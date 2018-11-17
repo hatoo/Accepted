@@ -27,7 +27,7 @@ const ID_INIT: u64 = 0;
 const ID_COMPLETION: u64 = 1;
 
 impl LSPClient {
-    pub fn new() -> Option<Self> {
+    pub fn start() -> Option<Self> {
         let mut rls = process::Command::new("rls")
             .stdin(process::Stdio::piped())
             .stdout(process::Stdio::piped())
@@ -36,7 +36,7 @@ impl LSPClient {
             .ok()?;
 
         let init = languageserver_types::InitializeParams {
-            process_id: Some(process::id() as u64),
+            process_id: Some(u64::from(process::id())),
             root_path: Some("./".to_string()),
             root_uri: None,
             initialization_options: None,
@@ -108,26 +108,23 @@ impl LSPClient {
                     }
                     headers.insert(parts[0].to_string(), parts[1].to_string());
                 }
-                let content_len = headers.get("Content-Length").unwrap().parse().unwrap();
+                let content_len = headers["Content-Length"].parse().unwrap();
                 let mut content = vec![0; content_len];
                 reader.read_exact(&mut content).unwrap();
                 let msg = String::from_utf8(content).unwrap();
                 let output: serde_json::Result<Output> = serde_json::from_str(&msg);
-                match output {
-                    Ok(Output::Success(suc)) => {
-                        if suc.id == jsonrpc_core::id::Id::Num(ID_INIT) {
-                            init_tx.send(()).unwrap();
-                        } else if suc.id == jsonrpc_core::id::Id::Num(ID_COMPLETION) {
-                            let completion = serde_json::from_value::<
-                                languageserver_types::CompletionResponse,
-                            >(suc.result)
-                            .unwrap();
+                if let Ok(Output::Success(suc)) = output {
+                    if suc.id == jsonrpc_core::id::Id::Num(ID_INIT) {
+                        init_tx.send(()).unwrap();
+                    } else if suc.id == jsonrpc_core::id::Id::Num(ID_COMPLETION) {
+                        let completion = serde_json::from_value::<
+                            languageserver_types::CompletionResponse,
+                        >(suc.result)
+                        .unwrap();
 
-                            let mut completion = extract_completion(completion);
-                            tx.send(completion).unwrap();
-                        }
+                        let mut completion = extract_completion(completion);
+                        tx.send(completion).unwrap();
                     }
-                    _ => (),
                 }
             }
         });
@@ -200,7 +197,7 @@ fn extract_completion(completion: languageserver_types::CompletionResponse) -> V
             .into_iter()
             .map(|item| Completion {
                 keyword: item.label,
-                doc: item.detail.unwrap_or(String::new()),
+                doc: item.detail.unwrap_or_default(),
             })
             .collect(),
         languageserver_types::CompletionResponse::List(list) => list
@@ -208,7 +205,7 @@ fn extract_completion(completion: languageserver_types::CompletionResponse) -> V
             .into_iter()
             .map(|item| Completion {
                 keyword: item.label,
-                doc: item.detail.unwrap_or(String::new()),
+                doc: item.detail.unwrap_or_default(),
             })
             .collect(),
     }

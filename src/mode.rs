@@ -143,7 +143,7 @@ struct ViewProcess {
 }
 
 impl ViewProcess {
-    fn new(mut child: process::Child) -> Option<Self> {
+    fn with_process(mut child: process::Child) -> Option<Self> {
         let now = Instant::now();
         let stdout = child.stdout.take()?;
         let stderr = child.stderr.take()?;
@@ -553,7 +553,7 @@ impl Insert {
                         keyword: m.matchstr,
                         doc: m.docs,
                     })
-                    .filter(|s| &s.keyword != &prefix)
+                    .filter(|s| s.keyword != prefix)
                     .collect();
 
                     let _ = tx.send((id, completion));
@@ -631,7 +631,7 @@ impl Mode for Insert {
             }
             Event::Unsupported(v) => {
                 // Shift Tab
-                if &v == &[27, 91, 90] {
+                if v == [27, 91, 90] {
                     if self.completion_len() > 0 {
                         if let Some(index) = self.completion_index {
                             self.completion_index =
@@ -912,7 +912,7 @@ impl Mode for Prefix {
                 );
             }
             Event::Key(Key::Char('l')) => {
-                buf.lsp = LSPClient::new();
+                buf.lsp = LSPClient::start();
                 return Transition::Return(
                     Some(
                         if buf.lsp.is_some() {
@@ -943,7 +943,7 @@ impl Mode for Prefix {
                                 if let Some(mut stdin) = child.stdin.take() {
                                     write!(stdin, "{}", input).unwrap();
                                 }
-                                if let Some(next_state) = ViewProcess::new(child) {
+                                if let Some(next_state) = ViewProcess::with_process(child) {
                                     return next_state.into();
                                 } else {
                                     return Normal::with_message("Failed to test".into()).into();
@@ -1178,11 +1178,8 @@ impl Mode for ViewProcess {
 
     fn draw(&mut self, _buf: &Buffer, term: &mut draw::Term) {
         if self.end.is_none() {
-            match self.process.try_wait() {
-                Ok(Some(_)) => {
-                    self.end = Some(Instant::now());
-                }
-                _ => {}
+            if let Ok(Some(_)) = self.process.try_wait() {
+                self.end = Some(Instant::now());
             }
         }
         let mut read_cnt = 32;

@@ -216,7 +216,7 @@ impl<'a> Buffer<'a> {
             snippet: BTreeMap::new(),
             yank: Yank::default(),
             last_save: Wrapping(0),
-            lsp: LSPClient::new(),
+            lsp: LSPClient::start(),
             row_offset: 0,
             rustc_outputs: Vec::new(),
             syntax,
@@ -295,7 +295,7 @@ impl<'a> Buffer<'a> {
                         &OsString::from("-O"),
                         path.as_os_str(),
                     ]
-                    .iter(),
+                        .iter(),
                 );
             } else {
                 rustc.args(
@@ -305,7 +305,7 @@ impl<'a> Buffer<'a> {
                         &OsString::from("--error-format=json"),
                         path.as_os_str(),
                     ]
-                    .iter(),
+                        .iter(),
                 );
             }
 
