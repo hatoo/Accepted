@@ -90,6 +90,10 @@ impl Core {
         &self.buffer[self.cursor.row]
     }
 
+    pub fn current_line_after_cursor(&self) -> &[char] {
+        &self.buffer[self.cursor.row][self.cursor.col..]
+    }
+
     pub fn cursor_left(&mut self) {
         if self.cursor.col != 0 {
             self.cursor.col -= 1;

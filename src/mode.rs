@@ -323,6 +323,56 @@ impl Mode for Normal {
                 buf.core.set_cursor(Cursor { row, col });
                 buf.show_cursor();
             }
+            Event::Key(Key::Char('n')) => {
+                if !buf.search.is_empty() {
+                    let orig_pos = buf.core.cursor();
+                    if !buf.core.cursor_inc() {
+                        buf.core.set_cursor(Cursor { row: 0, col: 0 });
+                    }
+
+                    loop {
+                        let matched = buf.core.current_line_after_cursor().len()
+                            >= buf.search.len()
+                            && &buf.core.current_line_after_cursor()[..buf.search.len()]
+                                == buf.search.as_slice();
+                        if matched || buf.core.cursor() == orig_pos {
+                            buf.show_cursor();
+                            break;
+                        }
+
+                        if !buf.core.cursor_inc() {
+                            buf.core.set_cursor(Cursor { row: 0, col: 0 });
+                        }
+                    }
+                }
+            }
+            Event::Key(Key::Char('N')) => {
+                if !buf.search.is_empty() {
+                    let last_pos = Cursor {
+                        row: buf.core.buffer().len() - 1,
+                        col: buf.core.buffer().last().unwrap().len(),
+                    };
+                    let orig_pos = buf.core.cursor();
+                    if !buf.core.cursor_dec() {
+                        buf.core.set_cursor(last_pos);
+                    }
+
+                    loop {
+                        let matched = buf.core.current_line_after_cursor().len()
+                            >= buf.search.len()
+                            && &buf.core.current_line_after_cursor()[..buf.search.len()]
+                                == buf.search.as_slice();
+                        if matched || buf.core.cursor() == orig_pos {
+                            buf.show_cursor();
+                            break;
+                        }
+
+                        if !buf.core.cursor_dec() {
+                            buf.core.set_cursor(last_pos);
+                        }
+                    }
+                }
+            }
             Event::Key(Key::Char('x')) => {
                 buf.core.delete();
                 buf.core.commit();
