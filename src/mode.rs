@@ -84,6 +84,9 @@ impl Default for Insert {
 }
 struct R;
 struct S(CursorRange);
+struct Find {
+    to_right: bool,
+}
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 enum Action {
@@ -312,6 +315,12 @@ impl Mode for Normal {
             Event::Key(Key::Char('e')) => {
                 buf.core.e();
                 buf.show_cursor();
+            }
+            Event::Key(Key::Char('f')) => {
+                return Find { to_right: true }.into();
+            }
+            Event::Key(Key::Char('F')) => {
+                return Find { to_right: false }.into();
             }
             Event::Key(Key::Char('g')) => {
                 buf.core.set_cursor(Cursor { row: 0, col: 0 });
@@ -1460,5 +1469,51 @@ impl Mode for S {
         term.cursor = cursor
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide);
+    }
+}
+
+impl Mode for Find {
+    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+        match event {
+            Event::Key(Key::Esc) => {
+                return Transition::Return(None, false);
+            }
+            Event::Key(Key::Char(c)) if !c.is_control() => {
+                let cursor = buf.core.cursor();
+                let range: Box<dyn Iterator<Item = usize>> = if self.to_right {
+                    Box::new(cursor.col + 1..buf.core.current_line().len())
+                } else {
+                    Box::new((0..cursor.col).rev())
+                };
+
+                for i in range {
+                    if buf.core.current_line()[i] == c {
+                        buf.core.set_cursor(Cursor {
+                            row: cursor.row,
+                            col: i,
+                        });
+                        break;
+                    }
+                }
+                return Transition::Return(None, false);
+            }
+            _ => {}
+        }
+        Transition::Nothing
+    }
+    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
+        let height = term.height;
+        let width = term.width;
+        let cursor = buf.draw(term.view((0, 0), height - 1, width));
+        term.cursor = cursor
+            .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
+            .unwrap_or(draw::CursorState::Hide);
+
+        let mut footer = term.view((height - 1, 0), 1, width);
+        if self.to_right {
+            footer.puts("find ->", draw::CharStyle::Footer);
+        } else {
+            footer.puts("find <-", draw::CharStyle::Footer);
+        }
     }
 }
