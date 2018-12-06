@@ -358,12 +358,12 @@ impl<'a> Buffer<'a> {
         saved
     }
 
-    pub fn draw(&self, view: View) -> Option<Cursor> {
+    pub fn draw(&mut self, view: View) -> Option<Cursor> {
         self.draw_with_selected(view, None)
     }
 
     pub fn draw_with_selected(
-        &self,
+        &mut self,
         mut view: View,
         selected: Option<CursorRange>,
     ) -> Option<Cursor> {

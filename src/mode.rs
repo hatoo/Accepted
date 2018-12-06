@@ -44,7 +44,7 @@ impl<T: Mode + 'static> From<T> for Transition {
 pub trait Mode {
     fn init(&mut self, &mut Buffer) {}
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition;
-    fn draw(&mut self, core: &Buffer, term: &mut draw::Term);
+    fn draw(&mut self, core: &mut Buffer, term: &mut draw::Term);
 }
 
 pub struct Normal {
@@ -481,7 +481,7 @@ impl Mode for Normal {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
         let height = term.height;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height - 1, width));
@@ -755,7 +755,7 @@ impl Mode for Insert {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
         self.poll(buf);
         let height = term.height;
         let width = term.width;
@@ -821,7 +821,7 @@ impl Mode for R {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
         let height = term.height;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height, width));
@@ -851,7 +851,7 @@ impl Mode for Search {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
         let height = term.height - 1;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height, width));
@@ -894,7 +894,7 @@ impl Mode for Save {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
         let height = term.height - 2;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height, width));
@@ -1025,7 +1025,7 @@ impl Mode for Prefix {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
         let height = term.height - 1;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height, width));
@@ -1204,7 +1204,7 @@ impl Mode for Visual {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
         let height = term.height;
         let width = term.width;
         let range = self.get_range(buf.core.cursor(), buf.core.buffer());
@@ -1235,7 +1235,7 @@ impl Mode for ViewProcess {
         }
     }
 
-    fn draw(&mut self, _buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, _buf: &mut Buffer, term: &mut draw::Term) {
         if self.end.is_none() {
             if let Ok(Some(_)) = self.process.try_wait() {
                 self.end = Some(Instant::now());
@@ -1407,7 +1407,7 @@ impl Mode for TextObjectOperation {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
         let height = term.height - 1;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height, width));
@@ -1461,7 +1461,7 @@ impl Mode for S {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
         let height = term.height;
         let width = term.width;
         let range = self.0;
@@ -1501,7 +1501,7 @@ impl Mode for Find {
         }
         Transition::Nothing
     }
-    fn draw(&mut self, buf: &Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
         let height = term.height;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height - 1, width));

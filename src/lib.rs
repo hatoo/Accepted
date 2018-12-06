@@ -92,6 +92,6 @@ impl<'a> BufferMode<'a> {
     }
 
     pub fn draw(&mut self, term: &mut draw::Term) {
-        self.mode.draw(&self.buf, term)
+        self.mode.draw(&mut self.buf, term)
     }
 }
