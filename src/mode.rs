@@ -49,6 +49,7 @@ pub trait Mode {
 
 pub struct Normal {
     message: String,
+    frame: usize,
 }
 
 pub struct Completion {
@@ -197,13 +198,14 @@ impl Default for Normal {
     fn default() -> Self {
         Self {
             message: String::new(),
+            frame: 0,
         }
     }
 }
 
 impl Normal {
     pub fn with_message(message: String) -> Self {
-        Self { message }
+        Self { message, frame: 0 }
     }
 }
 
@@ -506,7 +508,15 @@ impl Mode for Normal {
                 ),
                 draw::CharStyle::Footer,
             );
+            if buf.is_compiling() {
+                let animation = [
+                    '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏',
+                ];
+                let a = animation[self.frame % animation.len()];
+                footer.puts(&format!(" {}Compiling ...", a), draw::CharStyle::Footer);
+            }
         }
+        self.frame = (std::num::Wrapping(self.frame) + std::num::Wrapping(1)).0;
     }
 }
 
@@ -989,6 +999,7 @@ impl Mode for Prefix {
                 if let Some(path) = buf.path.as_ref().cloned() {
                     buf.core.rustfmt();
                     buf.save(is_optimize);
+                    buf.wait_rustc_thread();
                     if let Some(stem) = path.file_stem() {
                         let mut prog = OsString::from("./");
                         prog.push(stem);
@@ -1000,7 +1011,7 @@ impl Mode for Prefix {
                         {
                             if let Some(input) = clipboard::clipboard_paste() {
                                 if let Some(mut stdin) = child.stdin.take() {
-                                    write!(stdin, "{}", input).unwrap();
+                                    let _ = write!(stdin, "{}", input);
                                 }
                                 if let Some(next_state) = ViewProcess::with_process(child) {
                                     return next_state.into();

@@ -6,7 +6,6 @@ use lsp::LSPClient;
 use rustc;
 use rustc::RustcOutput;
 use std::borrow::Cow;
-use std::cell::{Cell, RefCell};
 use std::cmp::{max, min};
 use std::collections::BTreeMap;
 use std::ffi::OsString;
@@ -17,6 +16,8 @@ use std::io::Write;
 use std::num::Wrapping;
 use std::path::{Path, PathBuf};
 use std::process;
+use std::sync::mpsc;
+use std::thread;
 use syntax;
 use syntect::highlighting::Color;
 use syntect::highlighting::FontStyle;
@@ -202,7 +203,10 @@ pub struct Buffer<'a> {
     rustc_outputs: Vec<RustcOutput>,
     cache: DrawCache<'a>,
     buffer_update: Wrapping<usize>,
-    last_rustc: (Wrapping<usize>, bool),
+    last_rustc_submit: (Wrapping<usize>, bool),
+    last_rustc_compiled: (Wrapping<usize>, bool),
+    compile_tx: mpsc::Sender<(PathBuf, (Wrapping<usize>, bool))>,
+    message_rx: mpsc::Receiver<((Wrapping<usize>, bool), Vec<RustcOutput>)>,
 }
 
 impl<'a> Buffer<'a> {
@@ -212,6 +216,57 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn new(syntax: syntax::Syntax<'a>) -> Self {
+        let (compile_tx, compile_rx) = mpsc::channel::<(PathBuf, (Wrapping<usize>, bool))>();
+        let (message_tx, message_rx) =
+            mpsc::channel::<((Wrapping<usize>, bool), Vec<RustcOutput>)>();
+        // Compiler thread
+        thread::spawn(move || {
+            for (path, id) in compile_rx {
+                let is_optimize = id.1;
+                let mut rustc = process::Command::new("rustc");
+                if is_optimize {
+                    rustc.args(
+                        [
+                            &OsString::from("-Z"),
+                            &OsString::from("unstable-options"),
+                            &OsString::from("--error-format=json"),
+                            &OsString::from("-O"),
+                            path.as_os_str(),
+                        ]
+                        .iter(),
+                    );
+                } else {
+                    rustc.args(
+                        [
+                            &OsString::from("-Z"),
+                            &OsString::from("unstable-options"),
+                            &OsString::from("--error-format=json"),
+                            path.as_os_str(),
+                        ]
+                        .iter(),
+                    );
+                }
+
+                let mut messages = Vec::new();
+                if let Ok(rustc) = rustc.stderr(process::Stdio::piped()).output() {
+                    let mut buf = rustc.stderr;
+                    let mut reader = io::Cursor::new(buf);
+                    let mut line = String::new();
+
+                    while {
+                        line.clear();
+                        reader.read_line(&mut line).is_ok() && !line.is_empty()
+                    } {
+                        if let Some(rustc_output) = rustc::parse_rustc_json(&line) {
+                            messages.push(rustc_output);
+                        }
+                    }
+                }
+
+                message_tx.send((id, messages)).unwrap();
+            }
+        });
+
         Self {
             path: None,
             core: Core::default(),
@@ -225,7 +280,10 @@ impl<'a> Buffer<'a> {
             rustc_outputs: Vec::new(),
             syntax,
             buffer_update: Wrapping(0),
-            last_rustc: (Wrapping(0), false),
+            last_rustc_submit: (Wrapping(0), false),
+            last_rustc_compiled: (Wrapping(0), false),
+            compile_tx,
+            message_rx,
         }
     }
 
@@ -284,50 +342,15 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn rustc(&mut self, is_optimize: bool) {
-        if self.last_rustc == (self.core.buffer_changed, is_optimize) {
+        if self.last_rustc_submit == (self.core.buffer_changed, is_optimize) {
             return;
         }
-        self.last_rustc = (self.core.buffer_changed, is_optimize);
+        self.last_rustc_submit = (self.core.buffer_changed, is_optimize);
+
         if let Some(path) = self.path.as_ref() {
-            let mut rustc = process::Command::new("rustc");
-            if is_optimize {
-                rustc.args(
-                    [
-                        &OsString::from("-Z"),
-                        &OsString::from("unstable-options"),
-                        &OsString::from("--error-format=json"),
-                        &OsString::from("-O"),
-                        path.as_os_str(),
-                    ]
-                    .iter(),
-                );
-            } else {
-                rustc.args(
-                    [
-                        &OsString::from("-Z"),
-                        &OsString::from("unstable-options"),
-                        &OsString::from("--error-format=json"),
-                        path.as_os_str(),
-                    ]
-                    .iter(),
-                );
-            }
-
-            if let Ok(rustc) = rustc.stderr(process::Stdio::piped()).output() {
-                let mut buf = rustc.stderr;
-                let mut reader = io::Cursor::new(buf);
-                let mut line = String::new();
-
-                self.rustc_outputs.clear();
-                while {
-                    line.clear();
-                    reader.read_line(&mut line).is_ok() && !line.is_empty()
-                } {
-                    if let Some(rustc_output) = rustc::parse_rustc_json(&line, &self.core) {
-                        self.rustc_outputs.push(rustc_output);
-                    }
-                }
-            }
+            self.compile_tx
+                .send((path.clone(), self.last_rustc_submit))
+                .unwrap();
         }
     }
 
@@ -362,7 +385,38 @@ impl<'a> Buffer<'a> {
         saved
     }
 
+    pub fn poll_rustc_thread(&mut self) {
+        while let Ok((id, mut msg)) = self.message_rx.try_recv() {
+            self.last_rustc_compiled = id;
+            for m in &mut msg {
+                if let Some(r) = self.core.prev_cursor(m.span.1) {
+                    m.span.1 = r;
+                }
+            }
+            self.rustc_outputs = msg;
+        }
+    }
+
+    pub fn wait_rustc_thread(&mut self) {
+        while self.is_compiling() {
+            if let Ok((id, mut msg)) = self.message_rx.recv() {
+                self.last_rustc_compiled = id;
+                for m in &mut msg {
+                    if let Some(r) = self.core.prev_cursor(m.span.1) {
+                        m.span.1 = r;
+                    }
+                }
+                self.rustc_outputs = msg;
+            }
+        }
+    }
+
+    pub fn is_compiling(&self) -> bool {
+        self.last_rustc_compiled != self.last_rustc_submit
+    }
+
     pub fn draw(&mut self, view: View) -> Option<Cursor> {
+        self.poll_rustc_thread();
         self.draw_with_selected(view, None)
     }
 
