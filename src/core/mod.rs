@@ -41,8 +41,24 @@ impl CursorRange {
         min(self.0, self.1)
     }
 
+    pub fn l_mut(&mut self) -> &mut Cursor {
+        if self.0 <= self.1 {
+            &mut self.0
+        } else {
+            &mut self.1
+        }
+    }
+
     pub fn r(&self) -> Cursor {
         max(self.0, self.1)
+    }
+
+    pub fn r_mut(&mut self) -> &mut Cursor {
+        if self.1 >= self.0 {
+            &mut self.1
+        } else {
+            &mut self.0
+        }
     }
 
     pub fn contains(&self, curosor: Cursor) -> bool {

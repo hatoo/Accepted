@@ -389,8 +389,8 @@ impl<'a> Buffer<'a> {
         while let Ok((id, mut msg)) = self.message_rx.try_recv() {
             self.last_rustc_compiled = id;
             for m in &mut msg {
-                if let Some(r) = self.core.prev_cursor(m.span.1) {
-                    m.span.1 = r;
+                if let Some(r) = self.core.prev_cursor(m.span.r()) {
+                    *m.span.r_mut() = r;
                 }
             }
             self.rustc_outputs = msg;
@@ -402,8 +402,8 @@ impl<'a> Buffer<'a> {
             if let Ok((id, mut msg)) = self.message_rx.recv() {
                 self.last_rustc_compiled = id;
                 for m in &mut msg {
-                    if let Some(r) = self.core.prev_cursor(m.span.1) {
-                        m.span.1 = r;
+                    if let Some(r) = self.core.prev_cursor(m.span.r()) {
+                        *m.span.r_mut() = r;
                     }
                 }
                 self.rustc_outputs = msg;
