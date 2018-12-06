@@ -116,7 +116,7 @@ impl<'a> DrawCache<'a> {
         }
     }
 
-    fn get_line(&mut self, buffer: &[Vec<char>], i: usize) -> &[(char, CharStyle)] {
+    fn cache_line(&mut self, buffer: &[Vec<char>], i: usize) -> &[(char, CharStyle)] {
         if self.cache.len() <= i {
             for i in self.cache.len()..=i {
                 let line = buffer[i].iter().collect::<String>();
@@ -152,6 +152,10 @@ impl<'a> DrawCache<'a> {
             }
         }
         &self.cache[i]
+    }
+
+    fn get_line(&self, i: usize) -> Option<&[(char, CharStyle)]> {
+        self.cache.get(i).map(|v| v.as_slice())
     }
 }
 
@@ -196,8 +200,8 @@ pub struct Buffer<'a> {
     pub lsp: Option<LSPClient>,
     row_offset: usize,
     rustc_outputs: Vec<RustcOutput>,
-    cache: RefCell<DrawCache<'a>>,
-    buffer_update: Cell<Wrapping<usize>>,
+    cache: DrawCache<'a>,
+    buffer_update: Wrapping<usize>,
     last_rustc: (Wrapping<usize>, bool),
 }
 
@@ -212,7 +216,7 @@ impl<'a> Buffer<'a> {
             path: None,
             core: Core::default(),
             search: Vec::new(),
-            cache: RefCell::new(DrawCache::new(&syntax)),
+            cache: DrawCache::new(&syntax),
             snippet: BTreeMap::new(),
             yank: Yank::default(),
             last_save: Wrapping(0),
@@ -220,7 +224,7 @@ impl<'a> Buffer<'a> {
             row_offset: 0,
             rustc_outputs: Vec::new(),
             syntax,
-            buffer_update: Cell::new(Wrapping(0)),
+            buffer_update: Wrapping(0),
             last_rustc: (Wrapping(0), false),
         }
     }
@@ -234,7 +238,7 @@ impl<'a> Buffer<'a> {
         self.last_save = core.buffer_changed;
         self.core = core;
         self.path = Some(path.as_ref().to_path_buf());
-        self.cache.replace(DrawCache::new(&self.syntax));
+        self.cache = DrawCache::new(&self.syntax);
         self.rustc(false);
     }
 
@@ -295,7 +299,7 @@ impl<'a> Buffer<'a> {
                         &OsString::from("-O"),
                         path.as_os_str(),
                     ]
-                        .iter(),
+                    .iter(),
                 );
             } else {
                 rustc.args(
@@ -305,7 +309,7 @@ impl<'a> Buffer<'a> {
                         &OsString::from("--error-format=json"),
                         path.as_os_str(),
                     ]
-                        .iter(),
+                    .iter(),
                 );
             }
 
@@ -376,14 +380,14 @@ impl<'a> Buffer<'a> {
         );
         let mut cursor = None;
 
-        if self.core.buffer_changed != self.buffer_update.get() {
-            self.buffer_update.set(self.core.buffer_changed);
-            self.cache.replace(DrawCache::new(&self.syntax));
+        if self.core.buffer_changed != self.buffer_update {
+            self.buffer_update = self.core.buffer_changed;
+            self.cache = DrawCache::new(&self.syntax);
         }
 
         'outer: for i in self.row_offset..self.core.buffer().len() {
-            let mut cache = self.cache.borrow_mut();
-            let line_ref = cache.get_line(self.core.buffer(), i);
+            self.cache.cache_line(self.core.buffer(), i);
+            let line_ref = self.cache.get_line(i).unwrap();
             let mut line = Cow::Borrowed(line_ref);
 
             if !self.search.is_empty() && line.len() >= self.search.len() {

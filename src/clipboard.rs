@@ -23,7 +23,8 @@ pub fn clipboard_copy(s: &str) -> bool {
                 .arg("-i")
                 .stdin(process::Stdio::piped())
                 .spawn()
-        }) {
+        })
+    {
         if let Some(mut stdin) = p.stdin.take() {
             write!(stdin, "{}", s).unwrap();
             return true;
@@ -53,7 +54,8 @@ pub fn clipboard_paste() -> Option<String> {
                 .arg("-o")
                 .stdout(process::Stdio::piped())
                 .spawn()
-        }) {
+        })
+    {
         if let Some(mut stdout) = p.stdout.take() {
             let mut buf = String::new();
             stdout.read_to_string(&mut buf).ok()?;
