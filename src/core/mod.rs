@@ -209,7 +209,7 @@ impl Core {
     pub fn w(&mut self) {
         if self
             .char_at_cursor()
-            .map(|c| ['{', '(', '['].into_iter().any(|&p| p == c))
+            .map(|c| ['{', '(', '['].iter().any(|&p| p == c))
             == Some(true)
         {
             self.cursor_inc();
@@ -223,7 +223,7 @@ impl Core {
         }
         while {
             self.char_at_cursor()
-                .map(|c| !c.is_alphanumeric() && !['{', '(', '['].into_iter().any(|&p| p == c))
+                .map(|c| !c.is_alphanumeric() && !['{', '(', '['].iter().any(|&p| p == c))
                 .unwrap_or(true)
                 && self.cursor_inc()
         } {}
@@ -246,7 +246,7 @@ impl Core {
         self.cursor_inc();
         if self
             .char_at_cursor()
-            .map(|c| ['}', ')', ']'].into_iter().any(|&p| p == c))
+            .map(|c| ['}', ')', ']'].iter().any(|&p| p == c))
             == Some(true)
         {
             return;
@@ -256,7 +256,7 @@ impl Core {
         } {
             if self
                 .char_at_cursor()
-                .map(|c| ['}', ')', ']'].into_iter().any(|&p| p == c))
+                .map(|c| ['}', ')', ']'].iter().any(|&p| p == c))
                 == Some(true)
             {
                 return;
@@ -267,7 +267,7 @@ impl Core {
         } {
             if self
                 .char_at_cursor()
-                .map(|c| ['}', ')', ']'].into_iter().any(|&p| p == c))
+                .map(|c| ['}', ')', ']'].iter().any(|&p| p == c))
                 == Some(true)
             {
                 return;

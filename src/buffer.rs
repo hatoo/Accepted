@@ -136,7 +136,7 @@ impl<'a> DrawCache<'a> {
                 }
                 let parens = [('{', '}'), ('(', ')'), ('[', ']')];
                 for c in &mut line {
-                    for (k, (l, r)) in parens.into_iter().enumerate() {
+                    for (k, (l, r)) in parens.iter().enumerate() {
                         if c.0 == *l {
                             let fg = Self::RAINBOW[self.parens_level[k] % Self::RAINBOW.len()];
                             c.1 = CharStyle::fg_bg(fg, self.bg);

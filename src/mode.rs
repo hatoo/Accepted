@@ -731,7 +731,7 @@ impl Mode for Insert {
                     }
                     let pos = buf.core.cursor();
                     if ['}', ']', ')']
-                        .into_iter()
+                        .iter()
                         .any(|&c| buf.core.char_at_cursor() == Some(c))
                     {
                         buf.core.insert('\n');
@@ -1453,7 +1453,7 @@ impl Mode for S {
 
                 let pairs = [('(', ')'), ('{', '}'), ('[', ']')];
                 let (cl, cr) = pairs
-                    .into_iter()
+                    .iter()
                     .map(|(l, r)| (*l, *r))
                     .find(|&(l, r)| c == l || c == r)
                     .unwrap_or((c, c));
