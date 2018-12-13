@@ -464,7 +464,7 @@ impl Mode for Normal {
                     cursor: buf.core.cursor(),
                     line_mode: false,
                 }
-                .into()
+                .into();
             }
             Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
                 buf.scroll_up();
