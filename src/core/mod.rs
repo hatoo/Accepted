@@ -383,10 +383,8 @@ impl Core {
     }
 
     pub fn set_string(&mut self, s: &str, clear_history: bool) {
-        let mut buffer: Vec<Vec<char>> = s
-            .lines()
-            .map(|l| l.trim_right().chars().collect())
-            .collect();
+        let mut buffer: Vec<Vec<char>> =
+            s.lines().map(|l| l.trim_end().chars().collect()).collect();
 
         if buffer.is_empty() {
             buffer = vec![Vec::new()];

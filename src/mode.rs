@@ -161,7 +161,7 @@ impl ViewProcess {
             loop {
                 line.clear();
                 if stdout.read_line(&mut line).is_ok() && !line.is_empty() {
-                    if tx1.send(line.trim_right().to_string()).is_err() {
+                    if tx1.send(line.trim_end().to_string()).is_err() {
                         return;
                     }
                 } else {
@@ -175,7 +175,7 @@ impl ViewProcess {
             loop {
                 line.clear();
                 if stderr.read_line(&mut line).is_ok() && !line.is_empty() {
-                    if tx2.send(line.trim_right().to_string()).is_err() {
+                    if tx2.send(line.trim_end().to_string()).is_err() {
                         return;
                     }
                 } else {
@@ -1118,7 +1118,7 @@ impl Mode for Visual {
                 let to_insert = event == Event::Key(Key::Char('s'));
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
                 let s = if self.line_mode {
-                    buf.core.get_string_by_range(range).trim_right().to_string()
+                    buf.core.get_string_by_range(range).trim_end().to_string()
                 } else {
                     buf.core.get_string_by_range(range)
                 };
@@ -1164,7 +1164,7 @@ impl Mode for Visual {
                 let is_clipboard = event == Event::Key(Key::Ctrl('y'));
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
                 let s = if self.line_mode {
-                    buf.core.get_string_by_range(range).trim_right().to_string()
+                    buf.core.get_string_by_range(range).trim_end().to_string()
                 } else {
                     buf.core.get_string_by_range(range)
                 };
@@ -1366,7 +1366,7 @@ impl Mode for TextObjectOperation {
 
                 buf.yank = Yank {
                     insert_newline: true,
-                    content: buf.core.get_string_by_range(range).trim_right().to_string(),
+                    content: buf.core.get_string_by_range(range).trim_end().to_string(),
                 };
                 match self.action {
                     // dj or dk
