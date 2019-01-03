@@ -17,9 +17,6 @@ use termion::input::{MouseTerminal, TermRead};
 use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
 
-use syntect::highlighting::ThemeSet;
-use syntect::parsing::SyntaxSet;
-
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io::{stdin, stdout, Write};
@@ -103,18 +100,9 @@ fn main() {
         }
     });
 
-    let ps = SyntaxSet::load_defaults_nonewlines();
-    // let theme = ThemeSet::load_from_reader(&mut Cursor::new(theme::ONE_DARK.as_bytes())).unwrap();
-    let ts = ThemeSet::load_defaults();
+    let syntax_parent = accepted::syntax::SyntaxParent::default();
 
-    // TODO Make configurable
-    let syntax = accepted::syntax::Syntax {
-        syntax_set: &ps,
-        syntax: ps.find_syntax_by_extension("rs").unwrap(),
-        theme: &ts.themes["Solarized (dark)"],
-    };
-
-    let mut buf = Buffer::new(syntax);
+    let mut buf = Buffer::new(&syntax_parent);
     if let Some(path) = file {
         buf.open(path);
     }

@@ -194,6 +194,7 @@ pub struct Buffer<'a> {
     pub path: Option<PathBuf>,
     pub core: Core,
     pub search: Vec<char>,
+    pub syntax_parent: &'a syntax::SyntaxParent,
     pub syntax: syntax::Syntax<'a>,
     pub snippet: BTreeMap<String, String>,
     pub yank: Yank,
@@ -215,7 +216,7 @@ impl<'a> Buffer<'a> {
         (rows as usize, cols as usize)
     }
 
-    pub fn new(syntax: syntax::Syntax<'a>) -> Self {
+    pub fn new(syntax_parent: &'a syntax::SyntaxParent) -> Self {
         let (compile_tx, compile_rx) = mpsc::channel::<(PathBuf, (Wrapping<usize>, bool))>();
         let (message_tx, message_rx) =
             mpsc::channel::<((Wrapping<usize>, bool), Vec<RustcOutput>)>();
@@ -267,18 +268,21 @@ impl<'a> Buffer<'a> {
             }
         });
 
+        let syntax = syntax_parent.load_syntax_or_txt("rs");
+
         Self {
             path: None,
             core: Core::default(),
             search: Vec::new(),
             cache: DrawCache::new(&syntax),
+            syntax,
             snippet: BTreeMap::new(),
             yank: Yank::default(),
             last_save: Wrapping(0),
             lsp: LSPClient::start(),
             row_offset: 0,
             rustc_outputs: Vec::new(),
-            syntax,
+            syntax_parent: syntax_parent,
             buffer_update: Wrapping(0),
             last_rustc_submit: (Wrapping(0), false),
             last_rustc_compiled: (Wrapping(0), false),
@@ -287,10 +291,22 @@ impl<'a> Buffer<'a> {
         }
     }
 
+    pub fn set_syntax(&mut self, extension: &str) {
+        self.syntax = self.syntax_parent.load_syntax_or_txt(extension);
+        self.cache = DrawCache::new(&self.syntax);
+    }
+
     pub fn open<P: AsRef<Path>>(&mut self, path: P) {
         let s = fs::read_to_string(path.as_ref()).unwrap_or_default();
         let mut core = Core::default();
         core.set_string(&s, true);
+
+        let extension = path
+            .as_ref()
+            .extension()
+            .map(|o| o.to_str().unwrap_or(""))
+            .unwrap_or("txt");
+        self.set_syntax(extension);
 
         self.row_offset = 0;
         self.last_save = core.buffer_changed;
