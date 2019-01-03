@@ -279,7 +279,7 @@ impl<'a> Buffer<'a> {
             snippet: BTreeMap::new(),
             yank: Yank::default(),
             last_save: Wrapping(0),
-            lsp: LSPClient::start(process::Command::new("rls")),
+            lsp: LSPClient::start(process::Command::new("rls"), "rs".into()),
             row_offset: 0,
             rustc_outputs: Vec::new(),
             syntax_parent: syntax_parent,
@@ -291,21 +291,21 @@ impl<'a> Buffer<'a> {
         }
     }
 
-    fn lsp_program(&self) -> process::Command {
+    fn lsp(&self) -> Option<LSPClient> {
         match self
             .path
             .as_ref()
             .map(|p| p.extension().map(|o| o.to_str()))
         {
             Some(Some(Some("cpp"))) | Some(Some(Some("c"))) => {
-                process::Command::new("clangd")
+                LSPClient::start(process::Command::new("clangd"), "cpp".into())
             }
-            _ => process::Command::new("rls"),
+            _ => LSPClient::start(process::Command::new("rls"), "rs".into()),
         }
     }
 
     pub fn restart_lsp(&mut self) {
-        self.lsp = LSPClient::start(self.lsp_program());
+        self.lsp = self.lsp();
     }
 
     pub fn set_syntax(&mut self, extension: &str) {

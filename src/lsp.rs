@@ -27,7 +27,7 @@ const ID_INIT: u64 = 0;
 const ID_COMPLETION: u64 = 1;
 
 impl LSPClient {
-    pub fn start(mut lsp_command: process::Command) -> Option<Self> {
+    pub fn start(mut lsp_command: process::Command, extension: String) -> Option<Self> {
         let mut rls = lsp_command
             .stdin(process::Stdio::piped())
             .stdout(process::Stdio::piped())
@@ -57,13 +57,16 @@ impl LSPClient {
         let (c_tx, c_rx) = channel::<(String, Cursor)>();
         thread::spawn(move || {
             // Wait initialize
-            init_rx.recv();
+            let _ = init_rx.recv();
+            let file_url =
+                languageserver_types::Url::parse(&format!("file://localhost/main.{}", extension))
+                    .unwrap();
 
             while let Ok((src, cursor)) = c_rx.recv() {
                 let open = languageserver_types::DidOpenTextDocumentParams {
                     text_document: languageserver_types::TextDocumentItem {
-                        uri: languageserver_types::Url::parse("file://localhost/main.rs").unwrap(),
-                        language_id: "rs".into(),
+                        uri: file_url.clone(),
+                        language_id: extension.clone(),
                         version: 0,
                         text: src,
                     },
@@ -74,7 +77,7 @@ impl LSPClient {
                 .unwrap();
                 let completion = languageserver_types::CompletionParams {
                     text_document: languageserver_types::TextDocumentIdentifier {
-                        uri: languageserver_types::Url::parse("file://localhost/main.rs").unwrap(),
+                        uri: file_url.clone(),
                     },
                     position: languageserver_types::Position {
                         line: cursor.row as u64,
