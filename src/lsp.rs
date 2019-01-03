@@ -57,7 +57,7 @@ impl LSPClient {
         let (c_tx, c_rx) = channel::<(String, Cursor)>();
         thread::spawn(move || {
             // Wait initialize
-            init_rx.recv().unwrap();
+            init_rx.recv();
 
             while let Ok((src, cursor)) = c_rx.recv() {
                 let open = languageserver_types::DidOpenTextDocumentParams {
@@ -159,7 +159,7 @@ where
 {
     if let serde_json::value::Value::Object(params) = serde_json::to_value(params).unwrap() {
         let req = jsonrpc_core::Call::MethodCall(jsonrpc_core::MethodCall {
-            jsonrpc: None,
+            jsonrpc: Some(jsonrpc_core::Version::V2),
             method: R::METHOD.to_string(),
             params: jsonrpc_core::Params::Map(params),
             id: jsonrpc_core::Id::Num(id),
@@ -180,7 +180,7 @@ where
 {
     if let serde_json::value::Value::Object(params) = serde_json::to_value(params).unwrap() {
         let req = jsonrpc_core::Notification {
-            jsonrpc: None,
+            jsonrpc: Some(jsonrpc_core::Version::V2),
             method: R::METHOD.to_string(),
             params: jsonrpc_core::Params::Map(params),
         };

@@ -298,9 +298,7 @@ impl<'a> Buffer<'a> {
             .map(|p| p.extension().map(|o| o.to_str()))
         {
             Some(Some(Some("cpp"))) | Some(Some(Some("c"))) => {
-                let mut command = process::Command::new("cquery");
-                command.arg("--language-server");
-                command
+                process::Command::new("clangd")
             }
             _ => process::Command::new("rls"),
         }
