@@ -27,8 +27,8 @@ const ID_INIT: u64 = 0;
 const ID_COMPLETION: u64 = 1;
 
 impl LSPClient {
-    pub fn start() -> Option<Self> {
-        let mut rls = process::Command::new("rls")
+    pub fn start(mut lsp_command: process::Command) -> Option<Self> {
+        let mut rls = lsp_command
             .stdin(process::Stdio::piped())
             .stdout(process::Stdio::piped())
             .stderr(process::Stdio::piped())

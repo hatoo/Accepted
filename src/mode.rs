@@ -6,7 +6,6 @@ use core::Cursor;
 use core::CursorRange;
 use draw;
 use indent;
-use lsp::LSPClient;
 use racer;
 use shellexpand;
 use std;
@@ -981,7 +980,7 @@ impl Mode for Prefix {
                 );
             }
             Event::Key(Key::Char('l')) => {
-                buf.lsp = LSPClient::start();
+                buf.restart_lsp();
                 return Transition::Return(
                     Some(
                         if buf.lsp.is_some() {

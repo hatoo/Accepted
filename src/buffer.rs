@@ -279,7 +279,7 @@ impl<'a> Buffer<'a> {
             snippet: BTreeMap::new(),
             yank: Yank::default(),
             last_save: Wrapping(0),
-            lsp: LSPClient::start(),
+            lsp: LSPClient::start(process::Command::new("rls")),
             row_offset: 0,
             rustc_outputs: Vec::new(),
             syntax_parent: syntax_parent,
@@ -289,6 +289,25 @@ impl<'a> Buffer<'a> {
             compile_tx,
             message_rx,
         }
+    }
+
+    fn lsp_program(&self) -> process::Command {
+        match self
+            .path
+            .as_ref()
+            .map(|p| p.extension().map(|o| o.to_str()))
+        {
+            Some(Some(Some("cpp"))) | Some(Some(Some("c"))) => {
+                let mut command = process::Command::new("cquery");
+                command.arg("--language-server");
+                command
+            }
+            _ => process::Command::new("rls"),
+        }
+    }
+
+    pub fn restart_lsp(&mut self) {
+        self.lsp = LSPClient::start(self.lsp_program());
     }
 
     pub fn set_syntax(&mut self, extension: &str) {
@@ -314,6 +333,7 @@ impl<'a> Buffer<'a> {
         self.path = Some(path.as_ref().to_path_buf());
         self.cache = DrawCache::new(&self.syntax);
         self.rustc(false);
+        self.restart_lsp();
     }
 
     pub fn show_cursor(&mut self) {
