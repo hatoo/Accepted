@@ -367,6 +367,15 @@ impl<'a> Buffer<'a> {
         }
     }
 
+    pub fn format(&mut self) {
+        let src = self.core.get_string();
+        if let Some(formatted) = self.language.format(&src) {
+            if formatted != src {
+                self.core.set_string(&formatted, false);
+            }
+        }
+    }
+
     pub fn rustc(&mut self, is_optimize: bool) {
         if self.last_rustc_submit == (self.core.buffer_changed, is_optimize) {
             return;

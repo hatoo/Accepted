@@ -929,7 +929,7 @@ impl Mode for Prefix {
                 return Transition::Return(None, false);
             }
             Event::Key(Key::Char(' ')) => {
-                buf.core.rustfmt();
+                buf.format();
                 return Transition::Return(None, false);
             }
             Event::Key(Key::Char('q')) => {
@@ -937,8 +937,7 @@ impl Mode for Prefix {
             }
             Event::Key(Key::Char('s')) => {
                 if let Some(path) = buf.path.as_ref().map(|p| p.to_string_lossy().into_owned()) {
-                    // Rustfmt
-                    buf.core.rustfmt();
+                    buf.format();
                     let message = if buf.save(false) {
                         format!("Saved to {}", path)
                     } else {
@@ -996,7 +995,7 @@ impl Mode for Prefix {
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
                 if let Some(path) = buf.path.as_ref().cloned() {
-                    buf.core.rustfmt();
+                    buf.format();
                     buf.save(is_optimize);
                     buf.wait_rustc_thread();
                     if let Some(stem) = path.file_stem() {

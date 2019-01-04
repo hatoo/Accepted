@@ -1,5 +1,4 @@
 use indent;
-use rustfmt;
 use std;
 use std::cmp::Ordering;
 use std::cmp::{max, min};
@@ -397,15 +396,6 @@ impl Core {
             self.redo.clear();
             self.history.clear();
             self.history_tmp.clear();
-        }
-    }
-
-    pub fn rustfmt(&mut self) {
-        let src = self.get_string();
-        if let Some(formatted) = rustfmt::system_rustfmt(&src) {
-            if formatted != src {
-                self.set_string(&formatted, false);
-            }
         }
     }
 
