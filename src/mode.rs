@@ -491,7 +491,7 @@ impl Mode for Normal {
             .unwrap_or(draw::CursorState::Hide);
 
         let mut footer = term.view((height - 1, 0), 1, width);
-        if let Some(message) = buf.rustc_message() {
+        if let Some(message) = buf.rustc_message_on_cursor() {
             footer.puts(message, draw::CharStyle::Footer);
         } else {
             footer.puts(

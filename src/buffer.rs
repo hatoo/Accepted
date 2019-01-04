@@ -393,7 +393,7 @@ impl<'a> Buffer<'a> {
         self.rustc_outputs.iter().any(|r| r.span.contains(cursor))
     }
 
-    pub fn rustc_message(&self) -> Option<&str> {
+    pub fn rustc_message_on_cursor(&self) -> Option<&str> {
         let line = self.core.cursor().row;
         self.rustc_outputs
             .iter()
