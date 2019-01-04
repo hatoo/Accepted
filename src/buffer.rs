@@ -391,7 +391,7 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn is_compiling(&self) -> bool {
-        self.last_compiler_compiled != self.last_compiler_submit
+        self.language.is_compiling()
     }
 
     pub fn draw(&mut self, view: View) -> Option<Cursor> {
