@@ -28,7 +28,7 @@ const ID_COMPLETION: u64 = 1;
 
 impl LSPClient {
     pub fn start(mut lsp_command: process::Command, extension: String) -> Option<Self> {
-        let mut rls = lsp_command
+        let mut lsp = lsp_command
             .stdin(process::Stdio::piped())
             .stdout(process::Stdio::piped())
             .stderr(process::Stdio::piped())
@@ -45,8 +45,8 @@ impl LSPClient {
             workspace_folders: None,
         };
 
-        let mut stdin: process::ChildStdin = rls.stdin.take()?;
-        let mut reader = BufReader::new(rls.stdout.take()?);
+        let mut stdin: process::ChildStdin = lsp.stdin.take()?;
+        let mut reader = BufReader::new(lsp.stdout.take()?);
 
         send_request::<_, languageserver_types::request::Initialize>(&mut stdin, ID_INIT, init)
             .ok()?;
@@ -133,7 +133,7 @@ impl LSPClient {
         });
 
         Some(Self {
-            process: rls,
+            process: lsp,
             completion_recv: rx,
             completion_req: c_tx,
         })
