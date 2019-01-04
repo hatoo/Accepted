@@ -13,6 +13,12 @@ pub fn clipboard_copy(s: &str) -> bool {
                 .spawn()
         })
         .or_else(|_| {
+            Command::new("win32yank.exe")
+                .arg("-i")
+                .stdin(process::Stdio::piped())
+                .spawn()
+        })
+        .or_else(|_| {
             Command::new("xsel")
                 .arg("-bi")
                 .stdin(process::Stdio::piped())
@@ -39,6 +45,12 @@ pub fn clipboard_paste() -> Option<String> {
         .spawn()
         .or_else(|_| {
             Command::new("win32yank")
+                .arg("-o")
+                .stdout(process::Stdio::piped())
+                .spawn()
+        })
+        .or_else(|_| {
+            Command::new("win32yank.exe")
                 .arg("-o")
                 .stdout(process::Stdio::piped())
                 .spawn()
