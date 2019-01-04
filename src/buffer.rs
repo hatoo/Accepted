@@ -2,6 +2,7 @@ use core::Cursor;
 use core::CursorRange;
 use draw;
 use draw::{CharStyle, LinenumView, View};
+use language_specific;
 use lsp::LSPClient;
 use rustc;
 use rustc::RustcOutput;
@@ -200,6 +201,7 @@ pub struct Buffer<'a> {
     pub yank: Yank,
     pub last_save: Wrapping<usize>,
     pub lsp: Option<LSPClient>,
+    pub language: Box<dyn language_specific::Language>,
     row_offset: usize,
     rustc_outputs: Vec<RustcOutput>,
     cache: DrawCache<'a>,
@@ -269,6 +271,7 @@ impl<'a> Buffer<'a> {
         });
 
         let syntax = syntax_parent.load_syntax_or_txt("rs");
+        let language = language_specific::detect_language("rs");
 
         Self {
             path: None,
@@ -279,7 +282,8 @@ impl<'a> Buffer<'a> {
             snippet: BTreeMap::new(),
             yank: Yank::default(),
             last_save: Wrapping(0),
-            lsp: LSPClient::start(process::Command::new("rls"), "rs".into()),
+            lsp: language.start_lsp(),
+            language,
             row_offset: 0,
             rustc_outputs: Vec::new(),
             syntax_parent: syntax_parent,
@@ -291,21 +295,8 @@ impl<'a> Buffer<'a> {
         }
     }
 
-    fn lsp(&self) -> Option<LSPClient> {
-        match self
-            .path
-            .as_ref()
-            .map(|p| p.extension().map(|o| o.to_str()))
-        {
-            Some(Some(Some("cpp"))) | Some(Some(Some("c"))) => {
-                LSPClient::start(process::Command::new("clangd"), "cpp".into())
-            }
-            _ => LSPClient::start(process::Command::new("rls"), "rs".into()),
-        }
-    }
-
     pub fn restart_lsp(&mut self) {
-        self.lsp = self.lsp();
+        self.lsp = self.language.start_lsp();
     }
 
     pub fn set_syntax(&mut self, extension: &str) {
@@ -324,6 +315,7 @@ impl<'a> Buffer<'a> {
             .map(|o| o.to_str().unwrap_or(""))
             .unwrap_or("txt");
         self.set_syntax(extension);
+        self.language = language_specific::detect_language(extension);
 
         self.row_offset = 0;
         self.last_save = core.buffer_changed;

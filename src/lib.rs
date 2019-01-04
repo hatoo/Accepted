@@ -17,6 +17,7 @@ mod core;
 mod cursor;
 pub mod draw;
 mod indent;
+mod language_specific;
 mod lsp;
 mod mode;
 mod rustc;
