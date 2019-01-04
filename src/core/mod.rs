@@ -8,6 +8,15 @@ pub mod operation;
 
 use self::operation::{Operation, OperationArg};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Id(Wrapping<usize>);
+
+impl Id {
+    pub fn inc(&mut self) {
+        self.0 += Wrapping(1);
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cursor {
     pub row: usize,
@@ -72,7 +81,7 @@ pub struct Core {
     history: Vec<Vec<Box<Operation>>>,
     history_tmp: Vec<Box<Operation>>,
     redo: Vec<Vec<Box<Operation>>>,
-    pub buffer_changed: Wrapping<usize>,
+    pub buffer_changed: Id,
 }
 
 impl Default for Core {
@@ -83,7 +92,7 @@ impl Default for Core {
             history: Vec::new(),
             history_tmp: Vec::new(),
             redo: Vec::new(),
-            buffer_changed: Wrapping(1),
+            buffer_changed: Id(Wrapping(1)),
         }
     }
 }
@@ -424,7 +433,7 @@ impl Core {
         op.perform(self.arg());
         self.history_tmp.push(Box::new(op));
         self.redo.clear();
-        self.buffer_changed += Wrapping(1);
+        self.buffer_changed.inc();
     }
 
     pub fn commit(&mut self) {
@@ -442,7 +451,7 @@ impl Core {
                 op.undo(self.arg());
             }
             self.redo.push(ops);
-            self.buffer_changed += Wrapping(1);
+            self.buffer_changed.inc();
         }
     }
 
@@ -452,7 +461,7 @@ impl Core {
                 op.perform(self.arg());
             }
             self.history.push(ops);
-            self.buffer_changed += Wrapping(1);
+            self.buffer_changed.inc();
         }
     }
 }

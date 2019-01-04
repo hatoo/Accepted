@@ -4,6 +4,7 @@ use clipboard;
 use core::Core;
 use core::Cursor;
 use core::CursorRange;
+use core::Id;
 use draw;
 use indent;
 use racer;
@@ -14,7 +15,6 @@ use std::ffi::OsString;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
-use std::num::Wrapping;
 use std::path::PathBuf;
 use std::process;
 use std::sync::mpsc;
@@ -59,7 +59,7 @@ pub struct Completion {
 struct Prefix;
 struct Insert {
     completion_index: Option<usize>,
-    buf_update: Wrapping<usize>,
+    buf_update: Id,
     racer_count: usize,
     current_racer_id: usize,
     completions: Vec<Completion>,
@@ -74,7 +74,7 @@ impl Default for Insert {
             completion_index: None,
             completions: Vec::new(),
             snippet_completions: Vec::new(),
-            buf_update: Wrapping(0),
+            buf_update: Id::default(),
             current_racer_id: 0,
             racer_count: 1,
             racer_tx: tx,

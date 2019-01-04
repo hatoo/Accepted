@@ -1,5 +1,6 @@
 use core::Cursor;
 use core::CursorRange;
+use core::Id;
 use draw;
 use draw::{CharStyle, LinenumView, View};
 use language_specific;
@@ -14,7 +15,6 @@ use std::fs;
 use std::io;
 use std::io::BufRead;
 use std::io::Write;
-use std::num::Wrapping;
 use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::mpsc;
@@ -199,17 +199,17 @@ pub struct Buffer<'a> {
     pub syntax: syntax::Syntax<'a>,
     pub snippet: BTreeMap<String, String>,
     pub yank: Yank,
-    pub last_save: Wrapping<usize>,
+    pub last_save: Id,
     pub lsp: Option<LSPClient>,
     pub language: Box<dyn language_specific::Language>,
     row_offset: usize,
     rustc_outputs: Vec<RustcOutput>,
     cache: DrawCache<'a>,
-    buffer_update: Wrapping<usize>,
-    last_rustc_submit: (Wrapping<usize>, bool),
-    last_rustc_compiled: (Wrapping<usize>, bool),
-    compile_tx: mpsc::Sender<(PathBuf, (Wrapping<usize>, bool))>,
-    message_rx: mpsc::Receiver<((Wrapping<usize>, bool), Vec<RustcOutput>)>,
+    buffer_update: Id,
+    last_rustc_submit: (Id, bool),
+    last_rustc_compiled: (Id, bool),
+    compile_tx: mpsc::Sender<(PathBuf, (Id, bool))>,
+    message_rx: mpsc::Receiver<((Id, bool), Vec<RustcOutput>)>,
 }
 
 impl<'a> Buffer<'a> {
@@ -219,9 +219,8 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn new(syntax_parent: &'a syntax::SyntaxParent) -> Self {
-        let (compile_tx, compile_rx) = mpsc::channel::<(PathBuf, (Wrapping<usize>, bool))>();
-        let (message_tx, message_rx) =
-            mpsc::channel::<((Wrapping<usize>, bool), Vec<RustcOutput>)>();
+        let (compile_tx, compile_rx) = mpsc::channel::<(PathBuf, (Id, bool))>();
+        let (message_tx, message_rx) = mpsc::channel::<((Id, bool), Vec<RustcOutput>)>();
         // Compiler thread
         thread::spawn(move || {
             for (path, id) in compile_rx {
@@ -281,15 +280,15 @@ impl<'a> Buffer<'a> {
             syntax,
             snippet: BTreeMap::new(),
             yank: Yank::default(),
-            last_save: Wrapping(0),
+            last_save: Id::default(),
             lsp: language.start_lsp(),
             language,
             row_offset: 0,
             rustc_outputs: Vec::new(),
             syntax_parent: syntax_parent,
-            buffer_update: Wrapping(0),
-            last_rustc_submit: (Wrapping(0), false),
-            last_rustc_compiled: (Wrapping(0), false),
+            buffer_update: Id::default(),
+            last_rustc_submit: (Id::default(), false),
+            last_rustc_compiled: (Id::default(), false),
             compile_tx,
             message_rx,
         }
