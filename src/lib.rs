@@ -13,6 +13,7 @@ extern crate serde_derive;
 
 mod buffer;
 mod clipboard;
+mod compiler;
 mod core;
 mod cursor;
 pub mod draw;

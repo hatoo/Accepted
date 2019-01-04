@@ -1,6 +1,6 @@
+use compiler::CompilerOutput;
 use core::Cursor;
 use cursor;
-use rustc::RustcOutput;
 use std;
 use std::fmt;
 use std::io::Write;
@@ -172,14 +172,14 @@ pub struct LinenumView<'a> {
     view: View<'a>,
     current_linenum: usize,
     width: usize,
-    rustc_outputs: &'a [RustcOutput],
+    rustc_outputs: &'a [CompilerOutput],
 }
 
 impl<'a> LinenumView<'a> {
     pub fn new(
         current_linenum: usize,
         max_linenum: usize,
-        rustc_outputs: &'a [RustcOutput],
+        rustc_outputs: &'a [CompilerOutput],
         view: View<'a>,
     ) -> Self {
         let width = format!("{}", max_linenum + 1).len() + 2;

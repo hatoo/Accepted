@@ -1,24 +1,18 @@
+use compiler::CompilerOutput;
 use core::Cursor;
 use core::CursorRange;
 use core::Id;
 use draw;
 use draw::{CharStyle, LinenumView, View};
 use language_specific;
+use language_specific::CompileId;
 use lsp::LSPClient;
-use rustc;
-use rustc::RustcOutput;
 use std::borrow::Cow;
 use std::cmp::{max, min};
 use std::collections::BTreeMap;
-use std::ffi::OsString;
 use std::fs;
-use std::io;
-use std::io::BufRead;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process;
-use std::sync::mpsc;
-use std::thread;
 use syntax;
 use syntect::highlighting::Color;
 use syntect::highlighting::FontStyle;
@@ -203,13 +197,11 @@ pub struct Buffer<'a> {
     pub lsp: Option<LSPClient>,
     pub language: Box<dyn language_specific::Language>,
     row_offset: usize,
-    rustc_outputs: Vec<RustcOutput>,
+    compiler_outputs: Vec<CompilerOutput>,
     cache: DrawCache<'a>,
     buffer_update: Id,
-    last_rustc_submit: (Id, bool),
-    last_rustc_compiled: (Id, bool),
-    compile_tx: mpsc::Sender<(PathBuf, (Id, bool))>,
-    message_rx: mpsc::Receiver<((Id, bool), Vec<RustcOutput>)>,
+    last_compiler_submit: CompileId,
+    last_compiler_compiled: CompileId,
 }
 
 impl<'a> Buffer<'a> {
@@ -219,56 +211,6 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn new(syntax_parent: &'a syntax::SyntaxParent) -> Self {
-        let (compile_tx, compile_rx) = mpsc::channel::<(PathBuf, (Id, bool))>();
-        let (message_tx, message_rx) = mpsc::channel::<((Id, bool), Vec<RustcOutput>)>();
-        // Compiler thread
-        thread::spawn(move || {
-            for (path, id) in compile_rx {
-                let is_optimize = id.1;
-                let mut rustc = process::Command::new("rustc");
-                if is_optimize {
-                    rustc.args(
-                        [
-                            &OsString::from("-Z"),
-                            &OsString::from("unstable-options"),
-                            &OsString::from("--error-format=json"),
-                            &OsString::from("-O"),
-                            path.as_os_str(),
-                        ]
-                        .iter(),
-                    );
-                } else {
-                    rustc.args(
-                        [
-                            &OsString::from("-Z"),
-                            &OsString::from("unstable-options"),
-                            &OsString::from("--error-format=json"),
-                            path.as_os_str(),
-                        ]
-                        .iter(),
-                    );
-                }
-
-                let mut messages = Vec::new();
-                if let Ok(rustc) = rustc.stderr(process::Stdio::piped()).output() {
-                    let mut buf = rustc.stderr;
-                    let mut reader = io::Cursor::new(buf);
-                    let mut line = String::new();
-
-                    while {
-                        line.clear();
-                        reader.read_line(&mut line).is_ok() && !line.is_empty()
-                    } {
-                        if let Some(rustc_output) = rustc::parse_rustc_json(&line) {
-                            messages.push(rustc_output);
-                        }
-                    }
-                }
-
-                message_tx.send((id, messages)).unwrap();
-            }
-        });
-
         let syntax = syntax_parent.load_syntax_or_txt("rs");
         let language = language_specific::detect_language("rs");
 
@@ -284,13 +226,17 @@ impl<'a> Buffer<'a> {
             lsp: language.start_lsp(),
             language,
             row_offset: 0,
-            rustc_outputs: Vec::new(),
+            compiler_outputs: Vec::new(),
             syntax_parent: syntax_parent,
             buffer_update: Id::default(),
-            last_rustc_submit: (Id::default(), false),
-            last_rustc_compiled: (Id::default(), false),
-            compile_tx,
-            message_rx,
+            last_compiler_submit: CompileId {
+                id: Id::default(),
+                is_optimize: false,
+            },
+            last_compiler_compiled: CompileId {
+                id: Id::default(),
+                is_optimize: false,
+            },
         }
     }
 
@@ -321,7 +267,7 @@ impl<'a> Buffer<'a> {
         self.core = core;
         self.path = Some(path.as_ref().to_path_buf());
         self.cache = DrawCache::new(&self.syntax);
-        self.rustc(false);
+        self.compile(false);
         self.restart_lsp();
     }
 
@@ -375,26 +321,35 @@ impl<'a> Buffer<'a> {
         }
     }
 
-    pub fn rustc(&mut self, is_optimize: bool) {
-        if self.last_rustc_submit == (self.core.buffer_changed, is_optimize) {
+    pub fn compile(&mut self, is_optimize: bool) {
+        if self.last_compiler_submit
+            == (CompileId {
+                id: self.core.buffer_changed,
+                is_optimize,
+            })
+        {
             return;
         }
-        self.last_rustc_submit = (self.core.buffer_changed, is_optimize);
+        self.last_compiler_submit = CompileId {
+            id: self.core.buffer_changed,
+            is_optimize,
+        };
 
         if let Some(path) = self.path.as_ref() {
-            self.compile_tx
-                .send((path.clone(), self.last_rustc_submit))
-                .unwrap();
+            self.language
+                .compile(path.clone(), self.last_compiler_submit);
         }
     }
 
     fn is_annotate(&self, cursor: Cursor) -> bool {
-        self.rustc_outputs.iter().any(|r| r.span.contains(cursor))
+        self.compiler_outputs
+            .iter()
+            .any(|r| r.span.contains(cursor))
     }
 
-    pub fn rustc_message_on_cursor(&self) -> Option<&str> {
+    pub fn compiler_message_on_cursor(&self) -> Option<&str> {
         let line = self.core.cursor().row;
-        self.rustc_outputs
+        self.compiler_outputs
             .iter()
             .find(|r| r.line == line)
             .map(|r| r.message.as_str())
@@ -414,43 +369,33 @@ impl<'a> Buffer<'a> {
             false
         };
         if saved {
-            self.rustc(is_optimize);
+            self.compile(is_optimize);
         }
         saved
     }
 
-    pub fn poll_rustc_thread(&mut self) {
-        while let Ok((id, mut msg)) = self.message_rx.try_recv() {
-            self.last_rustc_compiled = id;
-            for m in &mut msg {
-                if let Some(r) = self.core.prev_cursor(m.span.r()) {
-                    *m.span.r_mut() = r;
-                }
-            }
-            self.rustc_outputs = msg;
+    pub fn poll_compile_message(&mut self) {
+        while let Some((id, msg)) = self.language.try_recv_compile_message() {
+            self.last_compiler_compiled = id;
+            self.compiler_outputs = msg;
         }
     }
 
-    pub fn wait_rustc_thread(&mut self) {
+    pub fn wait_compile_message(&mut self) {
         while self.is_compiling() {
-            if let Ok((id, mut msg)) = self.message_rx.recv() {
-                self.last_rustc_compiled = id;
-                for m in &mut msg {
-                    if let Some(r) = self.core.prev_cursor(m.span.r()) {
-                        *m.span.r_mut() = r;
-                    }
-                }
-                self.rustc_outputs = msg;
+            if let Some((id, msg)) = self.language.recv_compile_message() {
+                self.last_compiler_compiled = id;
+                self.compiler_outputs = msg;
             }
         }
     }
 
     pub fn is_compiling(&self) -> bool {
-        self.last_rustc_compiled != self.last_rustc_submit
+        self.last_compiler_compiled != self.last_compiler_submit
     }
 
     pub fn draw(&mut self, view: View) -> Option<Cursor> {
-        self.poll_rustc_thread();
+        self.poll_compile_message();
         self.draw_with_selected(view, None)
     }
 
@@ -463,7 +408,7 @@ impl<'a> Buffer<'a> {
         let mut view = LinenumView::new(
             self.row_offset,
             self.core.buffer().len(),
-            &self.rustc_outputs,
+            &self.compiler_outputs,
             view,
         );
         let mut cursor = None;

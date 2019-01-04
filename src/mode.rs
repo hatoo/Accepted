@@ -491,7 +491,7 @@ impl Mode for Normal {
             .unwrap_or(draw::CursorState::Hide);
 
         let mut footer = term.view((height - 1, 0), 1, width);
-        if let Some(message) = buf.rustc_message_on_cursor() {
+        if let Some(message) = buf.compiler_message_on_cursor() {
             footer.puts(message, draw::CharStyle::Footer);
         } else {
             footer.puts(
@@ -997,7 +997,7 @@ impl Mode for Prefix {
                 if let Some(path) = buf.path.as_ref().cloned() {
                     buf.format();
                     buf.save(is_optimize);
-                    buf.wait_rustc_thread();
+                    buf.wait_compile_message();
                     if let Some(stem) = path.file_stem() {
                         let mut prog = OsString::from("./");
                         prog.push(stem);
