@@ -1,6 +1,7 @@
 extern crate jsonrpc_core;
 extern crate languageserver_types;
 extern crate racer;
+extern crate regex;
 extern crate serde;
 extern crate serde_json;
 extern crate shellexpand;

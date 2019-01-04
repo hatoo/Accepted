@@ -1,7 +1,10 @@
 use compiler::CompilerOutput;
+use core::Cursor;
+use core::CursorRange;
 use core::Id;
 use formatter;
 use lsp;
+use regex;
 use rustc;
 use std::ffi::OsString;
 use std::io;
@@ -127,36 +130,51 @@ impl Default for Cpp {
         // Compiler thread
         thread::spawn(move || {
             for (path, req) in compile_rx {
-                let mut rustc = process::Command::new("clang");
+                let mut clang = process::Command::new("clang");
                 let stem = path.file_stem().unwrap();
                 if req.is_optimize {
-                    rustc.args(&[
+                    clang.args(&[
                         path.as_os_str(),
                         &OsString::from("-O2"),
                         &OsString::from("-o"),
                         stem,
                     ]);
                 } else {
-                    rustc.args(&[path.as_os_str(), &OsString::from("-o"), stem]);
+                    clang.args(&[path.as_os_str(), &OsString::from("-o"), stem]);
                 }
 
                 let mut messages = Vec::new();
 
-                if let Ok(rustc) = rustc.stderr(process::Stdio::piped()).output() {
-                    /*
-                    let mut buf = rustc.stderr;
+                if let Ok(clang) = clang.stderr(process::Stdio::piped()).output() {
+                    let mut buf = clang.stderr;
                     let mut reader = io::Cursor::new(buf);
                     let mut line = String::new();
+
+                    let re = regex::Regex::new(
+                        r"^[^:]*:(?P<line>\d*):(?P<col>\d*): (?P<level>[^:]*): (?P<msg>.*)",
+                    )
+                    .unwrap();
 
                     while {
                         line.clear();
                         reader.read_line(&mut line).is_ok() && !line.is_empty()
                     } {
-                        if let Some(rustc_output) = rustc::parse_rustc_json(&line) {
-                            messages.push(rustc_output);
+                        if let Some(caps) = re.captures(&line) {
+                            let line = caps["line"].parse::<usize>().unwrap() - 1;
+                            let col = caps["col"].parse::<usize>().unwrap() - 1;
+                            let out = CompilerOutput {
+                                message: caps["msg"].into(),
+                                line,
+                                level: caps["level"].into(),
+                                span: CursorRange(
+                                    Cursor { row: line, col },
+                                    Cursor { row: line, col },
+                                ),
+                            };
+
+                            messages.push(out);
                         }
                     }
-                    */
                 }
 
                 {
