@@ -130,7 +130,7 @@ impl Default for Cpp {
         // Compiler thread
         thread::spawn(move || {
             for (path, req) in compile_rx {
-                let mut clang = process::Command::new("clang");
+                let mut clang = process::Command::new("clang++");
                 let stem = path.file_stem().unwrap();
                 if req.is_optimize {
                     clang.args(&[
