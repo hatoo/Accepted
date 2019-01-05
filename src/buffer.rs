@@ -229,14 +229,8 @@ impl<'a> Buffer<'a> {
             compiler_outputs: Vec::new(),
             syntax_parent: syntax_parent,
             buffer_update: Id::default(),
-            last_compiler_submit: CompileId {
-                id: Id::default(),
-                is_optimize: false,
-            },
-            last_compiler_compiled: CompileId {
-                id: Id::default(),
-                is_optimize: false,
-            },
+            last_compiler_submit: CompileId::default(),
+            last_compiler_compiled: CompileId::default(),
         }
     }
 
