@@ -186,7 +186,7 @@ fn get_rows(s: &[char], width: usize) -> usize {
 }
 
 pub struct Buffer<'a> {
-    pub path: Option<PathBuf>,
+    path: Option<PathBuf>,
     pub core: Core,
     pub search: Vec<char>,
     pub syntax_parent: &'a syntax::SyntaxParent,
@@ -238,9 +238,30 @@ impl<'a> Buffer<'a> {
         self.lsp = self.language.start_lsp();
     }
 
-    pub fn set_syntax(&mut self, extension: &str) {
+    fn set_syntax(&mut self, extension: &str) {
         self.syntax = self.syntax_parent.load_syntax_or_txt(extension);
         self.cache = DrawCache::new(&self.syntax);
+    }
+
+    pub fn set_language(&mut self, extension: &str) {
+        self.language = language_specific::detect_language(extension);
+        self.set_syntax(extension);
+        self.restart_lsp();
+    }
+
+    pub fn path(&self) -> Option<&Path> {
+        self.path.as_ref().map(|p| p.as_path())
+    }
+
+    pub fn set_path(&mut self, path: PathBuf) {
+        if self.path.as_ref().map(|p| p.extension()) != Some(path.extension()) {
+            self.set_language(
+                path.extension()
+                    .map(|o| o.to_str().unwrap_or("txt"))
+                    .unwrap_or("txt"),
+            );
+        }
+        self.path = Some(path);
     }
 
     pub fn open<P: AsRef<Path>>(&mut self, path: P) {
@@ -253,8 +274,7 @@ impl<'a> Buffer<'a> {
             .extension()
             .map(|o| o.to_str().unwrap_or(""))
             .unwrap_or("txt");
-        self.set_syntax(extension);
-        self.language = language_specific::detect_language(extension);
+        self.set_language(extension);
 
         self.row_offset = 0;
         self.last_save = core.buffer_changed;
@@ -262,7 +282,25 @@ impl<'a> Buffer<'a> {
         self.path = Some(path.as_ref().to_path_buf());
         self.cache = DrawCache::new(&self.syntax);
         self.compile(false);
-        self.restart_lsp();
+    }
+
+    pub fn save(&mut self, is_optimize: bool) -> bool {
+        let saved = if let Some(path) = self.path.as_ref() {
+            if let Ok(mut f) = fs::File::create(path) {
+                for line in self.core.buffer() {
+                    writeln!(f, "{}", line.iter().collect::<String>()).unwrap();
+                }
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        if saved {
+            self.compile(is_optimize);
+        }
+        saved
     }
 
     pub fn show_cursor(&mut self) {
@@ -347,25 +385,6 @@ impl<'a> Buffer<'a> {
             .iter()
             .find(|r| r.line == line)
             .map(|r| r.message.as_str())
-    }
-
-    pub fn save(&mut self, is_optimize: bool) -> bool {
-        let saved = if let Some(path) = self.path.as_ref() {
-            if let Ok(mut f) = fs::File::create(path) {
-                for line in self.core.buffer() {
-                    writeln!(f, "{}", line.iter().collect::<String>()).unwrap();
-                }
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-        if saved {
-            self.compile(is_optimize);
-        }
-        saved
     }
 
     pub fn poll_compile_message(&mut self) {

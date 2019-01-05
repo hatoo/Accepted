@@ -489,8 +489,7 @@ impl Mode for Normal {
                     "[Normal] ({} {}) [{}] {}",
                     buf.core.cursor().row + 1,
                     buf.core.cursor().col + 1,
-                    buf.path
-                        .as_ref()
+                    buf.path()
                         .map(|p| p.to_string_lossy())
                         .unwrap_or_else(|| "*".into()),
                     &self.message
@@ -840,7 +839,7 @@ impl Mode for Save {
             Event::Key(Key::Char(c)) => {
                 if c == '\n' {
                     let path: String = shellexpand::tilde(&self.path).into();
-                    buf.path = Some(PathBuf::from(path.clone()));
+                    buf.set_path(PathBuf::from(path.clone()));
                     let message = if buf.save(false) {
                         format!("Saved to {}", path)
                     } else {
@@ -888,7 +887,7 @@ impl Mode for Prefix {
                 return Transition::Exit;
             }
             Event::Key(Key::Char('s')) => {
-                if let Some(path) = buf.path.as_ref().map(|p| p.to_string_lossy().into_owned()) {
+                if let Some(path) = buf.path().map(|p| p.to_string_lossy().into_owned()) {
                     buf.format();
                     let message = if buf.save(false) {
                         format!("Saved to {}", path)
@@ -904,7 +903,7 @@ impl Mode for Prefix {
                 }
             }
             Event::Key(Key::Char('a')) => {
-                if let Some(ref path) = buf.path {
+                if let Some(path) = buf.path() {
                     return Save {
                         path: path.to_string_lossy().into(),
                     }
@@ -946,7 +945,7 @@ impl Mode for Prefix {
             }
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
-                if let Some(path) = buf.path.as_ref().cloned() {
+                if let Some(path) = buf.path().map(PathBuf::from) {
                     buf.format();
                     buf.save(is_optimize);
                     buf.wait_compile_message();
