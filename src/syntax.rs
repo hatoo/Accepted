@@ -36,7 +36,7 @@ impl SyntaxParent {
 
     pub fn load_syntax_or_txt<'a>(&'a self, extension: &str) -> Syntax<'a> {
         self.load_syntax(extension)
-            .unwrap_or(self.load_syntax("txt").unwrap())
+            .unwrap_or_else(|| self.load_syntax("txt").unwrap())
     }
 }
 
