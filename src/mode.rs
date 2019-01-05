@@ -7,7 +7,6 @@ use core::CursorRange;
 use core::Id;
 use draw;
 use indent;
-use racer;
 use shellexpand;
 use std;
 use std::cmp::{max, min};
@@ -60,25 +59,16 @@ struct Prefix;
 struct Insert {
     completion_index: Option<usize>,
     buf_update: Id,
-    racer_count: usize,
-    current_racer_id: usize,
     completions: Vec<Completion>,
     snippet_completions: Vec<String>,
-    racer_tx: mpsc::Sender<(usize, Vec<Completion>)>,
-    racer_rx: mpsc::Receiver<(usize, Vec<Completion>)>,
 }
 impl Default for Insert {
     fn default() -> Self {
-        let (tx, rx) = mpsc::channel();
         Insert {
             completion_index: None,
             completions: Vec::new(),
             snippet_completions: Vec::new(),
             buf_update: Id::default(),
-            current_racer_id: 0,
-            racer_count: 1,
-            racer_tx: tx,
-            racer_rx: rx,
         }
     }
 }
@@ -563,14 +553,8 @@ impl Insert {
                 completions.retain(|s| s.keyword != token);
                 self.completions = completions;
             }
-        } else {
-            while let Ok((id, snips)) = self.racer_rx.try_recv() {
-                if id > self.current_racer_id {
-                    self.completions = snips;
-                    self.current_racer_id = id;
-                }
-            }
         }
+
         if self.completion_len() == 0 {
             self.completion_index = None;
         } else if let Some(index) = self.completion_index {
@@ -591,41 +575,10 @@ impl Insert {
                 c == ':' || c == '.'
             }
         };
-        let id = self.racer_count;
-        self.racer_count += 1;
-        let tx = self.racer_tx.clone();
-        let cursor = buf.core.cursor();
-        let src = buf.core.get_string();
         if !prefix.is_empty() || start_completion {
             if let Some(lsp) = buf.lsp.as_mut() {
                 // LSP
                 lsp.request_completion(buf.core.get_string(), buf.core.cursor());
-            } else {
-                // racer
-                thread::spawn(move || {
-                    // racer sometimes crash
-                    let cache = racer::FileCache::default();
-                    let session = racer::Session::new(&cache);
-
-                    session.cache_file_contents("main.rs", src);
-
-                    let completion = racer::complete_from_file(
-                        "main.rs",
-                        racer::Location::from(racer::Coordinate::new(
-                            cursor.row as u32 + 1,
-                            cursor.col as u32,
-                        )),
-                        &session,
-                    )
-                    .map(|m| Completion {
-                        keyword: m.matchstr,
-                        doc: m.docs,
-                    })
-                    .filter(|s| s.keyword != prefix)
-                    .collect();
-
-                    let _ = tx.send((id, completion));
-                });
             }
         }
         // snippet
