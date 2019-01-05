@@ -1,5 +1,5 @@
-pub fn next_indent_level(line: &[char]) -> usize {
-    let base = line.iter().take_while(|&&c| c == ' ').count() / 4;
+pub fn next_indent_level(line: &[char], indent_width: usize) -> usize {
+    let base = line.iter().take_while(|&&c| c == ' ').count() / indent_width;
     if ['{', '[', '('].iter().any(|c| line.last() == Some(c)) {
         base + 1
     } else {

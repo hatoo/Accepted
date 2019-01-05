@@ -24,6 +24,9 @@ pub struct CompileId {
 
 pub trait Language {
     fn start_lsp(&self) -> Option<lsp::LSPClient>;
+    fn indent_width(&self) -> usize {
+        4
+    }
     fn format(&self, src: &str) -> Option<String>;
     // Must be async
     fn compile(&self, _path: path::PathBuf, _compile_id: CompileId) {}
@@ -196,6 +199,10 @@ impl Default for Cpp {
 impl Language for Cpp {
     fn start_lsp(&self) -> Option<lsp::LSPClient> {
         lsp::LSPClient::start(process::Command::new("clangd"), "cpp".into())
+    }
+    fn indent_width(&self) -> usize {
+        // Respect clang-format
+        2
     }
     fn format(&self, src: &str) -> Option<String> {
         formatter::system_clang_format(src)

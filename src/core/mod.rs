@@ -204,11 +204,11 @@ impl Core {
         })
     }
 
-    pub fn indent(&mut self) {
+    pub fn indent(&mut self, indent_width: usize) {
         self.cursor.col = 0;
         if self.cursor.row > 0 {
-            let indent = indent::next_indent_level(&self.buffer[self.cursor.row - 1]);
-            for _ in 0..4 * indent {
+            let indent = indent::next_indent_level(&self.buffer[self.cursor.row - 1], indent_width);
+            for _ in 0..indent_width * indent {
                 self.insert(' ');
             }
         }

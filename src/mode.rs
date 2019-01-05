@@ -237,7 +237,7 @@ impl Mode for Normal {
                 for _ in 0..buf.core.current_line().len() {
                     buf.core.delete()
                 }
-                buf.core.indent();
+                buf.indent();
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('C')) => {
@@ -269,13 +269,13 @@ impl Mode for Normal {
             }
             Event::Key(Key::Char('o')) => {
                 buf.core.insert_newline();
-                buf.core.indent();
+                buf.indent();
                 buf.show_cursor();
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('O')) => {
                 buf.core.insert_newline_here();
-                buf.core.indent();
+                buf.indent();
                 buf.show_cursor();
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
@@ -643,7 +643,7 @@ impl Mode for Insert {
                     }
                 } else {
                     buf.core.insert(' ');
-                    while buf.core.cursor().col % 4 != 0 {
+                    while buf.core.cursor().col % buf.language().indent_width() != 0 {
                         buf.core.insert(' ');
                     }
                 }
@@ -673,10 +673,13 @@ impl Mode for Insert {
                     buf.show_cursor();
                     self.completion_index = None;
                 } else {
+                    let indent_width = buf.language().indent_width();
                     buf.core.insert('\n');
-                    let indent =
-                        indent::next_indent_level(&buf.core.buffer()[buf.core.cursor().row - 1]);
-                    for _ in 0..4 * indent {
+                    let indent = indent::next_indent_level(
+                        &buf.core.buffer()[buf.core.cursor().row - 1],
+                        indent_width,
+                    );
+                    for _ in 0..indent_width * indent {
                         buf.core.insert(' ');
                     }
                     let pos = buf.core.cursor();
@@ -686,7 +689,7 @@ impl Mode for Insert {
                     {
                         buf.core.insert('\n');
                         let i = if indent == 0 { 0 } else { indent - 1 };
-                        for _ in 0..4 * i {
+                        for _ in 0..indent_width * i {
                             buf.core.insert(' ');
                         }
                     }
@@ -1077,7 +1080,7 @@ impl Mode for Visual {
                     if !delete_to_end {
                         buf.core.insert_newline_here();
                     }
-                    buf.core.indent();
+                    buf.indent();
                 }
                 buf.core.commit();
                 buf.yank.insert_newline = self.line_mode;
@@ -1275,7 +1278,7 @@ impl Mode for TextObjectOperation {
                             buf.core.delete();
                         }
                         buf.core.commit();
-                        buf.core.indent();
+                        buf.indent();
                         return Insert::default().into();
                     }
                 }
@@ -1331,7 +1334,7 @@ impl Mode for TextObjectOperation {
                         buf.core.delete_range(range);
                         buf.core.insert_newline_here();
                         buf.core.commit();
-                        buf.core.indent();
+                        buf.indent();
                         return Insert::default().into();
                     }
                 }

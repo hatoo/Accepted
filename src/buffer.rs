@@ -195,7 +195,7 @@ pub struct Buffer<'a> {
     pub yank: Yank,
     pub last_save: Id,
     pub lsp: Option<LSPClient>,
-    pub language: Box<dyn language_specific::Language>,
+    language: Box<dyn language_specific::Language>,
     row_offset: usize,
     compiler_outputs: Vec<CompilerOutput>,
     cache: DrawCache<'a>,
@@ -247,6 +247,14 @@ impl<'a> Buffer<'a> {
         self.language = language_specific::detect_language(extension);
         self.set_syntax(extension);
         self.restart_lsp();
+    }
+
+    pub fn language(&self) -> &Box<language_specific::Language> {
+        &self.language
+    }
+
+    pub fn indent(&mut self) {
+        self.core.indent(self.language.indent_width());
     }
 
     pub fn path(&self) -> Option<&Path> {
