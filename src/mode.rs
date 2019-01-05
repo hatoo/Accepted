@@ -671,7 +671,6 @@ impl Mode for Insert {
                     for c in body.chars() {
                         buf.core.insert(c);
                     }
-                    // buf.core.set_offset();
                     buf.show_cursor();
                     self.completion_index = None;
                 } else {
