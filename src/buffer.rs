@@ -211,8 +211,8 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn new(syntax_parent: &'a syntax::SyntaxParent) -> Self {
-        let syntax = syntax_parent.load_syntax_or_txt("rs");
-        let language = language_specific::detect_language("rs");
+        let syntax = syntax_parent.load_syntax_or_txt("txt");
+        let language = language_specific::detect_language("txt");
 
         Self {
             path: None,
