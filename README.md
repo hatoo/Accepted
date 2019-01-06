@@ -9,18 +9,16 @@ A terminal text editor to be **ACCEPTED**.
 
 ## Description
 
-A modal text editor for competitive rust programmer written with Rust.
+A modal text editor for competitive programmer written with Rust.
 
-Primary target is in competitive Rust programmers.
-
-So this can Rustfmt and Test run with clipboard input which is useful to competitive programming by simple command.
+Currently Accepted supports Rust and C++.
 
 ### Features
 
-* Autoformat with [Rustfmt](https://github.com/rust-lang-nursery/rustfmt) 
-* Completion with [RLS](https://github.com/rust-lang-nursery/rls) / [Racer](https://github.com/racer-rust/racer)
+* Autoformat with [Rustfmt](https://github.com/rust-lang-nursery/rustfmt) / [ClangFormat](https://clang.llvm.org/docs/ClangFormat.html)
+* Completion with [RLS](https://github.com/rust-lang-nursery/rls) / [Clangd](https://clang.llvm.org/extra/clangd.html)
 * Auto compile and show compiler messages
-* Easy to test a single rust code
+* Easy to test a single a code
 * VScode style snippet support
 * Mouse support
 
@@ -32,6 +30,8 @@ You need nightly Rust.
 $ cargo install accepted
 ```
 
+### For Rust user
+
 Install rust components.
 
 ```
@@ -39,6 +39,10 @@ $ rustup component add rls-preview
 $ rustup component add rust-src
 $ rustup component add rustfmt-preview
 ```
+
+### For C++ User
+
+Install clang, clang-format and clangd.
 
 # Usage
 
