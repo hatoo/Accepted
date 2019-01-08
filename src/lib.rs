@@ -17,6 +17,7 @@ mod compiler;
 mod core;
 mod cursor;
 pub mod draw;
+mod draw_cache;
 mod formatter;
 mod indent;
 mod language_specific;
