@@ -8,8 +8,8 @@ pub struct OperationArg<'a> {
 }
 
 pub trait Operation: Debug {
-    fn perform(&mut self, arg: OperationArg);
-    fn undo(&mut self, arg: OperationArg);
+    fn perform(&mut self, arg: OperationArg) -> Option<usize>;
+    fn undo(&mut self, arg: OperationArg) -> Option<usize>;
 }
 
 #[derive(Debug)]
@@ -68,7 +68,7 @@ impl Set {
 }
 
 impl Operation for Insert {
-    fn perform(&mut self, arg: OperationArg) {
+    fn perform(&mut self, arg: OperationArg) -> Option<usize> {
         let mut cursor = self.cursor;
         if self.c == '\n' {
             let rest: Vec<char> = arg.buffer[cursor.row].drain(cursor.col..).collect();
@@ -81,9 +81,10 @@ impl Operation for Insert {
             cursor.col += 1;
         }
         *arg.cursor = cursor;
+        Some(self.cursor.row)
     }
 
-    fn undo(&mut self, arg: OperationArg) {
+    fn undo(&mut self, arg: OperationArg) -> Option<usize> {
         if self.c == '\n' {
             let mut line = arg.buffer.remove(self.cursor.row + 1);
             arg.buffer[self.cursor.row].append(&mut line);
@@ -91,11 +92,12 @@ impl Operation for Insert {
             arg.buffer[self.cursor.row].remove(self.cursor.col);
         }
         *arg.cursor = self.cursor;
+        Some(self.cursor.row)
     }
 }
 
 impl Operation for Replace {
-    fn perform(&mut self, arg: OperationArg) {
+    fn perform(&mut self, arg: OperationArg) -> Option<usize> {
         if self.cursor.col < arg.buffer[self.cursor.row].len() {
             self.orig = Some(arg.buffer[self.cursor.row][self.cursor.col]);
             arg.buffer[self.cursor.row][self.cursor.col] = self.c;
@@ -103,20 +105,22 @@ impl Operation for Replace {
             arg.buffer[self.cursor.row].push(self.c);
         }
         *arg.cursor = self.cursor;
+        Some(self.cursor.row)
     }
 
-    fn undo(&mut self, arg: OperationArg) {
+    fn undo(&mut self, arg: OperationArg) -> Option<usize> {
         if let Some(orig) = self.orig {
             arg.buffer[self.cursor.row][self.cursor.col] = orig;
         } else {
             arg.buffer[self.cursor.row].pop();
         }
         *arg.cursor = self.cursor;
+        Some(self.cursor.row)
     }
 }
 
 impl Operation for Delete {
-    fn perform(&mut self, arg: OperationArg) {
+    fn perform(&mut self, arg: OperationArg) -> Option<usize> {
         if self.cursor.col < arg.buffer[self.cursor.row].len() {
             self.orig = Some(arg.buffer[self.cursor.row].remove(self.cursor.col));
             self.done = true;
@@ -128,11 +132,16 @@ impl Operation for Delete {
             self.done = false;
         }
         *arg.cursor = self.cursor;
+        if self.done {
+            Some(self.cursor.row)
+        } else {
+            None
+        }
     }
 
-    fn undo(&mut self, arg: OperationArg) {
+    fn undo(&mut self, arg: OperationArg) -> Option<usize> {
         if !self.done {
-            return;
+            return None;
         }
 
         if let Some(orig) = self.orig {
@@ -144,11 +153,12 @@ impl Operation for Delete {
             arg.buffer.insert(self.cursor.row + 1, line);
         }
         *arg.cursor = self.cursor;
+        Some(self.cursor.row)
     }
 }
 
 impl Operation for Set {
-    fn perform(&mut self, arg: OperationArg) {
+    fn perform(&mut self, arg: OperationArg) -> Option<usize> {
         if self.from.is_none() {
             self.from = Some(arg.buffer.clone());
         }
@@ -156,11 +166,13 @@ impl Operation for Set {
         *arg.buffer = self.to.clone();
         arg.cursor.row = min(arg.buffer.len() - 1, arg.cursor.row);
         arg.cursor.col = min(arg.buffer[arg.cursor.row].len(), arg.cursor.col);
+        Some(0)
     }
 
-    fn undo(&mut self, arg: OperationArg) {
+    fn undo(&mut self, arg: OperationArg) -> Option<usize> {
         *arg.buffer = self.from.as_ref().unwrap().clone();
         arg.cursor.row = min(arg.buffer.len() - 1, arg.cursor.row);
         arg.cursor.col = min(arg.buffer[arg.cursor.row].len(), arg.cursor.col);
+        Some(0)
     }
 }
