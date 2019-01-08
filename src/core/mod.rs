@@ -82,6 +82,7 @@ pub struct Core {
     history_tmp: Vec<Box<Operation>>,
     redo: Vec<Vec<Box<Operation>>>,
     buffer_changed: Id,
+    pub dirty_from: usize,
 }
 
 impl Default for Core {
@@ -93,6 +94,7 @@ impl Default for Core {
             history_tmp: Vec::new(),
             redo: Vec::new(),
             buffer_changed: Id(Wrapping(1)),
+            dirty_from: 0,
         }
     }
 }
@@ -434,7 +436,9 @@ impl Core {
     }
 
     fn perform<T: Operation + 'static>(&mut self, mut op: T) {
-        op.perform(self.arg());
+        if let Some(l) = op.perform(self.arg()) {
+            self.dirty_from = min(self.dirty_from, l);
+        }
         self.history_tmp.push(Box::new(op));
         self.redo.clear();
         self.buffer_changed.inc();
@@ -452,7 +456,9 @@ impl Core {
         self.commit();
         if let Some(mut ops) = self.history.pop() {
             for op in ops.iter_mut().rev() {
-                op.undo(self.arg());
+                if let Some(l) = op.undo(self.arg()) {
+                    self.dirty_from = min(self.dirty_from, l);
+                }
             }
             self.redo.push(ops);
             self.buffer_changed.inc();
@@ -462,7 +468,9 @@ impl Core {
     pub fn redo(&mut self) {
         if let Some(mut ops) = self.redo.pop() {
             for op in &mut ops {
-                op.perform(self.arg());
+                if let Some(l) = op.perform(self.arg()) {
+                    self.dirty_from = min(self.dirty_from, l);
+                }
             }
             self.history.push(ops);
             self.buffer_changed.inc();
