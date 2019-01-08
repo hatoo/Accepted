@@ -1,5 +1,6 @@
 use draw;
 use draw::CharStyle;
+use std::cmp::min;
 use std::collections::BTreeMap;
 use syntax;
 use syntect::highlighting::Color;
@@ -169,6 +170,8 @@ pub struct DrawCache<'a> {
 }
 
 impl<'a> DrawCache<'a> {
+    const CACHE_WIDTH: usize = 100;
+
     pub fn new(syntax: &syntax::Syntax<'a>) -> Self {
         let highlighter = Highlighter::new(syntax.theme);
         let bg = syntax.theme.settings.background.unwrap();
@@ -182,44 +185,52 @@ impl<'a> DrawCache<'a> {
         }
     }
 
-    pub fn cache_line(&mut self, buffer: &[Vec<char>], i: usize) {
-        // Hell
-        let draw_cache = &mut self.draw_cache;
-        let state_cache = &mut self.state_cache;
-        let syntax = self.syntax;
-        let highlighter = &self.highlighter;
-        let syntax_set = self.syntax_set;
-        let bg = self.bg;
+    fn near_state(&mut self, buffer: &[Vec<char>], i: usize) -> DrawState {
+        if i / Self::CACHE_WIDTH == 0 {
+            return DrawState::new(self.syntax, &self.highlighter);
+        }
 
-        draw_cache.entry(i).or_insert_with(|| {
-            if state_cache.len() < i {
-                for i in state_cache.len()..i {
-                    let mut state = state_cache
-                        .last()
-                        .cloned()
-                        .unwrap_or_else(|| DrawState::new(syntax, &highlighter));
-                    state.next(
-                        &buffer[i].iter().collect::<String>(),
-                        syntax_set,
-                        highlighter,
-                    );
-                    state_cache.push(state);
-                }
+        while self.state_cache.len() < i / Self::CACHE_WIDTH {
+            let mut state = self
+                .state_cache
+                .last()
+                .cloned()
+                .unwrap_or_else(|| DrawState::new(self.syntax, &self.highlighter));
+
+            for i in self.state_cache.len() * Self::CACHE_WIDTH
+                ..self.state_cache.len() * Self::CACHE_WIDTH + Self::CACHE_WIDTH
+            {
+                state.next(
+                    &buffer[i].iter().collect::<String>(),
+                    self.syntax_set,
+                    &self.highlighter,
+                );
             }
+            self.state_cache.push(state);
+        }
 
-            let mut state = if i == 0 {
-                DrawState::new(syntax, &highlighter)
-            } else {
-                state_cache[i - 1].clone()
-            };
+        self.state_cache[i / Self::CACHE_WIDTH - 1].clone()
+    }
 
-            state.highlight(
-                &buffer[i].iter().collect::<String>(),
-                syntax_set,
-                &highlighter,
-                bg,
-            )
-        });
+    pub fn cache_line(&mut self, buffer: &[Vec<char>], i: usize) {
+        if !self.draw_cache.contains_key(&i) {
+            let mut state = self.near_state(buffer, i);
+            for i in i - (i % Self::CACHE_WIDTH)
+                ..min(
+                    buffer.len(),
+                    i - (i % Self::CACHE_WIDTH) + Self::CACHE_WIDTH,
+                )
+            {
+                let draw = state.highlight(
+                    &buffer[i].iter().collect::<String>(),
+                    self.syntax_set,
+                    &self.highlighter,
+                    self.bg,
+                );
+
+                self.draw_cache.insert(i, draw);
+            }
+        }
     }
 
     pub fn get_line(&self, i: usize) -> Option<&[(char, CharStyle)]> {
