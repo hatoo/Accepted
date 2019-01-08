@@ -237,8 +237,8 @@ impl<'a> DrawCache<'a> {
         self.draw_cache.get(&i).map(|v| v.as_slice())
     }
 
-    pub fn set_dirty_from(&mut self, dirty_from: usize) {
-        self.draw_cache.retain(|&k, _| k >= dirty_from);
+    pub fn dirty_from(&mut self, dirty_from: usize) {
+        self.draw_cache.clear();
         self.state_cache.drain(dirty_from / Self::CACHE_WIDTH..);
     }
 }

@@ -299,16 +299,17 @@ impl<'a> Buffer<'a> {
         );
         let mut cursor = None;
 
-        if self.core.buffer_changed() != self.buffer_update {
+        if self.buffer_update != self.core.buffer_changed() {
             self.buffer_update = self.core.buffer_changed();
-            self.cache = DrawCache::new(&self.syntax);
+            self.cache.dirty_from(self.core.dirty_from);
         }
 
         'outer: for i in self.row_offset..self.core.buffer().len() {
             self.cache.cache_line(self.core.buffer(), i);
             let line_ref = self.cache.get_line(i).unwrap();
-            // let line_ref = self.cache.highlight_line(self.core.buffer(), i);
             let mut line = Cow::Borrowed(line_ref);
+
+            self.core.dirty_from = i;
 
             if !self.search.is_empty() && line.len() >= self.search.len() {
                 for j in 0..=line.len() - self.search.len() {
