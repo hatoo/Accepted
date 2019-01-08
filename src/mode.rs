@@ -562,10 +562,10 @@ impl Insert {
     }
 
     fn build_completion(&mut self, buf: &mut Buffer) {
-        if self.buf_update == buf.core.buffer_changed {
+        if self.buf_update == buf.core.buffer_changed() {
             return;
         }
-        self.buf_update = buf.core.buffer_changed;
+        self.buf_update = buf.core.buffer_changed();
         let prefix = Self::token(&buf.core);
         let start_completion = {
             let i = buf.core.cursor().col;

@@ -285,7 +285,7 @@ impl<'a> Buffer<'a> {
         self.set_language(extension);
 
         self.row_offset = 0;
-        self.last_save = core.buffer_changed;
+        self.last_save = core.buffer_changed();
         self.core = core;
         self.path = Some(path.as_ref().to_path_buf());
         self.cache = DrawCache::new(&self.syntax);
@@ -364,14 +364,14 @@ impl<'a> Buffer<'a> {
     pub fn compile(&mut self, is_optimize: bool) {
         if self.last_compiler_submit
             == (CompileId {
-                id: self.core.buffer_changed,
+                id: self.core.buffer_changed(),
                 is_optimize,
             })
         {
             return;
         }
         self.last_compiler_submit = CompileId {
-            id: self.core.buffer_changed,
+            id: self.core.buffer_changed(),
             is_optimize,
         };
 
@@ -434,8 +434,8 @@ impl<'a> Buffer<'a> {
         );
         let mut cursor = None;
 
-        if self.core.buffer_changed != self.buffer_update {
-            self.buffer_update = self.core.buffer_changed;
+        if self.core.buffer_changed() != self.buffer_update {
+            self.buffer_update = self.core.buffer_changed();
             self.cache = DrawCache::new(&self.syntax);
         }
 

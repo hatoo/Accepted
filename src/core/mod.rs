@@ -81,7 +81,7 @@ pub struct Core {
     history: Vec<Vec<Box<Operation>>>,
     history_tmp: Vec<Box<Operation>>,
     redo: Vec<Vec<Box<Operation>>>,
-    pub buffer_changed: Id,
+    buffer_changed: Id,
 }
 
 impl Default for Core {
@@ -98,6 +98,10 @@ impl Default for Core {
 }
 
 impl Core {
+    pub fn buffer_changed(&self) -> Id {
+        self.buffer_changed
+    }
+
     pub fn char_at_cursor(&self) -> Option<char> {
         self.buffer
             .get(self.cursor.row)
