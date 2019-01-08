@@ -163,14 +163,14 @@ impl Operation for Set {
             self.from = Some(arg.buffer.clone());
         }
 
-        *arg.buffer = self.to.clone();
+        arg.buffer.clone_from(&self.to);
         arg.cursor.row = min(arg.buffer.len() - 1, arg.cursor.row);
         arg.cursor.col = min(arg.buffer[arg.cursor.row].len(), arg.cursor.col);
         Some(0)
     }
 
     fn undo(&mut self, arg: OperationArg) -> Option<usize> {
-        *arg.buffer = self.from.as_ref().unwrap().clone();
+        arg.buffer.clone_from(self.from.as_ref().unwrap());
         arg.cursor.row = min(arg.buffer.len() - 1, arg.cursor.row);
         arg.cursor.col = min(arg.buffer[arg.cursor.row].len(), arg.cursor.col);
         Some(0)
