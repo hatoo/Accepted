@@ -404,13 +404,16 @@ impl Core {
             buffer = vec![Vec::new()];
         }
 
-        let op = operation::Set::new(buffer);
-        self.perform(op);
-
         if clear_history {
+            self.buffer = buffer;
+            self.buffer_changed.inc();
+            self.dirty_from = 0;
             self.redo.clear();
             self.history.clear();
             self.history_tmp.clear();
+        } else {
+            let op = operation::Set::new(buffer);
+            self.perform(op);
         }
     }
 
