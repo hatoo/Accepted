@@ -1,7 +1,7 @@
 use draw;
 use draw::CharStyle;
 use std::cmp::min;
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 use syntax;
 use syntect::highlighting::Color;
 use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter};
@@ -166,7 +166,7 @@ pub struct DrawCache<'a> {
     highlighter: Highlighter<'a>,
     bg: Color,
     state_cache: Vec<DrawState>,
-    draw_cache: BTreeMap<usize, Vec<(char, CharStyle)>>,
+    draw_cache: HashMap<usize, Vec<(char, CharStyle)>>,
 }
 
 impl<'a> DrawCache<'a> {
@@ -180,7 +180,7 @@ impl<'a> DrawCache<'a> {
             syntax_set: syntax.syntax_set,
             highlighter,
             state_cache: Vec::new(),
-            draw_cache: BTreeMap::new(),
+            draw_cache: HashMap::new(),
             bg,
         }
     }
@@ -235,5 +235,10 @@ impl<'a> DrawCache<'a> {
 
     pub fn get_line(&self, i: usize) -> Option<&[(char, CharStyle)]> {
         self.draw_cache.get(&i).map(|v| v.as_slice())
+    }
+
+    pub fn set_dirty_from(&mut self, dirty_from: usize) {
+        self.draw_cache.retain(|&k, _| k >= dirty_from);
+        self.state_cache.drain(dirty_from / Self::CACHE_WIDTH..);
     }
 }
