@@ -307,6 +307,7 @@ impl<'a> Buffer<'a> {
         'outer: for i in self.row_offset..self.core.buffer().len() {
             self.cache.cache_line(self.core.buffer(), i);
             let line_ref = self.cache.get_line(i).unwrap();
+            // let line_ref = self.cache.highlight_line(self.core.buffer(), i);
             let mut line = Cow::Borrowed(line_ref);
 
             if !self.search.is_empty() && line.len() >= self.search.len() {
