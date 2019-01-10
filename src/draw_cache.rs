@@ -2,6 +2,7 @@ use draw;
 use draw::CharStyle;
 use std::cmp::min;
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 use syntax;
 use syntect::highlighting::Color;
 use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter};
@@ -167,6 +168,7 @@ pub struct DrawCache<'a> {
     bg: Color,
     state_cache: Vec<DrawState>,
     draw_cache: HashMap<usize, Vec<(char, CharStyle)>>,
+    draw_cache_pseudo: HashMap<usize, Vec<(char, CharStyle)>>,
 }
 
 impl<'a> DrawCache<'a> {
@@ -181,40 +183,73 @@ impl<'a> DrawCache<'a> {
             highlighter,
             state_cache: Vec::new(),
             draw_cache: HashMap::new(),
+            draw_cache_pseudo: HashMap::new(),
             bg,
         }
     }
 
-    fn near_state(&mut self, buffer: &[Vec<char>], i: usize) -> DrawState {
-        if i / Self::CACHE_WIDTH == 0 {
-            return DrawState::new(self.syntax, &self.highlighter);
-        }
+    fn start_state(&self) -> DrawState {
+        DrawState::new(self.syntax, &self.highlighter)
+    }
 
-        while self.state_cache.len() < i / Self::CACHE_WIDTH {
+    pub fn extend_cache_duration(&mut self, buffer: &[Vec<char>], duration: Duration) {
+        let start = Instant::now();
+        while self.state_cache.len() < buffer.len() / Self::CACHE_WIDTH {
             let mut state = self
                 .state_cache
                 .last()
                 .cloned()
-                .unwrap_or_else(|| DrawState::new(self.syntax, &self.highlighter));
+                .unwrap_or_else(|| self.start_state());
 
-            for i in self.state_cache.len() * Self::CACHE_WIDTH
-                ..self.state_cache.len() * Self::CACHE_WIDTH + Self::CACHE_WIDTH
+            for line in &buffer[self.state_cache.len() * Self::CACHE_WIDTH
+                ..(self.state_cache.len() + 1) * Self::CACHE_WIDTH]
             {
                 state.next(
-                    &buffer[i].iter().collect::<String>(),
+                    &line.iter().collect::<String>(),
                     self.syntax_set,
                     &self.highlighter,
                 );
             }
+
             self.state_cache.push(state);
+
+            if Instant::now() - start >= duration {
+                return;
+            }
+        }
+    }
+
+    fn near_state(&mut self, i: usize) -> Option<DrawState> {
+        if i / Self::CACHE_WIDTH == 0 {
+            return Some(self.start_state());
         }
 
-        self.state_cache[i / Self::CACHE_WIDTH - 1].clone()
+        self.state_cache.get(i / Self::CACHE_WIDTH - 1).cloned()
     }
 
     pub fn cache_line(&mut self, buffer: &[Vec<char>], i: usize) {
         if !self.draw_cache.contains_key(&i) {
-            let mut state = self.near_state(buffer, i);
+            if let Some(mut state) = self.near_state(i) {
+                for i in i - (i % Self::CACHE_WIDTH)
+                    ..min(
+                        buffer.len(),
+                        i - (i % Self::CACHE_WIDTH) + Self::CACHE_WIDTH,
+                    )
+                {
+                    let draw = state.highlight(
+                        &buffer[i].iter().collect::<String>(),
+                        self.syntax_set,
+                        &self.highlighter,
+                        self.bg,
+                    );
+
+                    self.draw_cache.insert(i, draw);
+                }
+            }
+        }
+
+        if !self.draw_cache.contains_key(&i) && !self.draw_cache_pseudo.contains_key(&i) {
+            let mut state = self.start_state();
             for i in i - (i % Self::CACHE_WIDTH)
                 ..min(
                     buffer.len(),
@@ -228,17 +263,21 @@ impl<'a> DrawCache<'a> {
                     self.bg,
                 );
 
-                self.draw_cache.insert(i, draw);
+                self.draw_cache_pseudo.insert(i, draw);
             }
         }
     }
 
     pub fn get_line(&self, i: usize) -> Option<&[(char, CharStyle)]> {
-        self.draw_cache.get(&i).map(|v| v.as_slice())
+        self.draw_cache
+            .get(&i)
+            .map(|v| v.as_slice())
+            .or(self.draw_cache_pseudo.get(&i).map(|v| v.as_slice()))
     }
 
     pub fn dirty_from(&mut self, dirty_from: usize) {
         self.draw_cache.clear();
+        self.draw_cache_pseudo.clear();
         self.state_cache.drain(dirty_from / Self::CACHE_WIDTH..);
     }
 }
