@@ -99,6 +99,11 @@ impl<'a> Buffer<'a> {
         }
     }
 
+    pub fn extend_cache_duration(&mut self, duration: std::time::Duration) {
+        self.cache
+            .extend_cache_duration(self.core.buffer(), duration);
+    }
+
     pub fn restart_lsp(&mut self) {
         self.lsp = self.language.start_lsp();
     }

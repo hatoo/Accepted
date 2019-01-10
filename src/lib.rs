@@ -33,7 +33,7 @@ use core::Core;
 use mode::{Mode, Normal, Transition};
 
 pub struct BufferMode<'a> {
-    buf: Buffer<'a>,
+    pub buf: Buffer<'a>,
     mode: Box<Mode>,
     is_recording: bool,
     dot_macro: Vec<termion::event::Event>,

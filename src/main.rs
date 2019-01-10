@@ -22,7 +22,7 @@ use std::io::{stdin, stdout, Write};
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use accepted::draw::DoubleBuffer;
 use accepted::{Buffer, BufferMode};
@@ -112,8 +112,20 @@ fn main() {
 
     let mut draw = DoubleBuffer::default();
 
+    let frame = Duration::from_secs(1) / 60;
+
     loop {
-        if let Ok(evt) = rx.recv_timeout(Duration::from_millis(16)) {
+        let start_frame = Instant::now();
+        state.buf.extend_cache_duration(frame);
+        let now = Instant::now();
+
+        let evt = if (now - start_frame) > frame {
+            rx.try_recv().ok()
+        } else {
+            rx.recv_timeout(frame - (now - start_frame)).ok()
+        };
+
+        if let Some(evt) = evt {
             if evt == Event::Key(Key::Ctrl('l')) {
                 draw.redraw();
             }
