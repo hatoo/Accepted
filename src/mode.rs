@@ -1,12 +1,13 @@
-use buffer::Buffer;
-use buffer::Yank;
-use clipboard;
-use core::Core;
-use core::Cursor;
-use core::CursorRange;
-use core::Id;
-use draw;
-use indent;
+use crate::buffer::Buffer;
+use crate::buffer::Yank;
+use crate::clipboard;
+use crate::core::Core;
+use crate::core::Cursor;
+use crate::core::CursorRange;
+use crate::core::Id;
+use crate::draw;
+use crate::indent;
+use crate::text_object;
 use shellexpand;
 use std;
 use std::cmp::{max, min};
@@ -21,7 +22,6 @@ use std::thread;
 use std::time::Instant;
 use termion;
 use termion::event::{Event, Key, MouseButton, MouseEvent};
-use text_object;
 
 pub enum Transition {
     Nothing,
@@ -40,7 +40,7 @@ impl<T: Mode + 'static> From<T> for Transition {
 }
 
 pub trait Mode {
-    fn init(&mut self, &mut Buffer) {}
+    fn init(&mut self, _buf: &mut Buffer) {}
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition;
     fn draw(&mut self, core: &mut Buffer, term: &mut draw::Term);
 }

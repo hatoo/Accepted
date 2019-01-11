@@ -8,6 +8,7 @@ readme = "README.md"
 keywords = ["text", "editor", "terminal", "modal", "competitive"]
 categories = ["text-editors"]
 license = "MIT"
+edition = "2018"
 
 [[bin]]
 name = "acc"

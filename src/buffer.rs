@@ -1,24 +1,24 @@
-use core::Cursor;
-use core::CursorRange;
-use core::Id;
-use draw;
-use draw::{CharStyle, LinenumView, View};
-use draw_cache::DrawCache;
-use language_specific;
-use language_specific::CompileId;
-use language_specific::CompileResult;
-use lsp::LSPClient;
+use crate::core::Cursor;
+use crate::core::CursorRange;
+use crate::core::Id;
+use crate::draw;
+use crate::draw::{CharStyle, LinenumView, View};
+use crate::draw_cache::DrawCache;
+use crate::language_specific;
+use crate::language_specific::CompileId;
+use crate::language_specific::CompileResult;
+use crate::lsp::LSPClient;
+use crate::syntax;
+use crate::Core;
 use std::borrow::Cow;
 use std::cmp::{max, min};
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use syntax;
 use syntect::highlighting::FontStyle;
 use termion;
 use unicode_width::UnicodeWidthChar;
-use Core;
 
 pub struct Yank {
     pub insert_newline: bool,

@@ -1,4 +1,4 @@
-use core::CursorRange;
+use crate::core::CursorRange;
 
 pub struct CompilerOutput {
     pub message: String,

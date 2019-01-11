@@ -1,9 +1,9 @@
-use draw;
-use draw::CharStyle;
+use crate::draw;
+use crate::draw::CharStyle;
+use crate::syntax;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use syntax;
 use syntect::highlighting::Color;
 use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter};
 use syntect::parsing::SyntaxSet;

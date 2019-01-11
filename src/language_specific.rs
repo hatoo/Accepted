@@ -1,11 +1,11 @@
-use compiler::CompilerOutput;
-use core::Cursor;
-use core::CursorRange;
-use core::Id;
-use formatter;
-use lsp;
+use crate::compiler::CompilerOutput;
+use crate::core::Cursor;
+use crate::core::CursorRange;
+use crate::core::Id;
+use crate::formatter;
+use crate::lsp;
+use crate::rustc;
 use regex;
-use rustc;
 use std::ffi::OsString;
 use std::io;
 use std::io::BufRead;
@@ -102,7 +102,7 @@ impl Default for Rust {
 
                 if let Ok(rustc) = rustc.stderr(process::Stdio::piped()).output() {
                     success = rustc.status.success();
-                    let mut buf = rustc.stderr;
+                    let buf = rustc.stderr;
                     let mut reader = io::Cursor::new(buf);
                     let mut line = String::new();
 
@@ -162,7 +162,7 @@ impl Default for Cpp {
 
                 if let Ok(clang) = clang.stderr(process::Stdio::piped()).output() {
                     success = clang.status.success();
-                    let mut buf = clang.stderr;
+                    let buf = clang.stderr;
                     let mut reader = io::Cursor::new(buf);
                     let mut line = String::new();
 

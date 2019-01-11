@@ -1,8 +1,8 @@
-use core::Cursor;
+use crate::core::Cursor;
+use crate::mode::Completion;
 use jsonrpc_core;
 use jsonrpc_core::Output;
 use languageserver_types;
-use mode::Completion;
 use serde;
 use serde_json;
 use std::collections::HashMap;
@@ -125,7 +125,7 @@ impl LSPClient {
                         >(suc.result)
                         .unwrap();
 
-                        let mut completion = extract_completion(completion);
+                        let completion = extract_completion(completion);
                         tx.send(completion).unwrap();
                     }
                 }

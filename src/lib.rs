@@ -28,9 +28,9 @@ pub mod syntax;
 mod text_object;
 pub mod theme;
 
-pub use buffer::Buffer;
-use core::Core;
-use mode::{Mode, Normal, Transition};
+pub use crate::buffer::Buffer;
+use crate::core::Core;
+use crate::mode::{Mode, Normal, Transition};
 
 pub struct BufferMode<'a> {
     pub buf: Buffer<'a>,

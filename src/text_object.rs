@@ -1,4 +1,4 @@
-use core::{Core, Cursor, CursorRange};
+use crate::core::{Core, Cursor, CursorRange};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Prefix {

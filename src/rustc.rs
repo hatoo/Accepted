@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use compiler::CompilerOutput;
-use core::{Cursor, CursorRange};
+use crate::compiler::CompilerOutput;
+use crate::core::{Cursor, CursorRange};
 use serde_json;
 use serde_json::Value;
 

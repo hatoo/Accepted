@@ -1,4 +1,4 @@
-use core::Cursor;
+use crate::core::Cursor;
 use std::cmp::min;
 use std::fmt::Debug;
 

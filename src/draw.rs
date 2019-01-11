@@ -1,6 +1,6 @@
-use compiler::CompilerOutput;
-use core::Cursor;
-use cursor;
+use crate::compiler::CompilerOutput;
+use crate::core::Cursor;
+use crate::cursor;
 use std;
 use std::fmt;
 use std::io::Write;
