@@ -1,16 +1,4 @@
-extern crate accepted;
-#[macro_use]
-extern crate clap;
-extern crate config;
-extern crate dirs;
-extern crate serde;
-extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
-extern crate shellexpand;
-extern crate syntect;
-extern crate termion;
-
+use serde_derive::{Deserialize, Serialize};
 use termion::event::{Event, Key};
 use termion::input::{MouseTerminal, TermRead};
 use termion::raw::IntoRawMode;
@@ -27,7 +15,7 @@ use std::time::{Duration, Instant};
 use accepted::draw::DoubleBuffer;
 use accepted::{Buffer, BufferMode};
 
-use clap::{App, Arg};
+use clap::{crate_authors, crate_version, App, Arg};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct SnippetSet(HashMap<String, Snippet>);

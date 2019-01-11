@@ -1,16 +1,3 @@
-extern crate jsonrpc_core;
-extern crate languageserver_types;
-extern crate regex;
-extern crate serde;
-extern crate serde_json;
-extern crate shellexpand;
-extern crate syntect;
-extern crate termion;
-extern crate unicode_width;
-
-#[macro_use]
-extern crate serde_derive;
-
 mod buffer;
 mod clipboard;
 mod compiler;

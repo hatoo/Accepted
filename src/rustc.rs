@@ -2,6 +2,7 @@
 
 use crate::compiler::CompilerOutput;
 use crate::core::{Cursor, CursorRange};
+use serde_derive::Deserialize;
 use serde_json;
 use serde_json::Value;
 
