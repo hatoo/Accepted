@@ -135,6 +135,11 @@ struct ViewProcess {
     pub end: Option<Instant>,
 }
 
+#[derive(Default)]
+struct Goto {
+    row: Vec<char>,
+}
+
 impl ViewProcess {
     fn with_process(mut child: process::Child) -> Option<Self> {
         let now = Instant::now();
@@ -898,6 +903,9 @@ impl Mode for Prefix {
             Event::Key(Key::Char('q')) => {
                 return Transition::Exit;
             }
+            Event::Key(Key::Char('g')) => {
+                return Goto::default().into();
+            }
             Event::Key(Key::Char('s')) => {
                 if let Some(path) = buf.path().map(|p| p.to_string_lossy().into_owned()) {
                     buf.format();
@@ -1486,6 +1494,54 @@ impl Mode for Find {
             footer.puts("find ->", draw::CharStyle::Footer);
         } else {
             footer.puts("find <-", draw::CharStyle::Footer);
+        }
+    }
+}
+
+impl Mode for Goto {
+    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+        match event {
+            Event::Key(Key::Esc) => {
+                return Transition::Return(None, false);
+            }
+            Event::Key(Key::Backspace) => {
+                buf.search.pop();
+            }
+            Event::Key(Key::Char(c)) => {
+                if c == '\n' {
+                    if let Ok(mut row) = self.row.iter().collect::<String>().parse::<usize>() {
+                        if row > 0 {
+                            row -= 1;
+                        }
+                        row = min(row, buf.core.buffer().len() - 1);
+
+                        buf.core.set_cursor(Cursor { row, col: 0 });
+                        buf.show_cursor();
+                        return Transition::Return(None, false);
+                    } else {
+                        return Transition::Return(Some("[Goto] Parse failed".into()), false);
+                    }
+                } else {
+                    self.row.push(c);
+                }
+            }
+            _ => {}
+        }
+        Transition::Nothing
+    }
+
+    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
+        let height = term.height - 1;
+        let width = term.width;
+        let cursor = buf.draw(term.view((0, 0), height, width));
+        term.cursor = cursor
+            .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
+            .unwrap_or(draw::CursorState::Hide);
+
+        let mut footer = term.view((height, 0), 1, width);
+        footer.puts("Goto: ", draw::CharStyle::Default);
+        for &c in &self.row {
+            footer.put(c, draw::CharStyle::Default, None);
         }
     }
 }
