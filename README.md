@@ -30,7 +30,7 @@ You need nightly Rust.
 $ cargo install accepted
 ```
 
-### For Rust user
+### For Rust users
 
 Install rust components.
 
@@ -40,7 +40,7 @@ $ rustup component add rust-src
 $ rustup component add rustfmt-preview
 ```
 
-### For C++ User
+### For C++ users
 
 Install clang, clang-format and clangd.
 
