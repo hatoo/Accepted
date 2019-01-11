@@ -14,6 +14,7 @@ use std::borrow::Cow;
 use std::cmp::{max, min};
 use std::collections::BTreeMap;
 use std::fs;
+use std::io::BufWriter;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use syntect::highlighting::FontStyle;
@@ -164,9 +165,13 @@ impl<'a> Buffer<'a> {
 
     pub fn save(&mut self, is_optimize: bool) -> bool {
         let saved = if let Some(path) = self.path.as_ref() {
-            if let Ok(mut f) = fs::File::create(path) {
+            if let Ok(f) = fs::File::create(path) {
+                let mut f = BufWriter::new(f);
                 for line in self.core.buffer() {
-                    writeln!(f, "{}", line.iter().collect::<String>()).unwrap();
+                    for &c in line {
+                        write!(f, "{}", c).unwrap();
+                    }
+                    writeln!(f).unwrap();
                 }
                 true
             } else {
