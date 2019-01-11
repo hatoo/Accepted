@@ -486,13 +486,22 @@ impl Mode for Normal {
         } else {
             footer.puts(
                 &format!(
-                    "[Normal] ({} {}) [{}] {}",
+                    "[Normal] ({} {}) [{}] {} {}",
                     buf.core.cursor().row + 1,
                     buf.core.cursor().col + 1,
                     buf.path()
                         .map(|p| p.to_string_lossy())
                         .unwrap_or_else(|| "*".into()),
-                    &self.message
+                    &self.message,
+                    if let Some(success) = buf.last_compile_success() {
+                        if success {
+                            "[Compile: Success]"
+                        } else {
+                            "[Compile: Failed]"
+                        }
+                    } else {
+                        ""
+                    },
                 ),
                 draw::CharStyle::Footer,
             );

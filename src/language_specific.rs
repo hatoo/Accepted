@@ -22,6 +22,12 @@ pub struct CompileId {
     pub is_optimize: bool,
 }
 
+#[derive(Default)]
+pub struct CompileResult {
+    pub success: bool,
+    pub messages: Vec<CompilerOutput>,
+}
+
 pub trait Language {
     fn start_lsp(&self) -> Option<lsp::LSPClient>;
     fn indent_width(&self) -> usize {
@@ -31,11 +37,11 @@ pub trait Language {
     // Must be async
     fn compile(&self, _path: path::PathBuf, _compile_id: CompileId) {}
     // Do not Block
-    fn try_recv_compile_message(&self) -> Option<(CompileId, Vec<CompilerOutput>)> {
+    fn try_recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
         None
     }
     // Block
-    fn recv_compile_message(&self) -> Option<(CompileId, Vec<CompilerOutput>)> {
+    fn recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
         None
     }
     fn is_compiling(&self) -> bool {
@@ -54,19 +60,19 @@ pub fn detect_language(extension: &str) -> Box<dyn Language> {
 pub struct Cpp {
     jobs: Arc<Mutex<usize>>,
     compile_tx: mpsc::Sender<(PathBuf, CompileId)>,
-    message_rx: mpsc::Receiver<(CompileId, Vec<CompilerOutput>)>,
+    message_rx: mpsc::Receiver<(CompileId, CompileResult)>,
 }
 pub struct Rust {
     jobs: Arc<Mutex<usize>>,
     compile_tx: mpsc::Sender<(PathBuf, CompileId)>,
-    message_rx: mpsc::Receiver<(CompileId, Vec<CompilerOutput>)>,
+    message_rx: mpsc::Receiver<(CompileId, CompileResult)>,
 }
 pub struct Text;
 
 impl Default for Rust {
     fn default() -> Self {
         let (compile_tx, compile_rx) = mpsc::channel::<(PathBuf, CompileId)>();
-        let (message_tx, message_rx) = mpsc::channel::<(CompileId, Vec<CompilerOutput>)>();
+        let (message_tx, message_rx) = mpsc::channel::<(CompileId, CompileResult)>();
         let jobs = Arc::new(Mutex::new(0));
 
         let j = jobs.clone();
@@ -92,7 +98,10 @@ impl Default for Rust {
                 }
 
                 let mut messages = Vec::new();
+                let mut success = false;
+
                 if let Ok(rustc) = rustc.stderr(process::Stdio::piped()).output() {
+                    success = rustc.status.success();
                     let mut buf = rustc.stderr;
                     let mut reader = io::Cursor::new(buf);
                     let mut line = String::new();
@@ -111,7 +120,9 @@ impl Default for Rust {
                     let mut data = j.lock().unwrap();
                     *data -= 1;
                 }
-                message_tx.send((req, messages)).unwrap();
+                message_tx
+                    .send((req, CompileResult { messages, success }))
+                    .unwrap();
             }
         });
 
@@ -126,7 +137,7 @@ impl Default for Rust {
 impl Default for Cpp {
     fn default() -> Self {
         let (compile_tx, compile_rx) = mpsc::channel::<(PathBuf, CompileId)>();
-        let (message_tx, message_rx) = mpsc::channel::<(CompileId, Vec<CompilerOutput>)>();
+        let (message_tx, message_rx) = mpsc::channel::<(CompileId, CompileResult)>();
         let jobs = Arc::new(Mutex::new(0));
 
         let j = jobs.clone();
@@ -147,8 +158,10 @@ impl Default for Cpp {
                 }
 
                 let mut messages = Vec::new();
+                let mut success = false;
 
                 if let Ok(clang) = clang.stderr(process::Stdio::piped()).output() {
+                    success = clang.status.success();
                     let mut buf = clang.stderr;
                     let mut reader = io::Cursor::new(buf);
                     let mut line = String::new();
@@ -184,7 +197,9 @@ impl Default for Cpp {
                     let mut data = j.lock().unwrap();
                     *data -= 1;
                 }
-                message_tx.send((req, messages)).unwrap();
+                message_tx
+                    .send((req, CompileResult { success, messages }))
+                    .unwrap();
             }
         });
 
@@ -212,10 +227,10 @@ impl Language for Cpp {
         *j += 1;
         self.compile_tx.send((path, compile_id)).unwrap();
     }
-    fn try_recv_compile_message(&self) -> Option<(CompileId, Vec<CompilerOutput>)> {
+    fn try_recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
         self.message_rx.try_recv().ok()
     }
-    fn recv_compile_message(&self) -> Option<(CompileId, Vec<CompilerOutput>)> {
+    fn recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
         self.message_rx.recv().ok()
     }
     fn is_compiling(&self) -> bool {
@@ -235,11 +250,11 @@ impl Language for Rust {
         *j += 1;
         self.compile_tx.send((path, compile_id)).unwrap();
     }
-    fn try_recv_compile_message(&self) -> Option<(CompileId, Vec<CompilerOutput>)> {
+    fn try_recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
         self.message_rx
             .try_recv()
             .map(|mut res| {
-                for m in &mut res.1 {
+                for m in &mut res.1.messages {
                     let r = m.span.r_mut();
                     if r.col > 0 {
                         r.col -= 1;
@@ -249,11 +264,11 @@ impl Language for Rust {
             })
             .ok()
     }
-    fn recv_compile_message(&self) -> Option<(CompileId, Vec<CompilerOutput>)> {
+    fn recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
         self.message_rx
             .recv()
             .map(|mut res| {
-                for m in &mut res.1 {
+                for m in &mut res.1.messages {
                     let r = m.span.r_mut();
                     if r.col > 0 {
                         r.col -= 1;

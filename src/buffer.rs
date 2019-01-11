@@ -1,4 +1,3 @@
-use compiler::CompilerOutput;
 use core::Cursor;
 use core::CursorRange;
 use core::Id;
@@ -7,6 +6,7 @@ use draw::{CharStyle, LinenumView, View};
 use draw_cache::DrawCache;
 use language_specific;
 use language_specific::CompileId;
+use language_specific::CompileResult;
 use lsp::LSPClient;
 use std::borrow::Cow;
 use std::cmp::{max, min};
@@ -62,7 +62,7 @@ pub struct Buffer<'a> {
     pub lsp: Option<LSPClient>,
     language: Box<dyn language_specific::Language>,
     row_offset: usize,
-    compiler_outputs: Vec<CompilerOutput>,
+    last_compiler_result: Option<CompileResult>,
     cache: DrawCache<'a>,
     buffer_update: Id,
     last_compiler_submit: CompileId,
@@ -91,7 +91,7 @@ impl<'a> Buffer<'a> {
             lsp: language.start_lsp(),
             language,
             row_offset: 0,
-            compiler_outputs: Vec::new(),
+            last_compiler_result: None,
             syntax_parent,
             buffer_update: Id::default(),
             last_compiler_submit: CompileId::default(),
@@ -251,32 +251,39 @@ impl<'a> Buffer<'a> {
         }
     }
 
+    pub fn last_compile_success(&self) -> Option<bool> {
+        self.last_compiler_result.as_ref().map(|res| res.success)
+    }
+
     fn is_annotate(&self, cursor: Cursor) -> bool {
-        self.compiler_outputs
-            .iter()
-            .any(|r| r.span.contains(cursor))
+        self.last_compiler_result
+            .as_ref()
+            .map(|res| res.messages.iter().any(|r| r.span.contains(cursor)))
+            .unwrap_or(false)
     }
 
     pub fn compiler_message_on_cursor(&self) -> Option<&str> {
         let line = self.core.cursor().row;
-        self.compiler_outputs
-            .iter()
-            .find(|r| r.line == line)
-            .map(|r| r.message.as_str())
+        self.last_compiler_result.as_ref().and_then(|res| {
+            res.messages
+                .iter()
+                .find(|r| r.line == line)
+                .map(|r| r.message.as_str())
+        })
     }
 
     pub fn poll_compile_message(&mut self) {
-        while let Some((id, msg)) = self.language.try_recv_compile_message() {
+        while let Some((id, res)) = self.language.try_recv_compile_result() {
             self.last_compiler_compiled = id;
-            self.compiler_outputs = msg;
+            self.last_compiler_result = Some(res);
         }
     }
 
     pub fn wait_compile_message(&mut self) {
         while self.is_compiling() {
-            if let Some((id, msg)) = self.language.recv_compile_message() {
+            if let Some((id, res)) = self.language.recv_compile_result() {
                 self.last_compiler_compiled = id;
-                self.compiler_outputs = msg;
+                self.last_compiler_result = Some(res);
             }
         }
     }
@@ -296,10 +303,16 @@ impl<'a> Buffer<'a> {
         selected: Option<CursorRange>,
     ) -> Option<Cursor> {
         view.bg = self.syntax.theme.settings.background;
+        let v = Vec::new();
+        let compiler_outputs = self
+            .last_compiler_result
+            .as_ref()
+            .map(|res| &res.messages)
+            .unwrap_or_else(|| &v);
         let mut view = LinenumView::new(
             self.row_offset,
             self.core.buffer().len(),
-            &self.compiler_outputs,
+            &compiler_outputs,
             view,
         );
         let mut cursor = None;
