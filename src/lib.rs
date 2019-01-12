@@ -7,6 +7,7 @@ pub mod draw;
 mod draw_cache;
 mod formatter;
 mod indent;
+mod job_queue;
 mod language_specific;
 mod lsp;
 mod mode;
