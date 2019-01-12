@@ -491,31 +491,32 @@ impl Mode for Normal {
         } else {
             footer.puts(
                 &format!(
-                    "[Normal] ({} {}) [{}] {} {}",
+                    "[Normal] ({} {}) [{}] {}",
                     buf.core.cursor().row + 1,
                     buf.core.cursor().col + 1,
                     buf.path()
                         .map(|p| p.to_string_lossy())
                         .unwrap_or_else(|| "*".into()),
                     &self.message,
-                    if let Some(success) = buf.last_compile_success() {
-                        if success {
-                            "[Compile: Success]"
-                        } else {
-                            "[Compile: Failed]"
-                        }
-                    } else {
-                        ""
-                    },
                 ),
                 draw::CharStyle::Footer,
             );
+
             if buf.is_compiling() {
                 let animation = [
                     '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏',
                 ];
                 let a = animation[self.frame % animation.len()];
                 footer.puts(&format!(" {}Compiling ...", a), draw::CharStyle::Footer);
+            } else {
+                if let Some(success) = buf.last_compile_success() {
+                    let msg = if success {
+                        " [Compile: Success]"
+                    } else {
+                        " [Compile: Failed]"
+                    };
+                    footer.puts(msg, draw::CharStyle::Footer);
+                }
             }
         }
         self.frame = (std::num::Wrapping(self.frame) + std::num::Wrapping(1)).0;
