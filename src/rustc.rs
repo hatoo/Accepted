@@ -14,10 +14,15 @@ pub fn parse_rustc_json(json: &str) -> Option<CompilerOutput> {
         row: span.line_start - 1,
         col: span.column_start - 1,
     };
-    let end = Cursor {
+    let mut end = Cursor {
         row: span.line_end - 1,
         col: span.column_end - 1,
     };
+
+    if end.col > 0 {
+        end.col -= 1;
+    }
+
     let span = CursorRange(start, end);
 
     Some(CompilerOutput {

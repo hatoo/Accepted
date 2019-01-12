@@ -8,7 +8,7 @@ pub struct JobQueue<S, T> {
     t_rx: mpsc::Receiver<T>,
 }
 
-impl<S: Send + Sync + 'static, T: Send + 'static> JobQueue<S, T> {
+impl<S: Send + 'static, T: Send + 'static> JobQueue<S, T> {
     pub fn new<F: FnMut(S) -> T + Send + 'static>(mut func: F) -> Self {
         let jobs = Arc::new(Mutex::new(0));
         let (s_tx, s_rx) = mpsc::channel();

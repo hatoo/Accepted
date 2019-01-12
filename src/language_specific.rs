@@ -3,6 +3,7 @@ use crate::core::Cursor;
 use crate::core::CursorRange;
 use crate::core::Id;
 use crate::formatter;
+use crate::job_queue::JobQueue;
 use crate::lsp;
 use crate::rustc;
 use regex;
@@ -12,9 +13,6 @@ use std::io::BufRead;
 use std::path;
 use std::path::PathBuf;
 use std::process;
-use std::sync::mpsc;
-use std::sync::{Arc, Mutex};
-use std::thread;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
 pub struct CompileId {
@@ -58,156 +56,111 @@ pub fn detect_language(extension: &str) -> Box<dyn Language> {
 }
 
 pub struct Cpp {
-    jobs: Arc<Mutex<usize>>,
-    compile_tx: mpsc::Sender<(PathBuf, CompileId)>,
-    message_rx: mpsc::Receiver<(CompileId, CompileResult)>,
+    job_queue: JobQueue<(PathBuf, CompileId), (CompileId, CompileResult)>,
 }
 pub struct Rust {
-    jobs: Arc<Mutex<usize>>,
-    compile_tx: mpsc::Sender<(PathBuf, CompileId)>,
-    message_rx: mpsc::Receiver<(CompileId, CompileResult)>,
+    job_queue: JobQueue<(PathBuf, CompileId), (CompileId, CompileResult)>,
 }
 pub struct Text;
 
 impl Default for Rust {
     fn default() -> Self {
-        let (compile_tx, compile_rx) = mpsc::channel::<(PathBuf, CompileId)>();
-        let (message_tx, message_rx) = mpsc::channel::<(CompileId, CompileResult)>();
-        let jobs = Arc::new(Mutex::new(0));
+        let job_queue = JobQueue::new(|(path, req): (PathBuf, CompileId)| {
+            let mut rustc = process::Command::new("rustc");
+            if req.is_optimize {
+                rustc.args(&[
+                    &OsString::from("-Z"),
+                    &OsString::from("unstable-options"),
+                    &OsString::from("--error-format=json"),
+                    &OsString::from("-O"),
+                    path.as_os_str(),
+                ]);
+            } else {
+                rustc.args(&[
+                    &OsString::from("-Z"),
+                    &OsString::from("unstable-options"),
+                    &OsString::from("--error-format=json"),
+                    path.as_os_str(),
+                ]);
+            }
 
-        let j = jobs.clone();
-        // Compiler thread
-        thread::spawn(move || {
-            for (path, req) in compile_rx {
-                let mut rustc = process::Command::new("rustc");
-                if req.is_optimize {
-                    rustc.args(&[
-                        &OsString::from("-Z"),
-                        &OsString::from("unstable-options"),
-                        &OsString::from("--error-format=json"),
-                        &OsString::from("-O"),
-                        path.as_os_str(),
-                    ]);
-                } else {
-                    rustc.args(&[
-                        &OsString::from("-Z"),
-                        &OsString::from("unstable-options"),
-                        &OsString::from("--error-format=json"),
-                        path.as_os_str(),
-                    ]);
-                }
+            let mut messages = Vec::new();
+            let mut success = false;
 
-                let mut messages = Vec::new();
-                let mut success = false;
+            if let Ok(rustc) = rustc.stderr(process::Stdio::piped()).output() {
+                success = rustc.status.success();
+                let buf = rustc.stderr;
+                let mut reader = io::Cursor::new(buf);
+                let mut line = String::new();
 
-                if let Ok(rustc) = rustc.stderr(process::Stdio::piped()).output() {
-                    success = rustc.status.success();
-                    let buf = rustc.stderr;
-                    let mut reader = io::Cursor::new(buf);
-                    let mut line = String::new();
-
-                    while {
-                        line.clear();
-                        reader.read_line(&mut line).is_ok() && !line.is_empty()
-                    } {
-                        if let Some(rustc_output) = rustc::parse_rustc_json(&line) {
-                            messages.push(rustc_output);
-                        }
+                while {
+                    line.clear();
+                    reader.read_line(&mut line).is_ok() && !line.is_empty()
+                } {
+                    if let Some(rustc_output) = rustc::parse_rustc_json(&line) {
+                        messages.push(rustc_output);
                     }
                 }
-
-                {
-                    let mut data = j.lock().unwrap();
-                    *data -= 1;
-                }
-                message_tx
-                    .send((req, CompileResult { messages, success }))
-                    .unwrap();
             }
+            (req, CompileResult { messages, success })
         });
 
-        Self {
-            jobs,
-            compile_tx,
-            message_rx,
-        }
+        Self { job_queue }
     }
 }
 
 impl Default for Cpp {
     fn default() -> Self {
-        let (compile_tx, compile_rx) = mpsc::channel::<(PathBuf, CompileId)>();
-        let (message_tx, message_rx) = mpsc::channel::<(CompileId, CompileResult)>();
-        let jobs = Arc::new(Mutex::new(0));
+        let job_queue = JobQueue::new(|(path, req): (PathBuf, CompileId)| {
+            let mut clang = process::Command::new("clang++");
+            let stem = path.file_stem().unwrap();
+            if req.is_optimize {
+                clang.args(&[
+                    path.as_os_str(),
+                    &OsString::from("-O2"),
+                    &OsString::from("-o"),
+                    stem,
+                ]);
+            } else {
+                clang.args(&[path.as_os_str(), &OsString::from("-o"), stem]);
+            }
 
-        let j = jobs.clone();
-        // Compiler thread
-        thread::spawn(move || {
-            for (path, req) in compile_rx {
-                let mut clang = process::Command::new("clang++");
-                let stem = path.file_stem().unwrap();
-                if req.is_optimize {
-                    clang.args(&[
-                        path.as_os_str(),
-                        &OsString::from("-O2"),
-                        &OsString::from("-o"),
-                        stem,
-                    ]);
-                } else {
-                    clang.args(&[path.as_os_str(), &OsString::from("-o"), stem]);
-                }
+            let mut messages = Vec::new();
+            let mut success = false;
 
-                let mut messages = Vec::new();
-                let mut success = false;
+            if let Ok(clang) = clang.stderr(process::Stdio::piped()).output() {
+                success = clang.status.success();
+                let buf = clang.stderr;
+                let mut reader = io::Cursor::new(buf);
+                let mut line = String::new();
 
-                if let Ok(clang) = clang.stderr(process::Stdio::piped()).output() {
-                    success = clang.status.success();
-                    let buf = clang.stderr;
-                    let mut reader = io::Cursor::new(buf);
-                    let mut line = String::new();
+                let re = regex::Regex::new(
+                    r"^[^:]*:(?P<line>\d*):(?P<col>\d*): (?P<level>[^:]*): (?P<msg>.*)",
+                )
+                .unwrap();
 
-                    let re = regex::Regex::new(
-                        r"^[^:]*:(?P<line>\d*):(?P<col>\d*): (?P<level>[^:]*): (?P<msg>.*)",
-                    )
-                    .unwrap();
+                while {
+                    line.clear();
+                    reader.read_line(&mut line).is_ok() && !line.is_empty()
+                } {
+                    if let Some(caps) = re.captures(&line) {
+                        let line = caps["line"].parse::<usize>().unwrap() - 1;
+                        let col = caps["col"].parse::<usize>().unwrap() - 1;
+                        let out = CompilerOutput {
+                            message: caps["msg"].into(),
+                            line,
+                            level: caps["level"].into(),
+                            span: CursorRange(Cursor { row: line, col }, Cursor { row: line, col }),
+                        };
 
-                    while {
-                        line.clear();
-                        reader.read_line(&mut line).is_ok() && !line.is_empty()
-                    } {
-                        if let Some(caps) = re.captures(&line) {
-                            let line = caps["line"].parse::<usize>().unwrap() - 1;
-                            let col = caps["col"].parse::<usize>().unwrap() - 1;
-                            let out = CompilerOutput {
-                                message: caps["msg"].into(),
-                                line,
-                                level: caps["level"].into(),
-                                span: CursorRange(
-                                    Cursor { row: line, col },
-                                    Cursor { row: line, col },
-                                ),
-                            };
-
-                            messages.push(out);
-                        }
+                        messages.push(out);
                     }
                 }
-
-                {
-                    let mut data = j.lock().unwrap();
-                    *data -= 1;
-                }
-                message_tx
-                    .send((req, CompileResult { success, messages }))
-                    .unwrap();
             }
+            (req, CompileResult { success, messages })
         });
 
-        Self {
-            jobs,
-            compile_tx,
-            message_rx,
-        }
+        Self { job_queue }
     }
 }
 
@@ -223,18 +176,16 @@ impl Language for Cpp {
         formatter::system_clang_format(src)
     }
     fn compile(&self, path: path::PathBuf, compile_id: CompileId) {
-        let mut j = self.jobs.lock().unwrap();
-        *j += 1;
-        self.compile_tx.send((path, compile_id)).unwrap();
+        self.job_queue.send((path, compile_id)).unwrap();
     }
     fn try_recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
-        self.message_rx.try_recv().ok()
+        self.job_queue.rx().try_recv().ok()
     }
     fn recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
-        self.message_rx.recv().ok()
+        self.job_queue.rx().recv().ok()
     }
     fn is_compiling(&self) -> bool {
-        *self.jobs.lock().unwrap() != 0
+        self.job_queue.is_running().unwrap()
     }
 }
 
@@ -246,40 +197,16 @@ impl Language for Rust {
         formatter::system_rustfmt(src)
     }
     fn compile(&self, path: path::PathBuf, compile_id: CompileId) {
-        let mut j = self.jobs.lock().unwrap();
-        *j += 1;
-        self.compile_tx.send((path, compile_id)).unwrap();
+        self.job_queue.send((path, compile_id)).unwrap();
     }
     fn try_recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
-        self.message_rx
-            .try_recv()
-            .map(|mut res| {
-                for m in &mut res.1.messages {
-                    let r = m.span.r_mut();
-                    if r.col > 0 {
-                        r.col -= 1;
-                    }
-                }
-                res
-            })
-            .ok()
+        self.job_queue.rx().try_recv().ok()
     }
     fn recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
-        self.message_rx
-            .recv()
-            .map(|mut res| {
-                for m in &mut res.1.messages {
-                    let r = m.span.r_mut();
-                    if r.col > 0 {
-                        r.col -= 1;
-                    }
-                }
-                res
-            })
-            .ok()
+        self.job_queue.rx().recv().ok()
     }
     fn is_compiling(&self) -> bool {
-        *self.jobs.lock().unwrap() != 0
+        self.job_queue.is_running().unwrap()
     }
 }
 
