@@ -508,15 +508,13 @@ impl Mode for Normal {
                 ];
                 let a = animation[self.frame % animation.len()];
                 footer.puts(&format!(" {}Compiling ...", a), draw::CharStyle::Footer);
-            } else {
-                if let Some(success) = buf.last_compile_success() {
-                    let msg = if success {
-                        " [Compile: Success]"
-                    } else {
-                        " [Compile: Failed]"
-                    };
-                    footer.puts(msg, draw::CharStyle::Footer);
-                }
+            } else if let Some(success) = buf.last_compile_success() {
+                let msg = if success {
+                    " [Compile: Success]"
+                } else {
+                    " [Compile: Failed]"
+                };
+                footer.puts(msg, draw::CharStyle::Footer);
             }
         }
         self.frame = (std::num::Wrapping(self.frame) + std::num::Wrapping(1)).0;

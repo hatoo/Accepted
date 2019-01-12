@@ -272,7 +272,7 @@ impl<'a> DrawCache<'a> {
         self.draw_cache
             .get(&i)
             .map(|v| v.as_slice())
-            .or(self.draw_cache_pseudo.get(&i).map(|v| v.as_slice()))
+            .or_else(|| self.draw_cache_pseudo.get(&i).map(|v| v.as_slice()))
     }
 
     pub fn dirty_from(&mut self, dirty_from: usize) {
