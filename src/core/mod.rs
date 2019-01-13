@@ -366,51 +366,14 @@ impl Core {
     }
 
     pub fn delete_range(&mut self, range: CursorRange) {
-        let l = range.l();
-        let r = range.r();
-        self.set_cursor(l);
-        let mut t = l;
-        let mut cnt = 0;
-        while t != r {
-            if t.row < r.row {
-                cnt += self.buffer.l(t.row).len_chars() - t.col + 1;
-                t.col = 0;
-                t.row += 1;
-            } else {
-                cnt += r.col - t.col;
-                t.col = r.col;
-            }
-        }
-        for _ in 0..=cnt {
-            let op = operation::Delete::new(l);
-            self.perform(op);
-        }
+        let op = operation::DeleteRange::new(range);
+        self.perform(op);
     }
 
     pub fn get_string_by_range(&self, range: CursorRange) -> String {
-        let mut res = String::new();
-        let mut l = range.l();
-        let r = range.r();
-
-        while l.row < r.row {
-            for c in self.buffer.l(l.row).slice(l.col..).chars() {
-                res.push(c);
-            }
-            res.push('\n');
-            l.row += 1;
-            l.col = 0;
-        }
-        if r.col == self.buffer.l(r.row).len_chars() {
-            for c in self.buffer.l(l.row).slice(l.col..r.col).chars() {
-                res.push(c);
-            }
-            res.push('\n');
-        } else {
-            for c in self.buffer.l(l.row).slice(l.col..=r.col).chars() {
-                res.push(c);
-            }
-        }
-        res
+        let l = self.buffer.line_to_char(range.l().row) + range.l().col;
+        let r = self.buffer.line_to_char(range.r().row) + range.r().col;
+        String::from(self.buffer.slice(l..=r))
     }
 
     pub fn get_string(&self) -> String {

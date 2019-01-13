@@ -1,4 +1,4 @@
-use crate::core::Cursor;
+use crate::core::{Cursor, CursorRange};
 use crate::ropey_util::{is_line_end, RopeExt};
 use ropey::Rope;
 use std::cmp::min;
@@ -51,6 +51,18 @@ impl Delete {
             orig: None,
             done: false,
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct DeleteRange {
+    pub range: CursorRange,
+    orig: Option<String>,
+}
+
+impl DeleteRange {
+    pub fn new(range: CursorRange) -> Self {
+        Self { range, orig: None }
     }
 }
 
@@ -153,6 +165,25 @@ impl Operation for Delete {
     }
 }
 
+impl Operation for DeleteRange {
+    fn perform(&mut self, arg: OperationArg) -> Option<usize> {
+        let l = arg.buffer.line_to_char(self.range.l().row) + self.range.l().col;
+        let r = arg.buffer.line_to_char(self.range.r().row) + self.range.r().col;
+
+        self.orig = Some(String::from(arg.buffer.slice(l..=r)));
+        arg.buffer.remove(l..=r);
+        *arg.cursor = self.range.l();
+        Some(self.range.l().row)
+    }
+
+    fn undo(&mut self, arg: OperationArg) -> Option<usize> {
+        let l = arg.buffer.line_to_char(self.range.l().row) + self.range.l().col;
+
+        arg.buffer.insert(l, self.orig.as_ref().unwrap().as_str());
+        *arg.cursor = self.range.l();
+        Some(self.range.l().row)
+    }
+}
 impl Operation for Set {
     fn perform(&mut self, arg: OperationArg) -> Option<usize> {
         if self.from.is_none() {
