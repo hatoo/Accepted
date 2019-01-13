@@ -1,9 +1,11 @@
 use crate::core::Cursor;
+use crate::ropey_util::{is_line_end, RopeExt};
+use ropey::Rope;
 use std::cmp::min;
 use std::fmt::Debug;
 
 pub struct OperationArg<'a> {
-    pub buffer: &'a mut Vec<Vec<char>>,
+    pub buffer: &'a mut Rope,
     pub cursor: &'a mut Cursor,
 }
 
@@ -54,30 +56,25 @@ impl Delete {
 
 #[derive(Debug)]
 pub struct Set {
-    to: Vec<Vec<char>>,
-    from: Option<Vec<Vec<char>>>,
+    to: String,
+    from: Option<String>,
 }
 
 impl Set {
-    pub fn new(mut to: Vec<Vec<char>>) -> Self {
-        if to.is_empty() {
-            to = vec![Vec::new()];
-        }
+    pub fn new(to: String) -> Self {
         Self { to, from: None }
     }
 }
 
 impl Operation for Insert {
     fn perform(&mut self, arg: OperationArg) -> Option<usize> {
+        let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
+        arg.buffer.insert_char(i, self.c);
         let mut cursor = self.cursor;
         if self.c == '\n' {
-            let rest: Vec<char> = arg.buffer[cursor.row].drain(cursor.col..).collect();
-
-            arg.buffer.insert(cursor.row + 1, rest);
             cursor.row += 1;
             cursor.col = 0;
         } else {
-            arg.buffer[cursor.row].insert(cursor.col, self.c);
             cursor.col += 1;
         }
         *arg.cursor = cursor;
@@ -85,12 +82,8 @@ impl Operation for Insert {
     }
 
     fn undo(&mut self, arg: OperationArg) -> Option<usize> {
-        if self.c == '\n' {
-            let mut line = arg.buffer.remove(self.cursor.row + 1);
-            arg.buffer[self.cursor.row].append(&mut line);
-        } else {
-            arg.buffer[self.cursor.row].remove(self.cursor.col);
-        }
+        let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
+        arg.buffer.remove(i..=i);
         *arg.cursor = self.cursor;
         Some(self.cursor.row)
     }
@@ -98,21 +91,21 @@ impl Operation for Insert {
 
 impl Operation for Replace {
     fn perform(&mut self, arg: OperationArg) -> Option<usize> {
-        if self.cursor.col < arg.buffer[self.cursor.row].len() {
-            self.orig = Some(arg.buffer[self.cursor.row][self.cursor.col]);
-            arg.buffer[self.cursor.row][self.cursor.col] = self.c;
-        } else {
-            arg.buffer[self.cursor.row].push(self.c);
+        let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
+        if self.cursor.col < arg.buffer.l(self.cursor.row).len_chars() {
+            self.orig = Some(arg.buffer.l(self.cursor.row).char(self.cursor.col));
+            arg.buffer.remove(i..=i);
         }
+        arg.buffer.insert_char(i, self.c);
         *arg.cursor = self.cursor;
         Some(self.cursor.row)
     }
 
     fn undo(&mut self, arg: OperationArg) -> Option<usize> {
+        let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
+        arg.buffer.remove(i..=i);
         if let Some(orig) = self.orig {
-            arg.buffer[self.cursor.row][self.cursor.col] = orig;
-        } else {
-            arg.buffer[self.cursor.row].pop();
+            arg.buffer.insert_char(i, orig);
         }
         *arg.cursor = self.cursor;
         Some(self.cursor.row)
@@ -121,12 +114,16 @@ impl Operation for Replace {
 
 impl Operation for Delete {
     fn perform(&mut self, arg: OperationArg) -> Option<usize> {
-        if self.cursor.col < arg.buffer[self.cursor.row].len() {
-            self.orig = Some(arg.buffer[self.cursor.row].remove(self.cursor.col));
+        let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
+
+        if self.cursor.col < arg.buffer.l(self.cursor.row).len_chars() {
+            self.orig = Some(arg.buffer.char(i));
+            arg.buffer.remove(i..=i);
             self.done = true;
-        } else if self.cursor.row + 1 < arg.buffer.len() {
-            let mut line = arg.buffer.remove(self.cursor.row + 1);
-            arg.buffer[self.cursor.row].append(&mut line);
+        } else if self.cursor.row + 1 < arg.buffer.len_lines() {
+            while i < arg.buffer.len_chars() && is_line_end(arg.buffer.char(i)) {
+                arg.buffer.remove(i..=i);
+            }
             self.done = true;
         } else {
             self.done = false;
@@ -144,13 +141,12 @@ impl Operation for Delete {
             return None;
         }
 
+        let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
+
         if let Some(orig) = self.orig {
-            arg.buffer[self.cursor.row].insert(self.cursor.col, orig);
+            arg.buffer.insert_char(i, orig);
         } else {
-            let line = arg.buffer[self.cursor.row]
-                .drain(self.cursor.col..)
-                .collect();
-            arg.buffer.insert(self.cursor.row + 1, line);
+            arg.buffer.insert_char(i, '\n');
         }
         *arg.cursor = self.cursor;
         Some(self.cursor.row)
@@ -160,19 +156,19 @@ impl Operation for Delete {
 impl Operation for Set {
     fn perform(&mut self, arg: OperationArg) -> Option<usize> {
         if self.from.is_none() {
-            self.from = Some(arg.buffer.clone());
+            self.from = Some(String::from(arg.buffer.slice(..)));
         }
 
-        arg.buffer.clone_from(&self.to);
-        arg.cursor.row = min(arg.buffer.len() - 1, arg.cursor.row);
-        arg.cursor.col = min(arg.buffer[arg.cursor.row].len(), arg.cursor.col);
+        *arg.buffer = Rope::from(self.to.as_str());
+        arg.cursor.row = min(arg.buffer.len_lines() - 1, arg.cursor.row);
+        arg.cursor.col = min(arg.buffer.l(arg.cursor.row).len_chars(), arg.cursor.col);
         Some(0)
     }
 
     fn undo(&mut self, arg: OperationArg) -> Option<usize> {
-        arg.buffer.clone_from(self.from.as_ref().unwrap());
-        arg.cursor.row = min(arg.buffer.len() - 1, arg.cursor.row);
-        arg.cursor.col = min(arg.buffer[arg.cursor.row].len(), arg.cursor.col);
+        *arg.buffer = Rope::from(self.from.as_ref().unwrap().as_str());
+        arg.cursor.row = min(arg.buffer.len_lines() - 1, arg.cursor.row);
+        arg.cursor.col = min(arg.buffer.l(arg.cursor.row).len_chars(), arg.cursor.col);
         Some(0)
     }
 }

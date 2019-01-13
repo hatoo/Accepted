@@ -97,7 +97,7 @@ impl TextObject for Word {
                 let l = core.cursor();
                 let line = core.current_line();
                 let mut i = l.col;
-                while i + 1 < line.len() && line[i + 1].is_alphanumeric() {
+                while i + 1 < line.len_chars() && line.char(i + 1).is_alphanumeric() {
                     i += 1;
                 }
                 CursorRange(l, Cursor { row: l.row, col: i })
@@ -108,11 +108,11 @@ impl TextObject for Word {
                 let mut l = pos.col;
                 let mut r = pos.col;
 
-                while l > 1 && line[l - 1].is_alphanumeric() {
+                while l > 1 && line.char(l - 1).is_alphanumeric() {
                     l -= 1;
                 }
 
-                while r + 1 < line.len() && line[r + 1].is_alphanumeric() {
+                while r + 1 < line.len_chars() && line.char(r + 1).is_alphanumeric() {
                     r += 1;
                 }
 

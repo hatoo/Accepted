@@ -1,7 +1,12 @@
 use crate::indent;
+use crate::ropey_util::RopeExt;
+use ropey::{self, Rope};
 use std;
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::cmp::{max, min};
+use std::io;
+use std::io::Read;
 use std::num::Wrapping;
 
 pub mod operation;
@@ -76,7 +81,7 @@ impl CursorRange {
 
 #[derive(Debug)]
 pub struct Core {
-    buffer: Vec<Vec<char>>,
+    buffer: Rope,
     cursor: Cursor,
     history: Vec<Vec<Box<Operation>>>,
     history_tmp: Vec<Box<Operation>>,
@@ -88,7 +93,7 @@ pub struct Core {
 impl Default for Core {
     fn default() -> Self {
         Self {
-            buffer: vec![Vec::new()],
+            buffer: Rope::default(),
             cursor: Cursor { row: 0, col: 0 },
             history: Vec::new(),
             history_tmp: Vec::new(),
@@ -100,28 +105,45 @@ impl Default for Core {
 }
 
 impl Core {
+    pub fn from_reader<T: Read>(reader: T) -> io::Result<Self> {
+        Ok(Self {
+            buffer: Rope::from_reader(reader)?,
+            cursor: Cursor { row: 0, col: 0 },
+            history: Vec::new(),
+            history_tmp: Vec::new(),
+            redo: Vec::new(),
+            buffer_changed: Id(Wrapping(1)),
+            dirty_from: 0,
+        })
+    }
+
     pub fn buffer_changed(&self) -> Id {
         self.buffer_changed
     }
 
     pub fn char_at_cursor(&self) -> Option<char> {
-        self.buffer
-            .get(self.cursor.row)
-            .and_then(|line| line.get(self.cursor.col).cloned())
+        self.char_at(self.cursor)
     }
 
     pub fn char_at(&self, cursor: Cursor) -> Option<char> {
-        self.buffer
-            .get(cursor.row)
-            .and_then(|line| line.get(cursor.col).cloned())
+        if cursor.row < self.buffer.len_lines() {
+            let line = self.buffer.l(cursor.row);
+            if cursor.col < line.len_chars() {
+                Some(line.char(cursor.col))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 
-    pub fn current_line(&self) -> &[char] {
-        &self.buffer[self.cursor.row]
+    pub fn current_line<'a>(&'a self) -> ropey::RopeSlice<'a> {
+        self.buffer.l(self.cursor.row)
     }
 
-    pub fn current_line_after_cursor(&self) -> &[char] {
-        &self.buffer[self.cursor.row][self.cursor.col..]
+    pub fn current_line_after_cursor<'a>(&'a self) -> ropey::RopeSlice<'a> {
+        self.current_line().slice(self.cursor.col..)
     }
 
     pub fn cursor_left(&mut self) {
@@ -131,26 +153,29 @@ impl Core {
     }
 
     pub fn cursor_right(&mut self) {
-        self.cursor.col = min(self.buffer[self.cursor.row].len(), self.cursor.col + 1);
+        self.cursor.col = min(
+            self.buffer.l(self.cursor.row).len_chars(),
+            self.cursor.col + 1,
+        );
     }
 
     pub fn cursor_up(&mut self) {
         if self.cursor.row != 0 {
             self.cursor.row -= 1;
-            self.cursor.col = min(self.buffer[self.cursor.row].len(), self.cursor.col);
+            self.cursor.col = min(self.buffer.l(self.cursor.row).len_chars(), self.cursor.col);
         }
     }
 
     pub fn cursor_down(&mut self) {
-        self.cursor.row = min(self.buffer.len() - 1, self.cursor.row + 1);
-        self.cursor.col = min(self.buffer[self.cursor.row].len(), self.cursor.col);
+        self.cursor.row = min(self.buffer.len_lines() - 1, self.cursor.row + 1);
+        self.cursor.col = min(self.buffer.l(self.cursor.row).len_chars(), self.cursor.col);
     }
 
     pub fn cursor_inc(&mut self) -> bool {
-        if self.cursor.col < self.buffer[self.cursor.row].len() {
+        if self.cursor.col < self.buffer.l(self.cursor.row).len_chars() {
             self.cursor_right();
             true
-        } else if self.cursor.row + 1 < self.buffer.len() {
+        } else if self.cursor.row + 1 < self.buffer.len_lines() {
             self.cursor.row += 1;
             self.cursor.col = 0;
             true
@@ -166,7 +191,7 @@ impl Core {
 
         if self.cursor.col == 0 {
             self.cursor.row -= 1;
-            self.cursor.col = self.buffer[self.cursor.row].len();
+            self.cursor.col = self.buffer.l(self.cursor.row).len_chars();
         } else {
             self.cursor.col -= 1;
         }
@@ -187,17 +212,19 @@ impl Core {
         } else {
             Cursor {
                 row: cursor.row - 1,
-                col: self.buffer[cursor.row - 1].len(),
+                col: self.buffer.l(cursor.row - 1).len_chars(),
             }
         })
     }
 
     pub fn next_cursor(&self, cursor: Cursor) -> Option<Cursor> {
-        if cursor.row == self.buffer.len() - 1 && cursor.col == self.buffer[cursor.row].len() {
+        if cursor.row == self.buffer.len_lines() - 1
+            && cursor.col == self.buffer.l(cursor.row).len_chars()
+        {
             return None;
         }
 
-        Some(if cursor.col < self.buffer[cursor.row].len() {
+        Some(if cursor.col < self.buffer.l(cursor.row).len_chars() {
             Cursor {
                 row: cursor.row,
                 col: cursor.col + 1,
@@ -213,7 +240,10 @@ impl Core {
     pub fn indent(&mut self, indent_width: usize) {
         self.cursor.col = 0;
         if self.cursor.row > 0 {
-            let indent = indent::next_indent_level(&self.buffer[self.cursor.row - 1], indent_width);
+            let indent = indent::next_indent_level(
+                &Cow::from(self.buffer.l(self.cursor.row - 1)),
+                indent_width,
+            );
             for _ in 0..indent_width * indent {
                 self.insert(' ');
             }
@@ -305,7 +335,7 @@ impl Core {
         let op = operation::Insert {
             cursor: Cursor {
                 row: self.cursor.row,
-                col: self.buffer[self.cursor.row].len(),
+                col: self.buffer.l(self.cursor.row).len_chars(),
             },
             c: '\n',
         };
@@ -343,7 +373,7 @@ impl Core {
         let mut cnt = 0;
         while t != r {
             if t.row < r.row {
-                cnt += self.buffer[t.row].len() - t.col + 1;
+                cnt += self.buffer.l(t.row).len_chars() - t.col + 1;
                 t.col = 0;
                 t.row += 1;
             } else {
@@ -363,20 +393,20 @@ impl Core {
         let r = range.r();
 
         while l.row < r.row {
-            for &c in &self.buffer[l.row][l.col..] {
+            for c in self.buffer.l(l.row).slice(l.col..).chars() {
                 res.push(c);
             }
             res.push('\n');
             l.row += 1;
             l.col = 0;
         }
-        if r.col == self.buffer[r.row].len() {
-            for &c in &self.buffer[l.row][l.col..r.col] {
+        if r.col == self.buffer.l(r.row).len_chars() {
+            for c in self.buffer.l(l.row).slice(l.col..r.col).chars() {
                 res.push(c);
             }
             res.push('\n');
         } else {
-            for &c in &self.buffer[l.row][l.col..=r.col] {
+            for c in self.buffer.l(l.row).slice(l.col..=r.col).chars() {
                 res.push(c);
             }
         }
@@ -384,40 +414,24 @@ impl Core {
     }
 
     pub fn get_string(&self) -> String {
-        let mut buf = String::new();
-        for line in &self.buffer {
-            for &c in line {
-                buf.push(c);
-            }
-            // Supports LF only...
-            buf.push('\n');
-        }
-
-        buf
+        String::from(&self.buffer)
     }
 
-    pub fn set_string(&mut self, s: &str, clear_history: bool) {
-        let mut buffer: Vec<Vec<char>> =
-            s.lines().map(|l| l.trim_end().chars().collect()).collect();
-
-        if buffer.is_empty() {
-            buffer = vec![Vec::new()];
-        }
-
+    pub fn set_string(&mut self, s: String, clear_history: bool) {
         if clear_history {
-            self.buffer = buffer;
+            self.buffer = Rope::from(s);
             self.buffer_changed.inc();
             self.dirty_from = 0;
             self.redo.clear();
             self.history.clear();
             self.history_tmp.clear();
         } else {
-            let op = operation::Set::new(buffer);
+            let op = operation::Set::new(s);
             self.perform(op);
         }
     }
 
-    pub fn buffer(&self) -> &Vec<Vec<char>> {
+    pub fn buffer(&self) -> &Rope {
         &self.buffer
     }
 
@@ -426,8 +440,8 @@ impl Core {
     }
 
     pub fn set_cursor(&mut self, cursor: Cursor) {
-        assert!(cursor.row < self.buffer.len());
-        assert!(cursor.col <= self.buffer[cursor.row].len());
+        assert!(cursor.row < self.buffer.len_lines());
+        assert!(cursor.col <= self.buffer.l(cursor.row).len_chars());
         self.cursor = cursor;
     }
 

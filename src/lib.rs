@@ -11,6 +11,7 @@ mod job_queue;
 mod language_specific;
 mod lsp;
 mod mode;
+mod ropey_util;
 mod rustc;
 pub mod syntax;
 mod text_object;
