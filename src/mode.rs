@@ -1520,7 +1520,7 @@ impl Mode for Goto {
                 return Transition::Return(None, false);
             }
             Event::Key(Key::Backspace) => {
-                buf.search.pop();
+                self.row.pop();
             }
             Event::Key(Key::Char(c)) => {
                 if c == '\n' {
