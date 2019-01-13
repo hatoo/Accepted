@@ -168,10 +168,22 @@ impl Operation for Delete {
 impl Operation for DeleteRange {
     fn perform(&mut self, arg: OperationArg) -> Option<usize> {
         let l = arg.buffer.line_to_char(self.range.l().row) + self.range.l().col;
-        let r = arg.buffer.line_to_char(self.range.r().row) + self.range.r().col;
+        let mut r = arg.buffer.line_to_char(self.range.r().row) + self.range.r().col;
 
-        self.orig = Some(String::from(arg.buffer.slice(l..=r)));
-        arg.buffer.remove(l..=r);
+        if r < arg.buffer.len_chars()
+            && self.range.r().col == arg.buffer.l(self.range.r().row).len_chars()
+        {
+            while r < arg.buffer.len_chars() && arg.buffer.char(r) == '\r' {
+                r += 1;
+            }
+
+            if r < arg.buffer.len_chars() && is_line_end(arg.buffer.char(r)) {
+                r += 1;
+            }
+        }
+
+        self.orig = Some(String::from(arg.buffer.slice(l..r)));
+        arg.buffer.remove(l..r);
         *arg.cursor = self.range.l();
         Some(self.range.l().row)
     }

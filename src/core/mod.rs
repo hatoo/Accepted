@@ -1,5 +1,5 @@
 use crate::indent;
-use crate::ropey_util::RopeExt;
+use crate::ropey_util::{is_line_end, RopeExt};
 use ropey::{self, Rope, RopeSlice};
 use std;
 use std::borrow::Cow;
@@ -372,8 +372,20 @@ impl Core {
 
     pub fn get_slice_by_range<'a>(&'a self, range: CursorRange) -> RopeSlice<'a> {
         let l = self.buffer.line_to_char(range.l().row) + range.l().col;
-        let r = self.buffer.line_to_char(range.r().row) + range.r().col;
-        self.buffer.slice(l..=r)
+        let mut r = self.buffer.line_to_char(range.r().row) + range.r().col;
+
+        if r < self.buffer.len_chars() && range.r().col == self.buffer.l(range.r().row).len_chars()
+        {
+            while r < self.buffer.len_chars() && self.buffer.char(r) == '\r' {
+                r += 1;
+            }
+
+            if r < self.buffer.len_chars() && is_line_end(self.buffer.char(r)) {
+                r += 1;
+            }
+        }
+
+        self.buffer.slice(l..r)
     }
 
     pub fn get_string(&self) -> String {
