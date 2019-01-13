@@ -374,6 +374,10 @@ impl Core {
         let l = self.buffer.line_to_char(range.l().row) + range.l().col;
         let mut r = self.buffer.line_to_char(range.r().row) + range.r().col;
 
+        if r < self.buffer.len_chars() {
+            r += 1;
+        }
+
         if r < self.buffer.len_chars() && range.r().col == self.buffer.l(range.r().row).len_chars()
         {
             while r < self.buffer.len_chars() && self.buffer.char(r) == '\r' {
