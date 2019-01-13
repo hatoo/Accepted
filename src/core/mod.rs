@@ -375,16 +375,15 @@ impl Core {
         let mut r = self.buffer.line_to_char(range.r().row) + range.r().col;
 
         if r < self.buffer.len_chars() {
-            r += 1;
-        }
+            if range.r().col == self.buffer.l(range.r().row).len_chars() {
+                while r < self.buffer.len_chars() && self.buffer.char(r) == '\r' {
+                    r += 1;
+                }
 
-        if r < self.buffer.len_chars() && range.r().col == self.buffer.l(range.r().row).len_chars()
-        {
-            while r < self.buffer.len_chars() && self.buffer.char(r) == '\r' {
-                r += 1;
-            }
-
-            if r < self.buffer.len_chars() && is_line_end(self.buffer.char(r)) {
+                if r < self.buffer.len_chars() && is_line_end(self.buffer.char(r)) {
+                    r += 1;
+                }
+            } else {
                 r += 1;
             }
         }
