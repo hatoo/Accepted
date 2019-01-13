@@ -281,6 +281,8 @@ impl<'a> DrawCache<'a> {
     pub fn dirty_from(&mut self, dirty_from: usize) {
         self.draw_cache.clear();
         self.draw_cache_pseudo.clear();
-        self.state_cache.drain(dirty_from / Self::CACHE_WIDTH..);
+        if dirty_from / Self::CACHE_WIDTH < self.state_cache.len() {
+            self.state_cache.drain(dirty_from / Self::CACHE_WIDTH..);
+        }
     }
 }
