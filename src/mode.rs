@@ -8,6 +8,7 @@ use crate::core::Id;
 use crate::draw;
 use crate::indent;
 use crate::ropey_util::RopeExt;
+use crate::ropey_util::RopeSliceExt;
 use crate::text_object;
 use ropey::Rope;
 use shellexpand;
@@ -1101,9 +1102,9 @@ impl Mode for Visual {
                 let to_insert = event == Event::Key(Key::Char('s'));
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
                 let s = if self.line_mode {
-                    buf.core.get_string_by_range(range).trim_end().to_string()
+                    String::from(buf.core.get_slice_by_range(range).trim_end())
                 } else {
-                    buf.core.get_string_by_range(range)
+                    String::from(buf.core.get_slice_by_range(range))
                 };
                 let delete_to_end = range.r().row == buf.core.buffer().len_lines() - 1;
                 buf.core.delete_range(range);
@@ -1147,9 +1148,9 @@ impl Mode for Visual {
                 let is_clipboard = event == Event::Key(Key::Ctrl('y'));
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
                 let s = if self.line_mode {
-                    buf.core.get_string_by_range(range).trim_end().to_string()
+                    String::from(buf.core.get_slice_by_range(range).trim_end())
                 } else {
-                    buf.core.get_string_by_range(range)
+                    String::from(buf.core.get_slice_by_range(range))
                 };
                 buf.core.set_cursor(range.l());
                 if is_clipboard {
@@ -1349,7 +1350,7 @@ impl Mode for TextObjectOperation {
 
                 buf.yank = Yank {
                     insert_newline: true,
-                    content: buf.core.get_string_by_range(range).trim_end().to_string(),
+                    content: String::from(buf.core.get_slice_by_range(range).trim_end()),
                 };
                 match self.action {
                     // dj or dk
@@ -1388,7 +1389,7 @@ impl Mode for TextObjectOperation {
                         Action::Yank => {
                             buf.yank = Yank {
                                 insert_newline: false,
-                                content: buf.core.get_string_by_range(range),
+                                content: String::from(buf.core.get_slice_by_range(range)),
                             };
                             return Transition::Return(None, false);
                         }

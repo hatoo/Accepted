@@ -1,6 +1,6 @@
 use crate::indent;
 use crate::ropey_util::RopeExt;
-use ropey::{self, Rope};
+use ropey::{self, Rope, RopeSlice};
 use std;
 use std::borrow::Cow;
 use std::cmp::Ordering;
@@ -370,10 +370,10 @@ impl Core {
         self.perform(op);
     }
 
-    pub fn get_string_by_range(&self, range: CursorRange) -> String {
+    pub fn get_slice_by_range<'a>(&'a self, range: CursorRange) -> RopeSlice<'a> {
         let l = self.buffer.line_to_char(range.l().row) + range.l().col;
         let r = self.buffer.line_to_char(range.r().row) + range.r().col;
-        String::from(self.buffer.slice(l..=r))
+        self.buffer.slice(l..=r)
     }
 
     pub fn get_string(&self) -> String {
