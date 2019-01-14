@@ -2,6 +2,7 @@ Accepted
 ===
 
 [![crates.io](https://img.shields.io/crates/v/accepted.svg)](https://crates.io/crates/accepted)
+[![Build Status](https://travis-ci.org/hatoo/Accepted.svg?branch=master)](https://travis-ci.org/hatoo/Accepted)
 
 A terminal text editor to be **ACCEPTED**.
 
