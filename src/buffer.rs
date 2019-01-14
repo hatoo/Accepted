@@ -8,14 +8,15 @@ use crate::language_specific;
 use crate::language_specific::CompileId;
 use crate::language_specific::CompileResult;
 use crate::lsp::LSPClient;
+use crate::ropey_util::RopeExt;
 use crate::syntax;
 use crate::Core;
 use std::borrow::Cow;
 use std::cmp::{max, min};
 use std::collections::BTreeMap;
 use std::fs;
+use std::io::BufReader;
 use std::io::BufWriter;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use syntect::highlighting::FontStyle;
 use termion;
@@ -35,11 +36,11 @@ impl Default for Yank {
     }
 }
 
-fn get_rows(s: &[char], width: usize) -> usize {
+fn get_rows(s: &str, width: usize) -> usize {
     let mut x = 0;
     let mut y = 1;
 
-    for &c in s {
+    for c in s.chars() {
         let w = c.width().unwrap_or(0);
         if x + w < width {
             x += w;
@@ -144,9 +145,11 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn open<P: AsRef<Path>>(&mut self, path: P) {
-        let s = fs::read_to_string(path.as_ref()).unwrap_or_default();
-        let mut core = Core::default();
-        core.set_string(&s, true);
+        let core = if let Ok(f) = fs::File::open(path.as_ref()) {
+            Core::from_reader(BufReader::new(f)).unwrap()
+        } else {
+            Core::default()
+        };
 
         let extension = path
             .as_ref()
@@ -166,13 +169,7 @@ impl<'a> Buffer<'a> {
     pub fn save(&mut self, is_optimize: bool) -> bool {
         let saved = if let Some(path) = self.path.as_ref() {
             if let Ok(f) = fs::File::create(path) {
-                let mut f = BufWriter::new(f);
-                for line in self.core.buffer() {
-                    for &c in line {
-                        write!(f, "{}", c).unwrap();
-                    }
-                    writeln!(f).unwrap();
-                }
+                self.core.buffer().write_to(BufWriter::new(f)).unwrap();
                 true
             } else {
                 false
@@ -191,15 +188,15 @@ impl<'a> Buffer<'a> {
             self.row_offset = self.core.cursor().row;
         } else {
             let (rows, cols) = Self::windows_size();
-            if cols < LinenumView::prefix_width(self.core.buffer().len()) {
+            if cols < LinenumView::prefix_width(self.core.buffer().len_lines()) {
                 return;
             }
-            let cols = cols - LinenumView::prefix_width(self.core.buffer().len());
+            let cols = cols - LinenumView::prefix_width(self.core.buffer().len_lines());
             let rows = rows - 1;
             let mut i = self.core.cursor().row + 1;
             let mut sum = 0;
-            while i > 0 && sum + get_rows(&self.core.buffer()[i - 1], cols) <= rows {
-                sum += get_rows(&self.core.buffer()[i - 1], cols);
+            while i > 0 && sum + get_rows(&Cow::from(self.core.buffer().l(i - 1)), cols) <= rows {
+                sum += get_rows(&Cow::from(self.core.buffer().l(i - 1)), cols);
                 i -= 1;
             }
             self.row_offset = max(i, self.row_offset);
@@ -215,7 +212,7 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn scroll_down(&mut self) {
-        self.row_offset = min(self.row_offset + 3, self.core.buffer().len() - 1);
+        self.row_offset = min(self.row_offset + 3, self.core.buffer().len_lines() - 1);
     }
 
     pub fn show_cursor_middle(&mut self) {
@@ -231,7 +228,7 @@ impl<'a> Buffer<'a> {
         let src = self.core.get_string();
         if let Some(formatted) = self.language.format(&src) {
             if formatted != src {
-                self.core.set_string(&formatted, false);
+                self.core.set_string(formatted, false);
             }
         }
     }
@@ -316,7 +313,7 @@ impl<'a> Buffer<'a> {
             .unwrap_or_else(|| &v);
         let mut view = LinenumView::new(
             self.row_offset,
-            self.core.buffer().len(),
+            self.core.buffer().len_lines(),
             &compiler_outputs,
             view,
         );
@@ -327,7 +324,7 @@ impl<'a> Buffer<'a> {
             self.cache.dirty_from(self.core.dirty_from);
         }
 
-        'outer: for i in self.row_offset..self.core.buffer().len() {
+        'outer: for i in self.row_offset..self.core.buffer().len_lines() {
             self.cache.cache_line(self.core.buffer(), i);
             let line_ref = self.cache.get_line(i).unwrap();
             let mut line = Cow::Borrowed(line_ref);
@@ -373,14 +370,14 @@ impl<'a> Buffer<'a> {
             }
             let t = Cursor {
                 row: i,
-                col: self.core.buffer()[i].len(),
+                col: self.core.buffer().l(i).len_chars(),
             };
 
             if self.core.cursor() == t {
                 cursor = view.cursor();
             }
 
-            if self.core.buffer()[i].is_empty() {
+            if self.core.buffer().l(i).len_chars() == 0 {
                 if let Some(col) = self.syntax.theme.settings.background {
                     view.put(' ', CharStyle::bg(col), Some(t));
                 } else {
@@ -388,7 +385,7 @@ impl<'a> Buffer<'a> {
                 }
             }
 
-            if i != self.core.buffer().len() - 1 {
+            if i != self.core.buffer().len_lines() - 1 {
                 if let Some(col) = self.syntax.theme.settings.background {
                     while !view.cause_newline(' ') {
                         view.put(' ', CharStyle::bg(col), Some(t));

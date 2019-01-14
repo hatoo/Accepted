@@ -7,9 +7,13 @@ use crate::core::CursorRange;
 use crate::core::Id;
 use crate::draw;
 use crate::indent;
-use crate::text_object;
+use crate::ropey_util::RopeExt;
+use crate::ropey_util::RopeSliceExt;
+use crate::text_object::{self, Action};
+use ropey::Rope;
 use shellexpand;
 use std;
+use std::borrow::Cow;
 use std::cmp::{max, min};
 use std::ffi::OsString;
 use std::io::BufRead;
@@ -78,42 +82,14 @@ struct Find {
     to_right: bool,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
-enum Action {
-    Delete,
-    Yank,
-    Change,
-}
-
-impl Action {
-    fn from_char(c: char) -> Option<Self> {
-        match c {
-            'd' => Some(Action::Delete),
-            'y' => Some(Action::Yank),
-            'c' => Some(Action::Change),
-            _ => None,
-        }
-    }
-
-    fn to_char(self) -> char {
-        match self {
-            Action::Delete => 'd',
-            Action::Yank => 'y',
-            Action::Change => 'c',
-        }
-    }
-}
-
 struct TextObjectOperation {
-    action: Action,
     parser: text_object::TextObjectParser,
 }
 
 impl TextObjectOperation {
     fn new(action: Action) -> Self {
         Self {
-            action,
-            parser: text_object::TextObjectParser::default(),
+            parser: text_object::TextObjectParser::new(action),
         }
     }
 }
@@ -225,7 +201,7 @@ impl Mode for Normal {
                 let mut i = 0;
                 {
                     let line = buf.core.current_line();
-                    while i < line.len() && line[i] == ' ' {
+                    while i < line.len_chars() && line.char(i) == ' ' {
                         i += 1;
                     }
                 }
@@ -239,7 +215,7 @@ impl Mode for Normal {
                 let mut c = buf.core.cursor();
                 c.col = 0;
                 buf.core.set_cursor(c);
-                for _ in 0..buf.core.current_line().len() {
+                for _ in 0..buf.core.current_line().len_chars() {
                     buf.core.delete()
                 }
                 buf.indent();
@@ -258,7 +234,7 @@ impl Mode for Normal {
             }
             Event::Key(Key::Char('A')) => {
                 let mut c = buf.core.cursor();
-                c.col = buf.core.current_line().len();
+                c.col = buf.core.current_line().len_chars();
                 buf.core.set_cursor(c);
                 buf.show_cursor();
                 return Transition::RecordMacro(Box::new(Insert::default()));
@@ -323,23 +299,27 @@ impl Mode for Normal {
                 buf.show_cursor();
             }
             Event::Key(Key::Char('G')) => {
-                let row = buf.core.buffer().len() - 1;
-                let col = buf.core.buffer()[row].len();
+                let row = buf.core.buffer().len_lines() - 1;
+                let col = buf.core.buffer().l(row).len_chars();
                 buf.core.set_cursor(Cursor { row, col });
                 buf.show_cursor();
             }
             Event::Key(Key::Char('n')) => {
                 if !buf.search.is_empty() {
                     let orig_pos = buf.core.cursor();
+                    let search: String = buf.search.iter().collect();
                     if !buf.core.cursor_inc() {
                         buf.core.set_cursor(Cursor { row: 0, col: 0 });
                     }
 
                     loop {
-                        let matched = buf.core.current_line_after_cursor().len()
+                        let matched = buf.core.current_line_after_cursor().len_chars()
                             >= buf.search.len()
-                            && &buf.core.current_line_after_cursor()[..buf.search.len()]
-                                == buf.search.as_slice();
+                            && buf
+                                .core
+                                .current_line_after_cursor()
+                                .slice(..buf.search.len())
+                                == search;
                         if matched || buf.core.cursor() == orig_pos {
                             buf.show_cursor();
                             break;
@@ -353,9 +333,14 @@ impl Mode for Normal {
             }
             Event::Key(Key::Char('N')) => {
                 if !buf.search.is_empty() {
+                    let search: String = buf.search.iter().collect();
                     let last_pos = Cursor {
-                        row: buf.core.buffer().len() - 1,
-                        col: buf.core.buffer().last().unwrap().len(),
+                        row: buf.core.buffer().len_lines() - 1,
+                        col: buf
+                            .core
+                            .buffer()
+                            .l(buf.core.buffer().len_lines() - 1)
+                            .len_chars(),
                     };
                     let orig_pos = buf.core.cursor();
                     if !buf.core.cursor_dec() {
@@ -363,10 +348,13 @@ impl Mode for Normal {
                     }
 
                     loop {
-                        let matched = buf.core.current_line_after_cursor().len()
+                        let matched = buf.core.current_line_after_cursor().len_chars()
                             >= buf.search.len()
-                            && &buf.core.current_line_after_cursor()[..buf.search.len()]
-                                == buf.search.as_slice();
+                            && buf
+                                .core
+                                .current_line_after_cursor()
+                                .slice(..buf.search.len())
+                                == search;
                         if matched || buf.core.cursor() == orig_pos {
                             buf.show_cursor();
                             break;
@@ -526,17 +514,17 @@ impl Insert {
         let line = core.current_line();
         let mut i = core.cursor().col;
 
-        while i > 0 && (line[i - 1].is_alphanumeric() || line[i - 1] == '_') {
+        while i > 0 && (line.char(i - 1).is_alphanumeric() || line.char(i - 1) == '_') {
             i -= 1;
         }
 
-        line[i..core.cursor().col].iter().collect::<String>()
+        String::from(line.slice(i..core.cursor().col))
     }
 
     fn remove_token(core: &mut Core) {
         let mut i = core.cursor().col;
         while i > 0 && {
-            let c = core.current_line()[i - 1];
+            let c = core.current_line().char(i - 1);
             c.is_alphanumeric() || c == '_'
         } {
             core.cursor_left();
@@ -583,7 +571,7 @@ impl Insert {
         let start_completion = {
             let i = buf.core.cursor().col;
             i > 0 && {
-                let c = buf.core.current_line()[i - 1];
+                let c = buf.core.current_line().char(i - 1);
                 c == ':' || c == '.'
             }
         };
@@ -689,7 +677,7 @@ impl Mode for Insert {
                     let indent_width = buf.language().indent_width();
                     buf.core.insert('\n');
                     let indent = indent::next_indent_level(
-                        &buf.core.buffer()[buf.core.cursor().row - 1],
+                        &Cow::from(buf.core.buffer().l(buf.core.cursor().row - 1)),
                         indent_width,
                     );
                     for _ in 0..indent_width * indent {
@@ -1021,13 +1009,13 @@ impl Mode for Prefix {
 }
 
 impl Visual {
-    fn get_range(&self, to: Cursor, buf: &[Vec<char>]) -> CursorRange {
+    fn get_range(&self, to: Cursor, buf: &Rope) -> CursorRange {
         if self.line_mode {
             let mut l = min(self.cursor, to);
             let mut r = max(self.cursor, to);
 
             l.col = 0;
-            r.col = buf[r.row].len();
+            r.col = buf.l(r.row).len_chars();
 
             CursorRange(l, r)
         } else {
@@ -1075,8 +1063,8 @@ impl Mode for Visual {
                 buf.show_cursor();
             }
             Event::Key(Key::Char('G')) => {
-                let row = buf.core.buffer().len() - 1;
-                let col = buf.core.buffer()[row].len();
+                let row = buf.core.buffer().len_lines() - 1;
+                let col = buf.core.buffer().l(row).len_chars();
                 buf.core.set_cursor(Cursor { row, col });
                 buf.show_cursor();
             }
@@ -1086,11 +1074,11 @@ impl Mode for Visual {
                 let to_insert = event == Event::Key(Key::Char('s'));
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
                 let s = if self.line_mode {
-                    buf.core.get_string_by_range(range).trim_end().to_string()
+                    String::from(buf.core.get_slice_by_range(range).trim_end())
                 } else {
-                    buf.core.get_string_by_range(range)
+                    String::from(buf.core.get_slice_by_range(range))
                 };
-                let delete_to_end = range.r().row == buf.core.buffer().len() - 1;
+                let delete_to_end = range.r().row == buf.core.buffer().len_lines() - 1;
                 buf.core.delete_range(range);
                 if to_insert && range.l().row != range.r().row {
                     if !delete_to_end {
@@ -1132,9 +1120,9 @@ impl Mode for Visual {
                 let is_clipboard = event == Event::Key(Key::Ctrl('y'));
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
                 let s = if self.line_mode {
-                    buf.core.get_string_by_range(range).trim_end().to_string()
+                    String::from(buf.core.get_slice_by_range(range).trim_end())
                 } else {
-                    buf.core.get_string_by_range(range)
+                    String::from(buf.core.get_slice_by_range(range))
                 };
                 buf.core.set_cursor(range.l());
                 if is_clipboard {
@@ -1258,13 +1246,13 @@ impl Mode for TextObjectOperation {
             return Transition::Return(None, false);
         }
         if let Event::Key(Key::Char(c)) = event {
-            if c == self.action.to_char() {
+            if c == self.parser.action.to_char() {
                 // Yank current line
                 buf.yank = Yank {
                     insert_newline: true,
-                    content: buf.core.current_line().iter().collect(),
+                    content: String::from(buf.core.current_line()),
                 };
-                match self.action {
+                match self.parser.action {
                     // dd
                     Action::Delete => {
                         let range = CursorRange(
@@ -1274,7 +1262,7 @@ impl Mode for TextObjectOperation {
                             },
                             Cursor {
                                 row: buf.core.cursor().row,
-                                col: buf.core.current_line().len(),
+                                col: buf.core.current_line().len_chars(),
                             },
                         );
                         buf.core.delete_range(range);
@@ -1290,7 +1278,7 @@ impl Mode for TextObjectOperation {
                             row: pos.row,
                             col: 0,
                         });
-                        for _ in 0..buf.core.current_line().len() {
+                        for _ in 0..buf.core.current_line().len_chars() {
                             buf.core.delete();
                         }
                         buf.core.commit();
@@ -1302,10 +1290,10 @@ impl Mode for TextObjectOperation {
 
             if c == 'j' || c == 'k' {
                 let range = if c == 'j' {
-                    if buf.core.cursor().row == buf.core.buffer().len() - 1 {
+                    if buf.core.cursor().row == buf.core.buffer().len_lines() - 1 {
                         return Transition::Return(None, false);
                     }
-                    let next_line = buf.core.buffer()[buf.core.cursor().row + 1].len();
+                    let next_line = buf.core.buffer().l(buf.core.cursor().row + 1).len_chars();
                     CursorRange(
                         Cursor {
                             row: buf.core.cursor().row,
@@ -1327,16 +1315,16 @@ impl Mode for TextObjectOperation {
                         },
                         Cursor {
                             row: buf.core.cursor().row,
-                            col: buf.core.current_line().len(),
+                            col: buf.core.current_line().len_chars(),
                         },
                     )
                 };
 
                 buf.yank = Yank {
                     insert_newline: true,
-                    content: buf.core.get_string_by_range(range).trim_end().to_string(),
+                    content: String::from(buf.core.get_slice_by_range(range).trim_end()),
                 };
-                match self.action {
+                match self.parser.action {
                     // dj or dk
                     Action::Delete => {
                         buf.core.delete_range(range);
@@ -1358,7 +1346,11 @@ impl Mode for TextObjectOperation {
 
             if self.parser.parse(c) {
                 if let Some(range) = self.parser.get_range(&buf.core) {
-                    match self.action {
+                    buf.yank = Yank {
+                        insert_newline: false,
+                        content: String::from(buf.core.get_slice_by_range(range)),
+                    };
+                    match self.parser.action {
                         Action::Delete => {
                             buf.core.delete_range(range);
                             buf.core.commit();
@@ -1371,10 +1363,6 @@ impl Mode for TextObjectOperation {
                             return Insert::default().into();
                         }
                         Action::Yank => {
-                            buf.yank = Yank {
-                                insert_newline: false,
-                                content: buf.core.get_string_by_range(range),
-                            };
                             return Transition::Return(None, false);
                         }
                     }
@@ -1396,7 +1384,7 @@ impl Mode for TextObjectOperation {
 
         let mut footer = term.view((height, 0), 1, width);
 
-        match self.action {
+        match self.parser.action {
             Action::Change => {
                 footer.puts("Change ", draw::CharStyle::Footer);
             }
@@ -1460,13 +1448,13 @@ impl Mode for Find {
             Event::Key(Key::Char(c)) if !c.is_control() => {
                 let cursor = buf.core.cursor();
                 let range: Box<dyn Iterator<Item = usize>> = if self.to_right {
-                    Box::new(cursor.col + 1..buf.core.current_line().len())
+                    Box::new(cursor.col + 1..buf.core.current_line().len_chars())
                 } else {
                     Box::new((0..cursor.col).rev())
                 };
 
                 for i in range {
-                    if buf.core.current_line()[i] == c {
+                    if buf.core.current_line().char(i) == c {
                         buf.core.set_cursor(Cursor {
                             row: cursor.row,
                             col: i,
@@ -1512,7 +1500,7 @@ impl Mode for Goto {
                         if row > 0 {
                             row -= 1;
                         }
-                        row = min(row, buf.core.buffer().len() - 1);
+                        row = min(row, buf.core.buffer().len_lines() - 1);
 
                         buf.core.set_cursor(Cursor { row, col: 0 });
                         buf.show_cursor();

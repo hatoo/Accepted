@@ -1,6 +1,32 @@
 use crate::core::{Core, Cursor, CursorRange};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
+pub enum Action {
+    Delete,
+    Yank,
+    Change,
+}
+
+impl Action {
+    pub fn from_char(c: char) -> Option<Self> {
+        match c {
+            'd' => Some(Action::Delete),
+            'y' => Some(Action::Yank),
+            'c' => Some(Action::Change),
+            _ => None,
+        }
+    }
+
+    pub fn to_char(self) -> char {
+        match self {
+            Action::Delete => 'd',
+            Action::Yank => 'y',
+            Action::Change => 'c',
+        }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Prefix {
     Inner,
     A,
@@ -8,7 +34,7 @@ pub enum Prefix {
 }
 
 pub trait TextObject {
-    fn get_range(&self, prefix: Prefix, core: &Core) -> Option<CursorRange>;
+    fn get_range(&self, action: Action, prefix: Prefix, core: &Core) -> Option<CursorRange>;
 }
 
 struct Word;
@@ -16,7 +42,7 @@ struct Quote(char);
 struct Parens(char, char);
 
 impl TextObject for Quote {
-    fn get_range(&self, prefix: Prefix, core: &Core) -> Option<CursorRange> {
+    fn get_range(&self, _: Action, prefix: Prefix, core: &Core) -> Option<CursorRange> {
         match prefix {
             Prefix::A | Prefix::Inner => {
                 let mut l = Cursor { row: 0, col: 0 };
@@ -55,7 +81,7 @@ impl TextObject for Quote {
 }
 
 impl TextObject for Parens {
-    fn get_range(&self, prefix: Prefix, core: &Core) -> Option<CursorRange> {
+    fn get_range(&self, _: Action, prefix: Prefix, core: &Core) -> Option<CursorRange> {
         match prefix {
             Prefix::A | Prefix::Inner => {
                 let mut stack = Vec::new();
@@ -91,14 +117,19 @@ impl TextObject for Parens {
 }
 
 impl TextObject for Word {
-    fn get_range(&self, prefix: Prefix, core: &Core) -> Option<CursorRange> {
+    fn get_range(&self, action: Action, prefix: Prefix, core: &Core) -> Option<CursorRange> {
         Some(match prefix {
             Prefix::None => {
                 let l = core.cursor();
                 let line = core.current_line();
                 let mut i = l.col;
-                while i + 1 < line.len() && line[i + 1].is_alphanumeric() {
+                while i + 1 < line.len_chars() && line.char(i + 1).is_alphanumeric() {
                     i += 1;
+                }
+                if action != Action::Change && prefix != Prefix::Inner {
+                    while i + 1 < line.len_chars() && line.char(i + 1) == ' ' {
+                        i += 1;
+                    }
                 }
                 CursorRange(l, Cursor { row: l.row, col: i })
             }
@@ -108,12 +139,18 @@ impl TextObject for Word {
                 let mut l = pos.col;
                 let mut r = pos.col;
 
-                while l > 1 && line[l - 1].is_alphanumeric() {
+                while l > 1 && line.char(l - 1).is_alphanumeric() {
                     l -= 1;
                 }
 
-                while r + 1 < line.len() && line[r + 1].is_alphanumeric() {
+                while r + 1 < line.len_chars() && line.char(r + 1).is_alphanumeric() {
                     r += 1;
+                }
+
+                if action != Action::Change && prefix != Prefix::Inner {
+                    while r + 1 < line.len_chars() && line.char(r + 1) == ' ' {
+                        r += 1;
+                    }
                 }
 
                 CursorRange(
@@ -132,13 +169,15 @@ impl TextObject for Word {
 }
 
 pub struct TextObjectParser {
+    pub action: Action,
     pub prefix: Prefix,
     pub object: Option<Box<TextObject>>,
 }
 
-impl Default for TextObjectParser {
-    fn default() -> Self {
+impl TextObjectParser {
+    pub fn new(action: Action) -> Self {
         Self {
+            action,
             prefix: Prefix::None,
             object: None,
         }
@@ -188,6 +227,6 @@ impl TextObjectParser {
     pub fn get_range(&self, core: &Core) -> Option<CursorRange> {
         self.object
             .as_ref()
-            .and_then(|obj| obj.get_range(self.prefix, core))
+            .and_then(|obj| obj.get_range(self.action, self.prefix, core))
     }
 }
