@@ -89,4 +89,5 @@ fn test_simples() {
     // f,t
     simple_test("123456", "df4", "56");
     simple_test("123456", "dt4", "456");
+    simple_test("123456abc", "dta", "abc");
 }

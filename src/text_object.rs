@@ -200,22 +200,24 @@ impl TextObjectParser {
 
 impl TextObjectParser {
     pub fn parse(&mut self, c: char, core: &Core) -> Option<Option<CursorRange>> {
-        match c {
-            'a' => {
-                self.prefix = Prefix::TextObjectPrefix(TextObjectPrefix::A);
-            }
-            'i' => {
-                self.prefix = Prefix::TextObjectPrefix(TextObjectPrefix::Inner);
-            }
-            'f' | 't' => {
-                if let Prefix::TextObjectPrefix { .. } = self.prefix {
-                    self.prefix = Prefix::Find {
-                        inclusive: c == 'f',
-                    };
-                    return None;
+        if let Prefix::TextObjectPrefix(_) = self.prefix {
+            match c {
+                'a' => {
+                    self.prefix = Prefix::TextObjectPrefix(TextObjectPrefix::A);
                 }
+                'i' => {
+                    self.prefix = Prefix::TextObjectPrefix(TextObjectPrefix::Inner);
+                }
+                'f' | 't' => {
+                    if let Prefix::TextObjectPrefix { .. } = self.prefix {
+                        self.prefix = Prefix::Find {
+                            inclusive: c == 'f',
+                        };
+                        return None;
+                    }
+                }
+                _ => (),
             }
-            _ => (),
         }
 
         match self.prefix {
