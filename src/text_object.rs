@@ -126,7 +126,7 @@ impl TextObject for Word {
                 while i + 1 < line.len_chars() && line.char(i + 1).is_alphanumeric() {
                     i += 1;
                 }
-                if action != Action::Change {
+                if action != Action::Change && prefix != Prefix::Inner {
                     while i + 1 < line.len_chars() && line.char(i + 1) == ' ' {
                         i += 1;
                     }
@@ -147,7 +147,7 @@ impl TextObject for Word {
                     r += 1;
                 }
 
-                if action != Action::Change {
+                if action != Action::Change && prefix != Prefix::Inner {
                     while r + 1 < line.len_chars() && line.char(r + 1) == ' ' {
                         r += 1;
                     }

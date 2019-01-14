@@ -67,7 +67,10 @@ fn test_simples() {
     // dk
     simple_test("1\n2\n3\n4", "jjdk", "1\n4");
 
-    // dw
+    // word
     simple_test("123 456 789", "wdw", "123 789");
     simple_test("123 456             789", "wdw", "123 789");
+    simple_test("123 456 789", "wdaw", "123 789");
+    simple_test("123 456             789", "wdaw", "123 789");
+    simple_test("123 456 789", "wdiw", "123  789");
 }
