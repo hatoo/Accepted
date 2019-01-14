@@ -78,7 +78,10 @@ fn test_simples() {
     simple_test("123 456   789", "wcaw", "123    789");
     simple_test("123 456 789", "wciw", "123  789");
     simple_test("123 456   789", "wciw", "123    789");
-    //parens
+    // parens
     simple_test("(123 456 789)(abc)", "di)", "()(abc)");
     simple_test("(123 456 789)(abc)", "da)", "(abc)");
+    // f,t
+    simple_test("123456", "df4", "56");
+    simple_test("123456", "dt4", "456");
 }
