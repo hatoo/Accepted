@@ -1,5 +1,3 @@
-#![allow(non_snake_case)]
-
 use accepted::{Buffer, BufferMode};
 use termion::event::{Event, Key};
 
