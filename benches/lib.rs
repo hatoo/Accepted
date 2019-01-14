@@ -7,7 +7,7 @@ use termion::event::{Event, Key};
 use test::Bencher;
 
 #[bench]
-fn bench_add_1(b: &mut Bencher) {
+fn bench_insert_1(b: &mut Bencher) {
     let syntax_parent = accepted::syntax::SyntaxParent::default();
     let buf = Buffer::new(&syntax_parent);
     let mut state = BufferMode::new(buf);
