@@ -2,6 +2,6 @@ language: rust
 rust:
   - nightly
 script:
-  - cargo build --verbose --all
-  - cargo test --verbose --all
-  - cargo bench --verbose --all
+  - cargo build
+  - cargo test
+  - cargo bench
