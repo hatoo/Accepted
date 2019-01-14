@@ -155,7 +155,7 @@ impl TextObject for Word {
                 let mut l = pos.col;
                 let mut r = pos.col;
 
-                while l > 1 && line.char(l - 1).is_alphanumeric() {
+                while l > 0 && line.char(l - 1).is_alphanumeric() {
                     l -= 1;
                 }
 

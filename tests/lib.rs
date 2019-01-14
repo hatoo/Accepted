@@ -67,10 +67,15 @@ fn test_simples() {
 
     // word
     simple_test("123 456 789", "wdw", "123 789");
+    simple_test("123 456 789", "dw", "456 789");
     simple_test("123 456             789", "wdw", "123 789");
     simple_test("123 456 789", "wdaw", "123 789");
+    simple_test("123 456 789", "daw", "456 789");
+    simple_test("123 456 789", "ldaw", "456 789");
     simple_test("123 456             789", "wdaw", "123 789");
     simple_test("123 456 789", "wdiw", "123  789");
+    simple_test("123 456 789", "diw", " 456 789");
+    simple_test("123 456 789", "ldiw", " 456 789");
 
     simple_test("123 456 789", "wcw", "123  789");
     simple_test("123 456   789", "wcw", "123    789");
