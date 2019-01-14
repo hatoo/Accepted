@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
+use accepted::{Buffer, BufferMode};
 use termion::event::{Event, Key};
-use accepted::{BufferMode,  Buffer};
 
 trait BufferModeExt {
     fn command(&mut self, command: &str);
@@ -37,7 +37,7 @@ fn with_buffer_mode_from<F: FnOnce(BufferMode)>(init: &str, func: F) {
 }
 
 fn simple_test(init: &str, commands: &str, expected: &str) {
-    with_buffer_mode_from(init,|mut state| {
+    with_buffer_mode_from(init, |mut state| {
         state.command_esc(commands);
         assert_eq!(state.buf.core.get_string(), expected);
     });
@@ -69,4 +69,5 @@ fn test_simples() {
 
     // dw
     simple_test("123 456 789", "wdw", "123 789");
+    simple_test("123 456             789", "wdw", "123 789");
 }

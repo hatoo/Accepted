@@ -9,7 +9,7 @@ use crate::draw;
 use crate::indent;
 use crate::ropey_util::RopeExt;
 use crate::ropey_util::RopeSliceExt;
-use crate::text_object;
+use crate::text_object::{self, Action};
 use ropey::Rope;
 use shellexpand;
 use std;
@@ -82,42 +82,14 @@ struct Find {
     to_right: bool,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
-enum Action {
-    Delete,
-    Yank,
-    Change,
-}
-
-impl Action {
-    fn from_char(c: char) -> Option<Self> {
-        match c {
-            'd' => Some(Action::Delete),
-            'y' => Some(Action::Yank),
-            'c' => Some(Action::Change),
-            _ => None,
-        }
-    }
-
-    fn to_char(self) -> char {
-        match self {
-            Action::Delete => 'd',
-            Action::Yank => 'y',
-            Action::Change => 'c',
-        }
-    }
-}
-
 struct TextObjectOperation {
-    action: Action,
     parser: text_object::TextObjectParser,
 }
 
 impl TextObjectOperation {
     fn new(action: Action) -> Self {
         Self {
-            action,
-            parser: text_object::TextObjectParser::default(),
+            parser: text_object::TextObjectParser::new(action),
         }
     }
 }
@@ -1274,13 +1246,13 @@ impl Mode for TextObjectOperation {
             return Transition::Return(None, false);
         }
         if let Event::Key(Key::Char(c)) = event {
-            if c == self.action.to_char() {
+            if c == self.parser.action.to_char() {
                 // Yank current line
                 buf.yank = Yank {
                     insert_newline: true,
                     content: String::from(buf.core.current_line()),
                 };
-                match self.action {
+                match self.parser.action {
                     // dd
                     Action::Delete => {
                         let range = CursorRange(
@@ -1352,7 +1324,7 @@ impl Mode for TextObjectOperation {
                     insert_newline: true,
                     content: String::from(buf.core.get_slice_by_range(range).trim_end()),
                 };
-                match self.action {
+                match self.parser.action {
                     // dj or dk
                     Action::Delete => {
                         buf.core.delete_range(range);
@@ -1378,7 +1350,7 @@ impl Mode for TextObjectOperation {
                         insert_newline: false,
                         content: String::from(buf.core.get_slice_by_range(range)),
                     };
-                    match self.action {
+                    match self.parser.action {
                         Action::Delete => {
                             buf.core.delete_range(range);
                             buf.core.commit();
@@ -1412,7 +1384,7 @@ impl Mode for TextObjectOperation {
 
         let mut footer = term.view((height, 0), 1, width);
 
-        match self.action {
+        match self.parser.action {
             Action::Change => {
                 footer.puts("Change ", draw::CharStyle::Footer);
             }
