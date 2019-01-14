@@ -187,8 +187,6 @@ impl TextObject for Word {
 pub struct TextObjectParser {
     pub action: Action,
     pub prefix: Prefix,
-    pub object: Option<Box<TextObject>>,
-    pub find: Option<char>,
 }
 
 impl TextObjectParser {
@@ -196,14 +194,12 @@ impl TextObjectParser {
         Self {
             action,
             prefix: Prefix::TextObjectPrefix(TextObjectPrefix::None),
-            object: None,
-            find: None,
         }
     }
 }
 
 impl TextObjectParser {
-    pub fn parse(&mut self, c: char) -> bool {
+    pub fn parse(&mut self, c: char, core: &Core) -> Option<Option<CursorRange>> {
         match c {
             'a' => {
                 self.prefix = Prefix::TextObjectPrefix(TextObjectPrefix::A);
@@ -216,76 +212,56 @@ impl TextObjectParser {
                     self.prefix = Prefix::Find {
                         inclusive: c == 'f',
                     };
-                    return false;
+                    return None;
                 }
             }
             _ => (),
         }
 
-        if let Prefix::Find { .. } = self.prefix {
-            self.find = Some(c);
-            return true;
-        }
-
-        if self.object.is_none() {
-            match c {
-                'w' => {
-                    self.object = Some(Box::new(Word));
-                    return true;
+        match self.prefix {
+            Prefix::Find { inclusive } => {
+                let find = c;
+                let l = core.cursor();
+                let mut r = l;
+                let line = core.current_line();
+                while r.col < line.len_chars() && line.char(r.col) != find {
+                    r.col += 1;
                 }
-                '\'' | '"' => {
-                    self.object = Some(Box::new(Quote(c)));
-                    return true;
-                }
-                '{' | '}' => {
-                    self.object = Some(Box::new(Parens('{', '}')));
-                    return true;
-                }
-                '(' | ')' => {
-                    self.object = Some(Box::new(Parens('(', ')')));
-                    return true;
-                }
-                '[' | ']' => {
-                    self.object = Some(Box::new(Parens('[', ']')));
-                    return true;
-                }
-                _ => (),
-            }
-        }
-        false
-    }
 
-    pub fn get_range(&self, core: &Core) -> Option<CursorRange> {
-        if let Some(ref obj) = self.object {
-            if let Prefix::TextObjectPrefix(text_object_prefix) = self.prefix {
-                obj.get_range(self.action, text_object_prefix, core)
-            } else {
-                None
-            }
-        } else if let Prefix::Find { inclusive } = self.prefix {
-            let find = self.find?;
-            let l = core.cursor();
-            let mut r = l;
-            let line = core.current_line();
-            while r.col < line.len_chars() && line.char(r.col) != find {
-                r.col += 1;
-            }
+                if r.col == line.len_chars() {
+                    return Some(None);
+                }
 
-            if r.col == line.len_chars() {
-                return None;
-            }
+                if !inclusive {
+                    if let Some(prev) = core.prev_cursor(r) {
+                        r = prev;
+                    } else {
+                        return Some(None);
+                    }
+                }
 
-            if !inclusive {
-                r = core.prev_cursor(r)?;
+                if r >= l {
+                    return Some(Some(CursorRange(l, r)));
+                } else {
+                    return Some(None);
+                }
             }
-
-            if r >= l {
-                Some(CursorRange(l, r))
-            } else {
-                None
+            Prefix::TextObjectPrefix(text_object_prefix) => {
+                return match c {
+                    'w' => Some(Word.get_range(self.action, text_object_prefix, core)),
+                    '\'' | '"' => Some(Quote(c).get_range(self.action, text_object_prefix, core)),
+                    '{' | '}' => {
+                        Some(Parens('{', '}').get_range(self.action, text_object_prefix, core))
+                    }
+                    '(' | ')' => {
+                        Some(Parens('(', ')').get_range(self.action, text_object_prefix, core))
+                    }
+                    '[' | ']' => {
+                        Some(Parens('[', ']').get_range(self.action, text_object_prefix, core))
+                    }
+                    _ => None,
+                };
             }
-        } else {
-            None
         }
     }
 }

@@ -1344,8 +1344,8 @@ impl Mode for TextObjectOperation {
                 }
             }
 
-            if self.parser.parse(c) {
-                if let Some(range) = self.parser.get_range(&buf.core) {
+            if let Some(half_range) = self.parser.parse(c, &buf.core) {
+                if let Some(range) = half_range {
                     buf.yank = Yank {
                         insert_newline: false,
                         content: String::from(buf.core.get_slice_by_range(range)),
@@ -1357,7 +1357,6 @@ impl Mode for TextObjectOperation {
                             return Transition::Return(None, true);
                         }
                         Action::Change => {
-                            let range = self.parser.get_range(&buf.core).unwrap();
                             buf.core.delete_range(range);
                             buf.core.commit();
                             return Insert::default().into();
