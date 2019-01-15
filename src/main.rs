@@ -16,6 +16,10 @@ use accepted::draw::DoubleBuffer;
 use accepted::{Buffer, BufferMode};
 
 use clap::{crate_authors, crate_version, App, Arg};
+use rbtag::{BuildDateTime, BuildGitCommit};
+
+#[derive(BuildDateTime, BuildGitCommit)]
+struct BuildTag;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct SnippetSet(HashMap<String, Snippet>);
@@ -29,6 +33,7 @@ fn main() {
     let matches = App::new("Accepted")
         .author(crate_authors!())
         .version(crate_version!())
+        .long_version(format!("v{} {}", crate_version!(), BuildTag {}.get_build_commit(),).as_str())
         .about("A text editor to be ACCEPTED")
         .bin_name("acc")
         .arg(Arg::with_name("file"))
