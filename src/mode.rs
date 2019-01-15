@@ -10,6 +10,7 @@ use crate::indent;
 use crate::ropey_util::RopeExt;
 use crate::ropey_util::RopeSliceExt;
 use crate::text_object::{self, Action};
+use aho_corasick::Automaton;
 use ropey::Rope;
 use shellexpand;
 use std;
@@ -306,28 +307,44 @@ impl Mode for Normal {
             }
             Event::Key(Key::Char('n')) => {
                 if !buf.search.is_empty() {
-                    let orig_pos = buf.core.cursor();
-                    let search: String = buf.search.iter().collect();
-                    if !buf.core.cursor_inc() {
-                        buf.core.set_cursor(Cursor { row: 0, col: 0 });
+                    let mut pos = buf.core.cursor();
+
+                    let search = buf.search.iter().collect::<String>();
+                    let ac = aho_corasick::AcAutomaton::new(vec![search]);
+
+                    if let Some(p) = buf.core.next_cursor(pos) {
+                        pos = p;
+                    } else {
+                        pos = Cursor { row: 0, col: 0 };
                     }
 
-                    loop {
-                        let matched = buf.core.current_line_after_cursor().len_chars()
-                            >= buf.search.len()
-                            && buf
-                                .core
-                                .current_line_after_cursor()
-                                .slice(..buf.search.len())
-                                == search;
-                        if matched || buf.core.cursor() == orig_pos {
-                            buf.show_cursor();
-                            break;
-                        }
+                    let idx = buf.core.buffer().line_to_char(pos.row) + pos.col;
 
-                        if !buf.core.cursor_inc() {
-                            buf.core.set_cursor(Cursor { row: 0, col: 0 });
-                        }
+                    let pos_bytes = if let Some(Ok(m)) = ac
+                        .stream_find(iter_read::IterRead::new(
+                            buf.core.buffer().slice(idx..).bytes(),
+                        ))
+                        .next()
+                    {
+                        Some(buf.core.buffer().char_to_byte(idx) + m.start)
+                    } else if let Some(Ok(m)) = ac
+                        .stream_find(iter_read::IterRead::new(
+                            buf.core.buffer().slice(..idx).bytes(),
+                        ))
+                        .next()
+                    {
+                        Some(m.start)
+                    } else {
+                        None
+                    };
+
+                    if let Some(start) = pos_bytes {
+                        let row = buf.core.buffer().byte_to_line(start);
+                        let col = buf.core.buffer().byte_to_char(start)
+                            - buf.core.buffer().line_to_char(row);
+
+                        buf.core.set_cursor(Cursor { row, col });
+                        buf.show_cursor();
                     }
                 }
             }
