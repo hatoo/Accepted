@@ -90,4 +90,9 @@ fn test_simples() {
     simple_test("123456", "df4", "56");
     simple_test("123456", "dt4", "456");
     simple_test("123456abc", "dta", "abc");
+
+    // Yanks
+    simple_test("123\n456\n789", "yyp", "123\n123\n456\n789");
+    simple_test("123\n456\n789", "ddp", "456\n123\n789");
+    simple_test("123 456 789", "dwwP", "456 123 789");
 }
