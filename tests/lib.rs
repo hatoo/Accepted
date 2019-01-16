@@ -54,9 +54,10 @@ fn test_simples() {
     // r
     simple_test("123", "r8", "823");
 
-    // s, S
+    // s, S, C
     simple_test("123", "sHello World", "Hello World23");
     simple_test("123", "SHello World", "Hello World");
+    simple_test("123 456 789", "wCabc", "123 abc");
 
     // dd
     simple_test("1\n2\n3", "jdd", "1\n3");
