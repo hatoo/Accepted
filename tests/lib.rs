@@ -78,6 +78,7 @@ fn test_simples() {
     simple_test("123 456 789", "ldiw", " 456 789");
 
     simple_test("123 456 789", "wcw", "123  789");
+    simple_test("123 456 789", "wcwabc", "123 abc 789");
     simple_test("123 456   789", "wcw", "123    789");
     simple_test("123 456 789", "wcaw", "123  789");
     simple_test("123 456   789", "wcaw", "123    789");
