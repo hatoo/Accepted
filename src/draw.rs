@@ -152,7 +152,7 @@ pub struct Term {
     buf: Vec<Vec<Tile>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct DoubleBuffer {
     front: Term,
     pub back: Term,
@@ -316,15 +316,6 @@ impl Term {
                 res
             })
             .collect()
-    }
-}
-
-impl Default for DoubleBuffer {
-    fn default() -> Self {
-        Self {
-            front: Term::default(),
-            back: Term::default(),
-        }
     }
 }
 
