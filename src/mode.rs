@@ -753,7 +753,7 @@ impl Mode for Insert {
 
         if let Some(cursor) = cursor {
             if cursor.col + completion_width <= width && cursor.row + completion_height <= height {
-                let mut view = term.view(cursor.to_tuple(), completion_height, completion_width);
+                let mut view = term.view(cursor.into_tuple(), completion_height, completion_width);
                 for i in 0..min(completion_height, self.completion_len()) {
                     let is_selected = Some(i) == self.completion_index;
                     if i < self.completions.len() {
