@@ -361,6 +361,7 @@ impl Mode for Normal {
                 }
             }
             Event::Key(Key::Char('N')) => {
+                // TODO: Use aho-corasick. Waiting reverse iterator of ropey.
                 if !buf.search.is_empty() {
                     let search: String = buf.search.iter().collect();
                     let last_pos = Cursor {
