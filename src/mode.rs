@@ -889,6 +889,9 @@ impl Mode for Save {
     }
 
     fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
+        if term.height < 2 {
+            return;
+        }
         let height = term.height - 2;
         let width = term.width;
         let cursor = buf.draw(term.view((0, 0), height, width));
