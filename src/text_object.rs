@@ -243,27 +243,25 @@ impl TextObjectParser {
                 }
 
                 if r >= l {
-                    return Some(Some(CursorRange(l, r)));
+                    Some(Some(CursorRange(l, r)))
                 } else {
-                    return Some(None);
+                    Some(None)
                 }
             }
-            Prefix::TextObjectPrefix(text_object_prefix) => {
-                return match c {
-                    'w' => Some(Word.get_range(self.action, text_object_prefix, core)),
-                    '\'' | '"' => Some(Quote(c).get_range(self.action, text_object_prefix, core)),
-                    '{' | '}' => {
-                        Some(Parens('{', '}').get_range(self.action, text_object_prefix, core))
-                    }
-                    '(' | ')' => {
-                        Some(Parens('(', ')').get_range(self.action, text_object_prefix, core))
-                    }
-                    '[' | ']' => {
-                        Some(Parens('[', ']').get_range(self.action, text_object_prefix, core))
-                    }
-                    _ => None,
-                };
-            }
+            Prefix::TextObjectPrefix(text_object_prefix) => match c {
+                'w' => Some(Word.get_range(self.action, text_object_prefix, core)),
+                '\'' | '"' => Some(Quote(c).get_range(self.action, text_object_prefix, core)),
+                '{' | '}' => {
+                    Some(Parens('{', '}').get_range(self.action, text_object_prefix, core))
+                }
+                '(' | ')' => {
+                    Some(Parens('(', ')').get_range(self.action, text_object_prefix, core))
+                }
+                '[' | ']' => {
+                    Some(Parens('[', ']').get_range(self.action, text_object_prefix, core))
+                }
+                _ => None,
+            },
         }
     }
 }

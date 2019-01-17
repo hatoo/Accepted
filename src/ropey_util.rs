@@ -5,7 +5,7 @@ pub trait RopeSliceExt {
 }
 
 pub trait RopeExt {
-    fn l<'a>(&'a self, line_idx: usize) -> RopeSlice<'a>;
+    fn l(&self, line_idx: usize) -> RopeSlice;
 }
 
 pub fn is_line_end(c: char) -> bool {
@@ -27,7 +27,7 @@ impl<'a> RopeSliceExt for RopeSlice<'a> {
 }
 
 impl RopeExt for Rope {
-    fn l<'a>(&'a self, line_idx: usize) -> RopeSlice<'a> {
+    fn l(&self, line_idx: usize) -> RopeSlice {
         self.line(line_idx).trim_end()
     }
 }

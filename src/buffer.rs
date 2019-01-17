@@ -121,8 +121,8 @@ impl<'a> Buffer<'a> {
         self.restart_lsp();
     }
 
-    pub fn language(&self) -> &Box<language_specific::Language> {
-        &self.language
+    pub fn language(&self) -> &dyn language_specific::Language {
+        self.language.as_ref()
     }
 
     pub fn indent(&mut self) {
