@@ -295,6 +295,18 @@ impl Mode for Normal {
             Event::Key(Key::Char('F')) => {
                 return Find { to_right: false }.into();
             }
+            Event::Key(Key::Char('0')) => {
+                buf.core.set_cursor(Cursor {
+                    row: buf.core.cursor().row,
+                    col: 0,
+                });
+            }
+            Event::Key(Key::Char('$')) => {
+                buf.core.set_cursor(Cursor {
+                    row: buf.core.cursor().row,
+                    col: buf.core.current_line().len_chars(),
+                });
+            }
             Event::Key(Key::Char('g')) => {
                 buf.core.set_cursor(Cursor { row: 0, col: 0 });
                 buf.show_cursor();
