@@ -3,7 +3,7 @@ use crate::core::Cursor;
 use crate::cursor;
 use std;
 use std::fmt;
-use std::io::Write;
+use std::io::{self, Write};
 use syntect;
 use syntect::highlighting::Color;
 use syntect::highlighting::FontStyle;
@@ -324,7 +324,7 @@ impl DoubleBuffer {
         self.back.view(orig, height, width)
     }
 
-    pub fn present<T: Write>(&mut self, out: &mut T) {
+    pub fn present<T: Write>(&mut self, out: &mut T) -> io::Result<()> {
         let edit = if self.front.height != self.back.height || self.front.width != self.back.width {
             write!(
                 out,
@@ -332,31 +332,30 @@ impl DoubleBuffer {
                 CharStyle::Default,
                 termion::clear::All,
                 termion::cursor::Goto(1, 1)
-            )
-            .unwrap();
+            )?;
 
             let mut current_style = CharStyle::Default;
             for (i, line) in self.back.render().into_iter().enumerate() {
                 for &(c, s) in &line {
                     if current_style != s {
                         current_style = s;
-                        write!(out, "{}", current_style).unwrap();
+                        write!(out, "{}", current_style)?;
                     }
-                    write!(out, "{}", c).unwrap();
+                    write!(out, "{}", c)?;
                 }
 
                 if !line.is_empty() {
-                    write!(out, "{}", termion::clear::UntilNewline).unwrap();
+                    write!(out, "{}", termion::clear::UntilNewline)?;
                 }
                 if i < self.back.height - 1 {
-                    writeln!(out, "\r").unwrap();
+                    writeln!(out, "\r")?;
                 }
             }
             true
         } else {
             let mut edit = false;
             let mut current_style = CharStyle::Default;
-            write!(out, "{}", current_style).unwrap();
+            write!(out, "{}", current_style)?;
 
             for (i, (f, b)) in self
                 .front
@@ -368,27 +367,28 @@ impl DoubleBuffer {
                 if f != b {
                     edit = true;
                     current_style = CharStyle::Default;
-                    write!(out, "{}", termion::cursor::Goto(1, i as u16 + 1)).unwrap();
-                    write!(out, "{}", current_style).unwrap();
+                    write!(out, "{}", termion::cursor::Goto(1, i as u16 + 1))?;
+                    write!(out, "{}", current_style)?;
 
                     for (c, s) in b {
                         if current_style != s {
                             current_style = s;
-                            write!(out, "{}", current_style).unwrap();
+                            write!(out, "{}", current_style)?;
                         }
-                        write!(out, "{}", c).unwrap();
+                        write!(out, "{}", c)?;
                     }
-                    write!(out, "{}", termion::clear::UntilNewline).unwrap();
+                    write!(out, "{}", termion::clear::UntilNewline)?;
                 }
             }
             edit
         };
 
         if edit || self.front.cursor != self.back.cursor {
-            write!(out, "{}", self.back.cursor).unwrap();
+            write!(out, "{}", self.back.cursor)?;
         }
         std::mem::swap(&mut self.front, &mut self.back);
         self.back = Term::default();
+        Ok(())
     }
 
     pub fn redraw(&mut self) {

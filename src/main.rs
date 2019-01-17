@@ -128,7 +128,7 @@ fn main() {
         }
 
         state.draw(&mut draw.back);
-        draw.present(&mut stdout);
+        draw.present(&mut stdout).unwrap();
         stdout.flush().unwrap();
     }
 }
