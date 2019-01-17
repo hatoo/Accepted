@@ -138,11 +138,11 @@ impl Core {
         }
     }
 
-    pub fn current_line<'a>(&'a self) -> ropey::RopeSlice<'a> {
+    pub fn current_line(&self) -> ropey::RopeSlice {
         self.buffer.l(self.cursor.row)
     }
 
-    pub fn current_line_after_cursor<'a>(&'a self) -> ropey::RopeSlice<'a> {
+    pub fn current_line_after_cursor(&self) -> ropey::RopeSlice {
         self.current_line().slice(self.cursor.col..)
     }
 
@@ -370,7 +370,7 @@ impl Core {
         self.perform(op);
     }
 
-    pub fn get_slice_by_range<'a>(&'a self, range: CursorRange) -> RopeSlice<'a> {
+    pub fn get_slice_by_range(&self, range: CursorRange) -> RopeSlice {
         let l = self.buffer.line_to_char(range.l().row) + range.l().col;
         let mut r = self.buffer.line_to_char(range.r().row) + range.r().col;
 
