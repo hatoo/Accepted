@@ -606,7 +606,7 @@ impl Insert {
             }
         };
         if !prefix.is_empty() || start_completion {
-            if let Some(lsp) = buf.lsp.as_mut() {
+            if let Some(lsp) = buf.lsp.as_ref() {
                 // LSP
                 lsp.request_completion(buf.core.get_string(), buf.core.cursor());
             }
@@ -631,7 +631,7 @@ impl Insert {
 impl Mode for Insert {
     fn init(&mut self, buf: &mut Buffer) {
         // Flush completion
-        if let Some(lsp) = buf.lsp.as_mut() {
+        if let Some(lsp) = buf.lsp.as_ref() {
             lsp.poll();
         }
         self.build_completion(buf);
