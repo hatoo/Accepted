@@ -47,7 +47,7 @@ impl<T: Mode + 'static> From<T> for Transition {
 pub trait Mode {
     fn init(&mut self, _buf: &mut Buffer) {}
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition;
-    fn draw(&mut self, core: &mut Buffer, term: &mut draw::Term);
+    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term);
 }
 
 pub struct Normal {
