@@ -27,11 +27,15 @@ pub struct CompileResult {
 }
 
 pub trait Language {
-    fn start_lsp(&self) -> Option<lsp::LSPClient>;
+    fn start_lsp(&self) -> Option<lsp::LSPClient> {
+        None
+    }
     fn indent_width(&self) -> usize {
         4
     }
-    fn format(&self, src: &str) -> Option<String>;
+    fn format(&self, _src: &str) -> Option<String> {
+        None
+    }
     // Must be async
     fn compile(&self, _path: path::PathBuf, _compile_id: CompileId) {}
     // Do not Block
@@ -210,11 +214,4 @@ impl Language for Rust {
     }
 }
 
-impl Language for Text {
-    fn start_lsp(&self) -> Option<lsp::LSPClient> {
-        None
-    }
-    fn format(&self, _src: &str) -> Option<String> {
-        None
-    }
-}
+impl Language for Text {}
