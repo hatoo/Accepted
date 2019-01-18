@@ -5,7 +5,7 @@ use crate::mode::{Mode, Normal, Transition};
 mod buffer;
 mod clipboard;
 mod compiler;
-mod config;
+pub mod config;
 mod core;
 mod cursor;
 pub mod draw;

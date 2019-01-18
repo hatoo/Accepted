@@ -35,9 +35,9 @@ pub struct LanguageConfig {
     formatter: Option<Command>,
 }
 
-struct Command {
-    program: OsString,
-    args: Vec<OsString>,
+pub struct Command {
+    pub program: OsString,
+    pub args: Vec<OsString>,
 }
 
 #[derive(Default)]
@@ -107,7 +107,7 @@ fn load_config<P: AsRef<path::Path>>(path: P) -> Result<Config, failure::Error> 
     ))
 }
 
-fn load_config_with_default<P: AsRef<path::Path>>(
+pub fn load_config_with_default<P: AsRef<path::Path>>(
     path: P,
 ) -> Result<ConfigWithDefault, failure::Error> {
     const DEFAULT: &str = include_str!("../assets/default_config.toml");
