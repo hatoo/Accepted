@@ -1,6 +1,7 @@
 mod buffer;
 mod clipboard;
 mod compiler;
+mod config;
 mod core;
 mod cursor;
 pub mod draw;
