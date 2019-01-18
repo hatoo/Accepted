@@ -2,9 +2,11 @@
 
 extern crate test;
 
-use accepted::{Buffer, BufferMode};
-use termion::event::{Event, Key};
 use test::Bencher;
+
+use termion::event::{Event, Key};
+
+use accepted::{Buffer, BufferMode};
 
 #[bench]
 fn bench_insert_1(b: &mut Bencher) {

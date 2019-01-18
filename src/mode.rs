@@ -1,18 +1,3 @@
-use crate::buffer::Buffer;
-use crate::buffer::Yank;
-use crate::clipboard;
-use crate::core::Core;
-use crate::core::Cursor;
-use crate::core::CursorRange;
-use crate::core::Id;
-use crate::draw;
-use crate::indent;
-use crate::ropey_util::RopeExt;
-use crate::ropey_util::RopeSliceExt;
-use crate::text_object::{self, Action};
-use aho_corasick::Automaton;
-use ropey::Rope;
-use shellexpand;
 use std;
 use std::borrow::Cow;
 use std::cmp::{max, min};
@@ -25,8 +10,25 @@ use std::process;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Instant;
+
+use aho_corasick::Automaton;
+use ropey::Rope;
+use shellexpand;
 use termion;
 use termion::event::{Event, Key, MouseButton, MouseEvent};
+
+use crate::buffer::Buffer;
+use crate::buffer::Yank;
+use crate::clipboard;
+use crate::core::Core;
+use crate::core::Cursor;
+use crate::core::CursorRange;
+use crate::core::Id;
+use crate::draw;
+use crate::indent;
+use crate::ropey_util::RopeExt;
+use crate::ropey_util::RopeSliceExt;
+use crate::text_object::{self, Action};
 
 pub enum Transition {
     Nothing,
@@ -61,12 +63,14 @@ pub struct Completion {
 }
 
 struct Prefix;
+
 struct Insert {
     completion_index: Option<usize>,
     buf_update: Id,
     completions: Vec<Completion>,
     snippet_completions: Vec<String>,
 }
+
 impl Default for Insert {
     fn default() -> Self {
         Insert {
@@ -77,8 +81,11 @@ impl Default for Insert {
         }
     }
 }
+
 struct R;
+
 struct S(CursorRange);
+
 struct Find {
     to_right: bool,
 }
@@ -96,13 +103,16 @@ impl TextObjectOperation {
 }
 
 struct Search;
+
 struct Save {
     path: String,
 }
+
 struct Visual {
     cursor: Cursor,
     line_mode: bool,
 }
+
 struct ViewProcess {
     row_offset: usize,
     pub buf: Vec<String>,
@@ -1429,6 +1439,7 @@ impl Mode for TextObjectOperation {
         }
     }
 }
+
 impl Mode for S {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {

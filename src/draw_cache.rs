@@ -1,16 +1,18 @@
-use crate::draw;
-use crate::draw::CharStyle;
-use crate::ropey_util::RopeExt;
-use crate::syntax;
-use ropey::Rope;
 use std::borrow::Cow;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+
+use ropey::Rope;
 use syntect::highlighting::Color;
 use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter};
 use syntect::parsing::SyntaxSet;
 use syntect::parsing::{ParseState, ScopeStack, ScopeStackOp};
+
+use crate::draw;
+use crate::draw::CharStyle;
+use crate::ropey_util::RopeExt;
+use crate::syntax;
 
 #[derive(Clone)]
 struct DrawState {

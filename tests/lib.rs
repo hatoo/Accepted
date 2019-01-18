@@ -1,5 +1,6 @@
-use accepted::{Buffer, BufferMode};
 use termion::event::{Event, Key};
+
+use accepted::{Buffer, BufferMode};
 
 trait BufferModeExt {
     fn command(&mut self, command: &str);

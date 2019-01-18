@@ -1,9 +1,3 @@
-use serde_derive::{Deserialize, Serialize};
-use termion::event::{Event, Key};
-use termion::input::{MouseTerminal, TermRead};
-use termion::raw::IntoRawMode;
-use termion::screen::AlternateScreen;
-
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io::{stdin, stdout, Write};
@@ -12,17 +6,23 @@ use std::sync::mpsc::channel;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use accepted::draw::DoubleBuffer;
-use accepted::{Buffer, BufferMode};
-
 use clap::{crate_authors, crate_version, App, Arg};
 use rbtag::BuildInfo;
+use serde_derive::{Deserialize, Serialize};
+use termion::event::{Event, Key};
+use termion::input::{MouseTerminal, TermRead};
+use termion::raw::IntoRawMode;
+use termion::screen::AlternateScreen;
+
+use accepted::draw::DoubleBuffer;
+use accepted::{Buffer, BufferMode};
 
 #[derive(BuildInfo)]
 struct BuildTag;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct SnippetSet(HashMap<String, Snippet>);
+
 #[derive(Serialize, Deserialize, Debug)]
 struct Snippet {
     prefix: String,

@@ -1,3 +1,7 @@
+pub use crate::buffer::Buffer;
+use crate::core::Core;
+use crate::mode::{Mode, Normal, Transition};
+
 mod buffer;
 mod clipboard;
 mod compiler;
@@ -16,10 +20,6 @@ mod rustc;
 pub mod syntax;
 mod text_object;
 pub mod theme;
-
-pub use crate::buffer::Buffer;
-use crate::core::Core;
-use crate::mode::{Mode, Normal, Transition};
 
 pub struct BufferMode<'a> {
     pub buf: Buffer<'a>,

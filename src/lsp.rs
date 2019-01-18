@@ -1,15 +1,17 @@
-use crate::core::Cursor;
-use crate::mode::Completion;
-use jsonrpc_core;
-use jsonrpc_core::Output;
-use languageserver_types;
-use serde;
-use serde_json;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Result, Write};
 use std::process;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
+
+use jsonrpc_core;
+use jsonrpc_core::Output;
+use languageserver_types;
+use serde;
+use serde_json;
+
+use crate::core::Cursor;
+use crate::mode::Completion;
 
 pub struct LSPClient {
     process: process::Child,

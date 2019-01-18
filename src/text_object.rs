@@ -49,7 +49,9 @@ pub trait TextObject {
 }
 
 struct Word;
+
 struct Quote(char);
+
 struct Parens(char, char);
 
 impl TextObject for Quote {
