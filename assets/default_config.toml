@@ -1,0 +1,12 @@
+[default]
+indent_width = 4
+
+[rs]
+lsp = ["rls"]
+formatter = ["rustfmt"]
+
+[cpp]
+# Respect clang-format
+indent_width = 2
+lsp = ["clangd"]
+formatter = ["clang-format"]
