@@ -74,8 +74,8 @@ impl CursorRange {
         }
     }
 
-    pub fn contains(&self, curosor: Cursor) -> bool {
-        min(self.0, self.1) <= curosor && curosor <= max(self.0, self.1)
+    pub fn contains(&self, cursor: Cursor) -> bool {
+        min(self.0, self.1) <= cursor && cursor <= max(self.0, self.1)
     }
 }
 
