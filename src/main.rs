@@ -1,7 +1,5 @@
-use std::collections::{BTreeMap, HashMap};
-use std::fs;
+use std::collections::HashMap;
 use std::io::{stdin, stdout, Write};
-use std::path::PathBuf;
 use std::sync::mpsc::channel;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -14,6 +12,7 @@ use termion::input::{MouseTerminal, TermRead};
 use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
 
+use accepted::config;
 use accepted::draw::DoubleBuffer;
 use accepted::{Buffer, BufferMode};
 
@@ -46,37 +45,8 @@ fn main() {
             p.push("init.toml");
             p
         })
-        .map(|config_path| {
-            let mut settings = config::Config::default();
-            // Just ignore error.
-            let _ = settings.merge(config::File::from(config_path));
-            settings
-        })
+        .map(|config_path| config::load_config_with_default(&config_path).unwrap())
         .unwrap_or_default();
-
-    let mut snippet = BTreeMap::new();
-    if let Ok(arr) = config.get_array("snippet") {
-        for fname in arr {
-            if let Ok(s) = fname.into_str() {
-                if let Ok(snippet_json) =
-                    fs::read_to_string(PathBuf::from(shellexpand::tilde(&s).as_ref()))
-                {
-                    if let Ok(snippet_set) = serde_json::from_str::<SnippetSet>(&snippet_json) {
-                        for (_, s) in snippet_set.0 {
-                            let mut body = String::new();
-                            for line in &s.body {
-                                for c in line.chars() {
-                                    body.push(c);
-                                }
-                                body.push('\n');
-                            }
-                            snippet.insert(s.prefix, body);
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     let stdin = stdin();
     let mut stdout = MouseTerminal::from(AlternateScreen::from(stdout()).into_raw_mode().unwrap());
@@ -94,12 +64,10 @@ fn main() {
 
     let syntax_parent = accepted::syntax::SyntaxParent::default();
 
-    let mut buf = Buffer::new(&syntax_parent);
+    let mut buf = Buffer::new(&syntax_parent, config);
     if let Some(path) = file {
         buf.open(path);
     }
-
-    buf.snippet = snippet;
 
     let mut state = BufferMode::new(buf);
 

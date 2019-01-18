@@ -11,9 +11,7 @@ use crate::compiler::CompilerOutput;
 use crate::core::Cursor;
 use crate::core::CursorRange;
 use crate::core::Id;
-use crate::formatter;
 use crate::job_queue::JobQueue;
-use crate::lsp;
 use crate::rustc;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
@@ -29,15 +27,6 @@ pub struct CompileResult {
 }
 
 pub trait Language {
-    fn start_lsp(&self) -> Option<lsp::LSPClient> {
-        None
-    }
-    fn indent_width(&self) -> usize {
-        4
-    }
-    fn format(&self, _src: &str) -> Option<String> {
-        None
-    }
     // Must be async
     fn compile(&self, _path: path::PathBuf, _compile_id: CompileId) {}
     // Do not Block
@@ -173,16 +162,6 @@ impl Default for Cpp {
 }
 
 impl Language for Cpp {
-    fn start_lsp(&self) -> Option<lsp::LSPClient> {
-        lsp::LSPClient::start(process::Command::new("clangd"), "cpp".into())
-    }
-    fn indent_width(&self) -> usize {
-        // Respect clang-format
-        2
-    }
-    fn format(&self, src: &str) -> Option<String> {
-        formatter::system_clang_format(src)
-    }
     fn compile(&self, path: path::PathBuf, compile_id: CompileId) {
         self.job_queue.send((path, compile_id)).unwrap();
     }
@@ -198,12 +177,6 @@ impl Language for Cpp {
 }
 
 impl Language for Rust {
-    fn start_lsp(&self) -> Option<lsp::LSPClient> {
-        lsp::LSPClient::start(process::Command::new("rls"), "rs".into())
-    }
-    fn format(&self, src: &str) -> Option<String> {
-        formatter::system_rustfmt(src)
-    }
     fn compile(&self, path: path::PathBuf, compile_id: CompileId) {
         self.job_queue.send((path, compile_id)).unwrap();
     }

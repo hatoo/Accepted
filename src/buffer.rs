@@ -10,12 +10,14 @@ use syntect::highlighting::FontStyle;
 use termion;
 use unicode_width::UnicodeWidthChar;
 
+use crate::config;
 use crate::core::Cursor;
 use crate::core::CursorRange;
 use crate::core::Id;
 use crate::draw;
 use crate::draw::{CharStyle, LinenumView, View};
 use crate::draw_cache::DrawCache;
+use crate::formatter;
 use crate::language_specific;
 use crate::language_specific::CompileId;
 use crate::language_specific::CompileResult;
@@ -59,6 +61,7 @@ pub struct Buffer<'a> {
     pub core: Core,
     pub search: Vec<char>,
     syntax_parent: &'a syntax::SyntaxParent,
+    config: config::ConfigWithDefault,
     syntax: syntax::Syntax<'a>,
     pub snippet: BTreeMap<String, String>,
     pub yank: Yank,
@@ -79,11 +82,11 @@ impl<'a> Buffer<'a> {
         (rows as usize, cols as usize)
     }
 
-    pub fn new(syntax_parent: &'a syntax::SyntaxParent) -> Self {
+    pub fn new(syntax_parent: &'a syntax::SyntaxParent, config: config::ConfigWithDefault) -> Self {
         let syntax = syntax_parent.load_syntax_or_txt("txt");
         let language = language_specific::detect_language("txt");
 
-        Self {
+        let mut res = Self {
             path: None,
             core: Core::default(),
             search: Vec::new(),
@@ -92,15 +95,25 @@ impl<'a> Buffer<'a> {
             snippet: BTreeMap::new(),
             yank: Yank::default(),
             last_save: Id::default(),
-            lsp: language.start_lsp(),
+            lsp: None,
             language,
             row_offset: 0,
             last_compiler_result: None,
             syntax_parent,
+            config,
             buffer_update: Id::default(),
             last_compiler_submit: CompileId::default(),
             last_compiler_compiled: CompileId::default(),
-        }
+        };
+        res.restart_lsp();
+        res.reset_snippet();
+        res
+    }
+
+    fn reset_snippet(&mut self) {
+        self.snippet = self
+            .config
+            .snippets(self.path().and_then(|p| p.extension()));
     }
 
     pub fn extend_cache_duration(&mut self, duration: std::time::Duration) {
@@ -108,8 +121,22 @@ impl<'a> Buffer<'a> {
             .extend_cache_duration(self.core.buffer(), duration);
     }
 
+    pub fn indent_width(&self) -> usize {
+        self.config
+            .indent_width(self.path().and_then(|p| p.extension()))
+    }
+
     pub fn restart_lsp(&mut self) {
-        self.lsp = self.language.start_lsp();
+        let ext = self
+            .path()
+            .and_then(|p| p.extension())
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
+        self.lsp = self
+            .config
+            .lsp(self.path().and_then(|p| p.extension()))
+            .and_then(|c| LSPClient::start(c.command(), ext));
     }
 
     fn set_syntax(&mut self, extension: &str) {
@@ -128,7 +155,7 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn indent(&mut self) {
-        self.core.indent(self.language.indent_width());
+        self.core.indent(self.indent_width());
     }
 
     pub fn path(&self) -> Option<&Path> {
@@ -166,6 +193,7 @@ impl<'a> Buffer<'a> {
         self.path = Some(path.as_ref().to_path_buf());
         self.cache = DrawCache::new(&self.syntax);
         self.compile(false);
+        self.reset_snippet();
     }
 
     pub fn save(&mut self, is_optimize: bool) -> bool {
@@ -228,8 +256,12 @@ impl<'a> Buffer<'a> {
 
     pub fn format(&mut self) {
         let src = self.core.get_string();
-        if let Some(formatted) = self.language.format(&src) {
-            if formatted != src {
+        let command = self
+            .config
+            .formatter(self.path().and_then(|p| p.extension()));
+
+        if let Some(command) = command {
+            if let Some(formatted) = formatter::system_format(command.command(), &src) {
                 self.core.set_string(formatted, false);
             }
         }

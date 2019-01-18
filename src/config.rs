@@ -3,6 +3,7 @@ use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fs;
 use std::path;
+use std::process;
 
 use serde_derive::{Deserialize, Serialize};
 
@@ -37,6 +38,14 @@ pub struct LanguageConfig {
 pub struct Command {
     pub program: OsString,
     pub args: Vec<OsString>,
+}
+
+impl Command {
+    pub fn command(&self) -> process::Command {
+        let mut res = process::Command::new(&self.program);
+        res.args(self.args.iter());
+        res
+    }
 }
 
 #[derive(Default)]

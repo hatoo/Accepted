@@ -684,7 +684,7 @@ impl Mode for Insert {
                     }
                 } else {
                     buf.core.insert(' ');
-                    while buf.core.cursor().col % buf.language().indent_width() != 0 {
+                    while buf.core.cursor().col % buf.indent_width() != 0 {
                         buf.core.insert(' ');
                     }
                 }
@@ -714,7 +714,7 @@ impl Mode for Insert {
                     buf.show_cursor();
                     self.completion_index = None;
                 } else {
-                    let indent_width = buf.language().indent_width();
+                    let indent_width = buf.indent_width();
                     buf.core.insert('\n');
                     let indent = indent::next_indent_level(
                         &Cow::from(buf.core.buffer().l(buf.core.cursor().row - 1)),
