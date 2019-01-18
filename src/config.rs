@@ -6,8 +6,7 @@ use std::path;
 
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Deserialize, Debug)]
-struct ConfigToml(HashMap<OsString, ConfigElementToml>);
+type ConfigToml = HashMap<String, ConfigElementToml>;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct SnippetSetJson(HashMap<String, SnippetJson>);
@@ -22,10 +21,10 @@ pub type Snippets = BTreeMap<String, String>;
 
 #[derive(Deserialize, Debug)]
 struct ConfigElementToml {
-    snippets: Option<Vec<OsString>>,
+    snippets: Option<Vec<String>>,
     indent_width: Option<usize>,
-    lsp: Option<Vec<OsString>>,
-    formatter: Option<Vec<OsString>>,
+    lsp: Option<Vec<String>>,
+    formatter: Option<Vec<String>>,
 }
 
 pub struct LanguageConfig {
@@ -63,10 +62,10 @@ fn load_snippet<P: AsRef<path::Path>>(path: P) -> Result<Snippets, failure::Erro
     Ok(snippets)
 }
 
-fn to_command(args: &[OsString]) -> Option<Command> {
+fn to_command(args: &[String]) -> Option<Command> {
     args.split_first().map(|(fst, rest)| Command {
-        program: fst.clone(),
-        args: rest.iter().cloned().collect(),
+        program: OsString::from(fst),
+        args: rest.iter().map(OsString::from).collect(),
     })
 }
 
@@ -100,7 +99,6 @@ fn load_config<P: AsRef<path::Path>>(path: P) -> Result<Config, failure::Error> 
 
     Ok(Config(
         config_toml
-            .0
             .into_iter()
             .map(|(k, v)| (OsString::from(k), to_language_config(v)))
             .collect(),
@@ -116,7 +114,6 @@ pub fn load_config_with_default<P: AsRef<path::Path>>(
         .map(|config_toml: ConfigToml| {
             Config(
                 config_toml
-                    .0
                     .into_iter()
                     .map(|(k, v)| (OsString::from(k), to_language_config(v)))
                     .collect(),
@@ -137,7 +134,6 @@ impl Default for ConfigWithDefault {
             .map(|config_toml: ConfigToml| {
                 Config(
                     config_toml
-                        .0
                         .into_iter()
                         .map(|(k, v)| (OsString::from(k), to_language_config(v)))
                         .collect(),
