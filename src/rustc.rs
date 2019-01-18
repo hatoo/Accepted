@@ -1,10 +1,11 @@
 #![allow(dead_code)]
 
-use crate::compiler::CompilerOutput;
-use crate::core::{Cursor, CursorRange};
 use serde_derive::Deserialize;
 use serde_json;
 use serde_json::Value;
+
+use crate::compiler::CompilerOutput;
+use crate::core::{Cursor, CursorRange};
 
 pub fn parse_rustc_json(json: &str) -> Option<CompilerOutput> {
     let d: Diagnostic = serde_json::from_str(json).ok()?;

@@ -1,9 +1,7 @@
-use crate::compiler::CompilerOutput;
-use crate::core::Cursor;
-use crate::cursor;
 use std;
 use std::fmt;
 use std::io::{self, Write};
+
 use syntect;
 use syntect::highlighting::Color;
 use syntect::highlighting::FontStyle;
@@ -11,6 +9,10 @@ use syntect::highlighting::Style;
 use termion;
 use termion::color::{Bg, Fg, Rgb};
 use unicode_width::UnicodeWidthChar;
+
+use crate::compiler::CompilerOutput;
+use crate::core::Cursor;
+use crate::cursor;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CharStyle {

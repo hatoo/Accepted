@@ -1,3 +1,12 @@
+use std::ffi::OsString;
+use std::io;
+use std::io::BufRead;
+use std::path;
+use std::path::PathBuf;
+use std::process;
+
+use regex;
+
 use crate::compiler::CompilerOutput;
 use crate::core::Cursor;
 use crate::core::CursorRange;
@@ -6,13 +15,6 @@ use crate::formatter;
 use crate::job_queue::JobQueue;
 use crate::lsp;
 use crate::rustc;
-use regex;
-use std::ffi::OsString;
-use std::io;
-use std::io::BufRead;
-use std::path;
-use std::path::PathBuf;
-use std::process;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
 pub struct CompileId {
@@ -62,9 +64,11 @@ pub fn detect_language(extension: &str) -> Box<dyn Language> {
 pub struct Cpp {
     job_queue: JobQueue<(PathBuf, CompileId), (CompileId, CompileResult)>,
 }
+
 pub struct Rust {
     job_queue: JobQueue<(PathBuf, CompileId), (CompileId, CompileResult)>,
 }
+
 pub struct Text;
 
 impl Default for Rust {

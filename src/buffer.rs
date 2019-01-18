@@ -1,3 +1,15 @@
+use std::borrow::Cow;
+use std::cmp::{max, min};
+use std::collections::BTreeMap;
+use std::fs;
+use std::io::BufReader;
+use std::io::BufWriter;
+use std::path::{Path, PathBuf};
+
+use syntect::highlighting::FontStyle;
+use termion;
+use unicode_width::UnicodeWidthChar;
+
 use crate::core::Cursor;
 use crate::core::CursorRange;
 use crate::core::Id;
@@ -11,16 +23,6 @@ use crate::lsp::LSPClient;
 use crate::ropey_util::RopeExt;
 use crate::syntax;
 use crate::Core;
-use std::borrow::Cow;
-use std::cmp::{max, min};
-use std::collections::BTreeMap;
-use std::fs;
-use std::io::BufReader;
-use std::io::BufWriter;
-use std::path::{Path, PathBuf};
-use syntect::highlighting::FontStyle;
-use termion;
-use unicode_width::UnicodeWidthChar;
 
 pub struct Yank {
     pub insert_newline: bool,
