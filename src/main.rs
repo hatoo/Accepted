@@ -42,7 +42,7 @@ fn main() {
     let config = dirs::config_dir()
         .map(|mut p| {
             p.push("acc");
-            p.push("init.toml");
+            p.push("config.toml");
             p
         })
         .map(|config_path| config::load_config_with_default(&config_path).unwrap())
