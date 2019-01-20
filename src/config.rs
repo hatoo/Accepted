@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fs;
+use std::io::Read;
 use std::path;
 use std::process;
 
@@ -102,8 +103,7 @@ fn to_language_config(toml: ConfigElementToml) -> LanguageConfig {
     }
 }
 
-fn load_config<P: AsRef<path::Path>>(path: P) -> Result<Config, failure::Error> {
-    let s = fs::read_to_string(path)?;
+fn parse_config(s: &str) -> Result<Config, failure::Error> {
     let config_toml: ConfigToml = toml::from_str(&s)?;
 
     Ok(Config(
@@ -114,9 +114,7 @@ fn load_config<P: AsRef<path::Path>>(path: P) -> Result<Config, failure::Error> 
     ))
 }
 
-pub fn load_config_with_default<P: AsRef<path::Path>>(
-    path: P,
-) -> Result<ConfigWithDefault, failure::Error> {
+pub fn parse_config_with_default(s: &str) -> Result<ConfigWithDefault, failure::Error> {
     const DEFAULT: &str = include_str!("../assets/default_config.toml");
 
     let default = toml::from_str(DEFAULT)
@@ -130,7 +128,7 @@ pub fn load_config_with_default<P: AsRef<path::Path>>(
         })
         .unwrap();
 
-    let config = load_config(path)?;
+    let config = parse_config(s)?;
 
     Ok(ConfigWithDefault { default, config })
 }

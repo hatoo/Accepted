@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fs;
 use std::io::{stdin, stdout, Write};
 use std::sync::mpsc::channel;
 use std::thread;
@@ -45,7 +46,8 @@ fn main() {
             p.push("config.toml");
             p
         })
-        .map(|config_path| config::load_config_with_default(&config_path).unwrap())
+        .and_then(|config_path| fs::read_to_string(&config_path).ok())
+        .map(|s| config::parse_config_with_default(s.as_str()).unwrap())
         .unwrap_or_default();
 
     let stdin = stdin();
