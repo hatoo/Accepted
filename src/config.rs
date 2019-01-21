@@ -2,13 +2,14 @@ use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fs;
-use std::io::Read;
 use std::path;
 use std::process;
 
 use serde_derive::{Deserialize, Serialize};
 
 type ConfigToml = HashMap<String, ConfigElementToml>;
+
+const DEFAULT_CONFIG: &str = include_str!("../assets/default_config.toml");
 
 #[derive(Serialize, Deserialize, Debug)]
 struct SnippetSetJson(HashMap<String, SnippetJson>);
@@ -115,9 +116,7 @@ fn parse_config(s: &str) -> Result<Config, failure::Error> {
 }
 
 pub fn parse_config_with_default(s: &str) -> Result<ConfigWithDefault, failure::Error> {
-    const DEFAULT: &str = include_str!("../assets/default_config.toml");
-
-    let default = toml::from_str(DEFAULT)
+    let default = toml::from_str(DEFAULT_CONFIG)
         .map(|config_toml: ConfigToml| {
             Config(
                 config_toml
@@ -135,9 +134,7 @@ pub fn parse_config_with_default(s: &str) -> Result<ConfigWithDefault, failure::
 
 impl Default for ConfigWithDefault {
     fn default() -> Self {
-        const DEFAULT: &str = include_str!("../assets/default_config.toml");
-
-        let default = toml::from_str(DEFAULT)
+        let default = toml::from_str(DEFAULT_CONFIG)
             .map(|config_toml: ConfigToml| {
                 Config(
                     config_toml
