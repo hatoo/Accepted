@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::cmp::{max, min};
 use std::collections::BTreeMap;
+use std::ffi::OsStr;
 use std::fs;
 use std::io::BufReader;
 use std::io::BufWriter;
@@ -110,10 +111,12 @@ impl<'a> Buffer<'a> {
         res
     }
 
+    fn extension(&self) -> Option<&OsStr> {
+        self.path.as_ref().and_then(|p| p.extension())
+    }
+
     fn reset_snippet(&mut self) {
-        self.snippet = self
-            .config
-            .snippets(self.path().and_then(|p| p.extension()));
+        self.snippet = self.config.snippets(self.extension());
     }
 
     pub fn extend_cache_duration(&mut self, duration: std::time::Duration) {
@@ -122,20 +125,18 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn indent_width(&self) -> usize {
-        self.config
-            .indent_width(self.path().and_then(|p| p.extension()))
+        self.config.indent_width(self.extension())
     }
 
     pub fn restart_lsp(&mut self) {
         let ext = self
-            .path()
-            .and_then(|p| p.extension())
+            .extension()
             .unwrap_or_default()
             .to_string_lossy()
             .into_owned();
         self.lsp = self
             .config
-            .lsp(self.path().and_then(|p| p.extension()))
+            .lsp(self.extension())
             .and_then(|c| LSPClient::start(c.command(), ext));
     }
 
@@ -163,7 +164,7 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn set_path(&mut self, path: PathBuf) {
-        if self.path.as_ref().map(|p| p.extension()) != Some(path.extension()) {
+        if self.extension() != path.extension() {
             self.set_language(
                 path.extension()
                     .map(|o| o.to_str().unwrap_or("txt"))
@@ -256,9 +257,7 @@ impl<'a> Buffer<'a> {
 
     pub fn format(&mut self) {
         let src = self.core.get_string();
-        let command = self
-            .config
-            .formatter(self.path().and_then(|p| p.extension()));
+        let command = self.config.formatter(self.extension());
 
         if let Some(command) = command {
             if let Some(formatted) = formatter::system_format(command.command(), &src) {
