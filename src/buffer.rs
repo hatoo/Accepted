@@ -147,7 +147,6 @@ impl<'a> Buffer<'a> {
 
     pub fn set_language(&mut self, extension: &str) {
         self.language = language_specific::detect_language(extension);
-        self.set_syntax(extension);
         self.restart_lsp();
     }
 
@@ -186,7 +185,14 @@ impl<'a> Buffer<'a> {
             .extension()
             .map(|o| o.to_str().unwrap_or(""))
             .unwrap_or("txt");
+
         self.set_language(extension);
+        let syntax_extension = self
+            .config
+            .syntax_extension(path.as_ref().extension())
+            .unwrap_or_default()
+            .to_string();
+        self.set_syntax(&syntax_extension);
 
         self.row_offset = 0;
         self.last_save = core.buffer_changed();

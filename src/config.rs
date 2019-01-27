@@ -28,6 +28,7 @@ struct ConfigElementToml {
     indent_width: Option<usize>,
     lsp: Option<Vec<String>>,
     formatter: Option<Vec<String>>,
+    syntax_extension: Option<String>,
 }
 
 pub struct LanguageConfig {
@@ -35,6 +36,7 @@ pub struct LanguageConfig {
     indent_width: Option<usize>,
     lsp: Option<Command>,
     formatter: Option<Command>,
+    syntax_extension: Option<String>,
 }
 
 pub struct Command {
@@ -101,6 +103,7 @@ fn to_language_config(toml: ConfigElementToml) -> LanguageConfig {
             .as_ref()
             .map(Vec::as_slice)
             .and_then(to_command),
+        syntax_extension: toml.syntax_extension,
     }
 }
 
@@ -219,6 +222,22 @@ impl Config {
                 .unwrap_or_default()
         }
     }
+
+    pub fn syntax_extension(&self, extension: Option<&OsStr>) -> Option<&str> {
+        if let Some(extension) = extension {
+            self.0
+                .get(extension)
+                .and_then(|c| c.syntax_extension.as_ref().map(|s| s.as_str()))
+                .or(self
+                    .0
+                    .get(&OsString::from(Self::DEFAULT_KEY))
+                    .and_then(|c| c.syntax_extension.as_ref().map(|s| s.as_str())))
+        } else {
+            self.0
+                .get(&OsString::from(Self::DEFAULT_KEY))
+                .and_then(|c| c.syntax_extension.as_ref().map(|s| s.as_str()))
+        }
+    }
 }
 
 impl ConfigWithDefault {
@@ -243,5 +262,11 @@ impl ConfigWithDefault {
 
     pub fn snippets(&self, extension: Option<&OsStr>) -> Snippets {
         self.config.snippets(extension)
+    }
+
+    pub fn syntax_extension(&self, extension: Option<&OsStr>) -> Option<&str> {
+        self.config
+            .syntax_extension(extension)
+            .or_else(|| self.default.syntax_extension(extension))
     }
 }
