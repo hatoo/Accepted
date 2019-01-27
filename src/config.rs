@@ -158,46 +158,31 @@ impl Default for ConfigWithDefault {
 impl Config {
     const DEFAULT_KEY: &'static str = "default";
 
-    fn indent_width(&self, extension: Option<&OsStr>) -> Option<usize> {
-        if let Some(extension) = extension {
-            self.0.get(extension).and_then(|c| c.indent_width).or(self
-                .0
-                .get(&OsString::from(Self::DEFAULT_KEY))
-                .and_then(|c| c.indent_width))
-        } else {
-            self.0
-                .get(&OsString::from(Self::DEFAULT_KEY))
-                .and_then(|c| c.indent_width)
-        }
-    }
-
-    fn lsp(&self, extension: Option<&OsStr>) -> Option<&Command> {
-        if let Some(extension) = extension {
-            self.0.get(extension).and_then(|c| c.lsp.as_ref()).or(self
-                .0
-                .get(&OsString::from(Self::DEFAULT_KEY))
-                .and_then(|c| c.lsp.as_ref()))
-        } else {
-            self.0
-                .get(&OsString::from(Self::DEFAULT_KEY))
-                .and_then(|c| c.lsp.as_ref())
-        }
-    }
-
-    fn formatter(&self, extension: Option<&OsStr>) -> Option<&Command> {
+    fn get<'a, T, F: Fn(&'a LanguageConfig) -> Option<T>>(
+        &'a self,
+        extension: Option<&OsStr>,
+        f: F,
+    ) -> Option<T> {
         if let Some(extension) = extension {
             self.0
                 .get(extension)
-                .and_then(|c| c.formatter.as_ref())
-                .or(self
-                    .0
-                    .get(&OsString::from(Self::DEFAULT_KEY))
-                    .and_then(|c| c.formatter.as_ref()))
+                .and_then(&f)
+                .or(self.0.get(&OsString::from(Self::DEFAULT_KEY)).and_then(&f))
         } else {
-            self.0
-                .get(&OsString::from(Self::DEFAULT_KEY))
-                .and_then(|c| c.formatter.as_ref())
+            self.0.get(&OsString::from(Self::DEFAULT_KEY)).and_then(&f)
         }
+    }
+
+    fn indent_width(&self, extension: Option<&OsStr>) -> Option<usize> {
+        self.get(extension, |l| l.indent_width)
+    }
+
+    fn lsp(&self, extension: Option<&OsStr>) -> Option<&Command> {
+        self.get(extension, |l| l.lsp.as_ref())
+    }
+
+    fn formatter(&self, extension: Option<&OsStr>) -> Option<&Command> {
+        self.get(extension, |l| l.formatter.as_ref())
     }
 
     fn snippets(&self, extension: Option<&OsStr>) -> Snippets {
@@ -224,19 +209,9 @@ impl Config {
     }
 
     pub fn syntax_extension(&self, extension: Option<&OsStr>) -> Option<&str> {
-        if let Some(extension) = extension {
-            self.0
-                .get(extension)
-                .and_then(|c| c.syntax_extension.as_ref().map(|s| s.as_str()))
-                .or(self
-                    .0
-                    .get(&OsString::from(Self::DEFAULT_KEY))
-                    .and_then(|c| c.syntax_extension.as_ref().map(|s| s.as_str())))
-        } else {
-            self.0
-                .get(&OsString::from(Self::DEFAULT_KEY))
-                .and_then(|c| c.syntax_extension.as_ref().map(|s| s.as_str()))
-        }
+        self.get(extension, |l| {
+            l.syntax_extension.as_ref().map(String::as_str)
+        })
     }
 }
 
