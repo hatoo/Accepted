@@ -96,7 +96,7 @@ impl Into<LanguageConfig> for ConfigElementToml {
             .snippets
             .unwrap_or_default()
             .iter()
-            .map(|osstr| path::PathBuf::from(osstr))
+            .map(path::PathBuf::from)
             .filter_map(|p| load_snippet(p).ok())
             .fold(Snippets::new(), |mut a, mut b| {
                 a.append(&mut b);
@@ -168,7 +168,7 @@ impl Config {
             self.file
                 .get(extension)
                 .and_then(&f)
-                .or(self.file_default.as_ref().and_then(&f))
+                .or_else(|| self.file_default.as_ref().and_then(&f))
         } else {
             self.file_default.as_ref().and_then(&f)
         }
