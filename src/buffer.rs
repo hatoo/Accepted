@@ -16,7 +16,7 @@ use crate::core::Cursor;
 use crate::core::CursorRange;
 use crate::core::Id;
 use crate::draw;
-use crate::draw::{CharStyle, LinenumView, View};
+use crate::draw::{styles, CharStyle, LinenumView, View};
 use crate::draw_cache::DrawCache;
 use crate::formatter;
 use crate::language_specific;
@@ -343,7 +343,7 @@ impl<'a> Buffer<'a> {
         mut view: View,
         selected: Option<CursorRange>,
     ) -> Option<Cursor> {
-        view.bg = self.syntax.theme.settings.background;
+        view.bg = self.syntax.theme.settings.background.map(|c| c.into());
         let v = Vec::new();
         let compiler_outputs = self
             .last_compiler_result
@@ -379,7 +379,7 @@ impl<'a> Buffer<'a> {
                         .all(|(c1, (c2, _))| c1 == c2);
                     if m {
                         for k in j..j + self.search.len() {
-                            line.to_mut()[k].1 = draw::CharStyle::Highlight;
+                            line.to_mut()[k].1 = draw::styles::HIGHLIGHT;
                         }
                     }
                 }
@@ -390,13 +390,11 @@ impl<'a> Buffer<'a> {
                 let t = Cursor { row: i, col: j };
 
                 if self.is_annotate(t) {
-                    if let CharStyle::Style(s) = &mut style {
-                        s.font_style = FontStyle::UNDERLINE;
-                    }
+                    style.modification = draw::CharModification::UnderLine;
                 }
 
                 let style = if selected.as_ref().map(|r| r.contains(t)) == Some(true) {
-                    CharStyle::Selected
+                    styles::SELECTED
                 } else {
                     style
                 };
@@ -418,20 +416,20 @@ impl<'a> Buffer<'a> {
 
             if self.core.buffer().l(i).len_chars() == 0 {
                 if let Some(col) = self.syntax.theme.settings.background {
-                    view.put(' ', CharStyle::bg(col), Some(t));
+                    view.put(' ', CharStyle::bg(col.into()), Some(t));
                 } else {
-                    view.put(' ', CharStyle::Default, Some(t));
+                    view.put(' ', styles::DEFAULT, Some(t));
                 }
             }
 
             if i != self.core.buffer().len_lines() - 1 {
                 if let Some(col) = self.syntax.theme.settings.background {
                     while !view.cause_newline(' ') {
-                        view.put(' ', CharStyle::bg(col), Some(t));
+                        view.put(' ', CharStyle::bg(col.into()), Some(t));
                     }
                 } else {
                     while !view.cause_newline(' ') {
-                        view.put(' ', CharStyle::Default, Some(t));
+                        view.put(' ', styles::DEFAULT, Some(t));
                     }
                 }
                 view.newline();

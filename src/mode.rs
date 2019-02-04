@@ -515,7 +515,7 @@ impl Mode for Normal {
 
         let mut footer = term.view((height - 1, 0), 1, width);
         if let Some(message) = buf.compiler_message_on_cursor() {
-            footer.puts(message, draw::CharStyle::Footer);
+            footer.puts(message, draw::styles::FOOTER);
         } else {
             footer.puts(
                 &format!(
@@ -527,7 +527,7 @@ impl Mode for Normal {
                         .unwrap_or_else(|| "*".into()),
                     &self.message,
                 ),
-                draw::CharStyle::Footer,
+                draw::styles::FOOTER,
             );
 
             if buf.is_compiling() {
@@ -535,14 +535,14 @@ impl Mode for Normal {
                     '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏',
                 ];
                 let a = animation[self.frame % animation.len()];
-                footer.puts(&format!(" {}Compiling ...", a), draw::CharStyle::Footer);
+                footer.puts(&format!(" {}Compiling ...", a), draw::styles::FOOTER);
             } else if let Some(success) = buf.last_compile_success() {
                 let msg = if success {
                     " [Compile: Success]"
                 } else {
                     " [Compile: Failed]"
                 };
-                footer.puts(msg, draw::CharStyle::Footer);
+                footer.puts(msg, draw::styles::FOOTER);
             }
         }
         self.frame = (std::num::Wrapping(self.frame) + std::num::Wrapping(1)).0;
@@ -783,22 +783,22 @@ impl Mode for Insert {
                         let c = &self.completions[i];
                         for c in c.keyword.chars() {
                             if is_selected {
-                                view.put_inline(c, draw::CharStyle::Highlight, None);
+                                view.put_inline(c, draw::styles::HIGHLIGHT, None);
                             } else {
-                                view.put_inline(c, draw::CharStyle::UI, None);
+                                view.put_inline(c, draw::styles::UI, None);
                             }
                         }
-                        view.put_inline(' ', draw::CharStyle::Default, None);
+                        view.put_inline(' ', draw::styles::DEFAULT, None);
                         for c in c.doc.chars() {
-                            view.put_inline(c, draw::CharStyle::Selected, None);
+                            view.put_inline(c, draw::styles::SELECTED, None);
                         }
                     } else {
                         let i = i - self.completions.len();
                         for c in self.snippet_completions[i].chars() {
                             if is_selected {
-                                view.put_inline(c, draw::CharStyle::Highlight, None);
+                                view.put_inline(c, draw::styles::HIGHLIGHT, None);
                             } else {
-                                view.put_inline(c, draw::CharStyle::UI, None);
+                                view.put_inline(c, draw::styles::UI, None);
                             }
                         }
                     }
@@ -864,9 +864,9 @@ impl Mode for Search {
             .unwrap_or(draw::CursorState::Hide);
 
         let mut footer = term.view((height, 0), 1, width);
-        footer.put('/', draw::CharStyle::Default, None);
+        footer.put('/', draw::styles::DEFAULT, None);
         for &c in &buf.search {
-            footer.put(c, draw::CharStyle::Default, None);
+            footer.put(c, draw::styles::DEFAULT, None);
         }
     }
 }
@@ -912,11 +912,11 @@ impl Mode for Save {
         let mut footer = term.view((height, 0), 2, width);
         footer.puts(
             &std::env::current_dir().unwrap().to_string_lossy(),
-            draw::CharStyle::UI,
+            draw::styles::UI,
         );
         footer.newline();
-        footer.puts("> ", draw::CharStyle::UI);
-        footer.puts(&self.path, draw::CharStyle::UI);
+        footer.puts("> ", draw::styles::UI);
+        footer.puts(&self.path, draw::styles::UI);
     }
 }
 
@@ -1046,7 +1046,7 @@ impl Mode for Prefix {
         let mut footer = term.view((height, 0), 1, width);
         footer.puts(
             "Prefix ... [Esc: Return] [q: Quit] [s: Save] [a: save As ...] [<Space> Format]",
-            draw::CharStyle::Footer,
+            draw::styles::FOOTER,
         );
     }
 }
@@ -1266,19 +1266,16 @@ impl Mode for ViewProcess {
         {
             let mut view = term.view((0, 0), height - 1, width);
             for line in &self.buf[self.row_offset..] {
-                view.puts(line, draw::CharStyle::Default);
+                view.puts(line, draw::styles::DEFAULT);
                 view.newline();
             }
             if let Some(end) = self.end {
-                view.puts(
-                    &format!("{:?}", end - self.start),
-                    draw::CharStyle::Highlight,
-                );
+                view.puts(&format!("{:?}", end - self.start), draw::styles::HIGHLIGHT);
             }
         }
         {
             let mut view = term.view((height - 1, 0), 1, width);
-            view.puts("Esc to return", draw::CharStyle::Footer);
+            view.puts("Esc to return", draw::styles::FOOTER);
         }
     }
 }
@@ -1428,13 +1425,13 @@ impl Mode for TextObjectOperation {
 
         match self.parser.action {
             Action::Change => {
-                footer.puts("Change ", draw::CharStyle::Footer);
+                footer.puts("Change ", draw::styles::FOOTER);
             }
             Action::Delete => {
-                footer.puts("Delete ", draw::CharStyle::Footer);
+                footer.puts("Delete ", draw::styles::FOOTER);
             }
             Action::Yank => {
-                footer.puts("Yank ", draw::CharStyle::Footer);
+                footer.puts("Yank ", draw::styles::FOOTER);
             }
         }
     }
@@ -1521,9 +1518,9 @@ impl Mode for Find {
 
         let mut footer = term.view((height - 1, 0), 1, width);
         if self.to_right {
-            footer.puts("find ->", draw::CharStyle::Footer);
+            footer.puts("find ->", draw::styles::FOOTER);
         } else {
-            footer.puts("find <-", draw::CharStyle::Footer);
+            footer.puts("find <-", draw::styles::FOOTER);
         }
     }
 }
@@ -1569,9 +1566,9 @@ impl Mode for Goto {
             .unwrap_or(draw::CursorState::Hide);
 
         let mut footer = term.view((height, 0), 1, width);
-        footer.puts("Goto: ", draw::CharStyle::Default);
+        footer.puts("Goto: ", draw::styles::DEFAULT);
         for &c in &self.row {
-            footer.put(c, draw::CharStyle::Default, None);
+            footer.put(c, draw::styles::DEFAULT, None);
         }
     }
 }

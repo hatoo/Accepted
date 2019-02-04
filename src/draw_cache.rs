@@ -4,13 +4,13 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use ropey::Rope;
-use syntect::highlighting::Color;
 use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter};
 use syntect::parsing::SyntaxSet;
 use syntect::parsing::{ParseState, ScopeStack, ScopeStackOp};
 
 use crate::draw;
 use crate::draw::CharStyle;
+use crate::draw::Color;
 use crate::ropey_util::RopeExt;
 use crate::syntax;
 
@@ -29,61 +29,51 @@ impl DrawState {
             r: 0xE6,
             g: 0x0,
             b: 0x12,
-            a: 0xff,
         },
         Color {
             r: 0xf3,
             g: 0x98,
             b: 0x00,
-            a: 0xff,
         },
         Color {
             r: 0xff,
             g: 0xf1,
             b: 0x00,
-            a: 0xff,
         },
         Color {
             r: 0x8f,
             g: 0xc3,
             b: 0x1f,
-            a: 0xff,
         },
         Color {
             r: 0x00,
             g: 0x99,
             b: 0x44,
-            a: 0xff,
         },
         Color {
             r: 0x00,
             g: 0xa0,
             b: 0xe9,
-            a: 0xff,
         },
         Color {
             r: 0x00,
             g: 0x68,
             b: 0xb7,
-            a: 0xff,
         },
         Color {
             r: 0x92,
             g: 0x07,
             b: 0x83,
-            a: 0xff,
         },
         Color {
             r: 0xe4,
             g: 0x00,
             b: 0x7f,
-            a: 0xff,
         },
         Color {
             r: 0xe5,
             g: 0x00,
             b: 0x4f,
-            a: 0xff,
         },
     ];
     fn new(
@@ -132,7 +122,7 @@ impl DrawState {
                             return (c, style);
                         }
                     }
-                    (c, draw::CharStyle::Style(style))
+                    (c, style.into())
                 })
                 .collect::<Vec<_>>()
                 .into_iter()
@@ -181,7 +171,7 @@ impl<'a> DrawCache<'a> {
 
     pub fn new(syntax: &syntax::Syntax<'a>) -> Self {
         let highlighter = Highlighter::new(syntax.theme);
-        let bg = syntax.theme.settings.background.unwrap();
+        let bg = syntax.theme.settings.background.unwrap().into();
         Self {
             syntax: syntax.syntax,
             syntax_set: syntax.syntax_set,

@@ -3,9 +3,7 @@ use std::fmt;
 use std::io::{self, Write};
 
 use syntect;
-use syntect::highlighting::Color;
 use syntect::highlighting::FontStyle;
-use syntect::highlighting::Style;
 use termion;
 use termion::color::{Bg, Fg, Rgb};
 use unicode_width::UnicodeWidthChar;
@@ -14,90 +12,177 @@ use crate::compiler::CompilerOutput;
 use crate::core::Cursor;
 use crate::cursor;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+}
+
+impl Into<Rgb> for Color {
+    fn into(self) -> Rgb {
+        Rgb(self.r, self.g, self.b)
+    }
+}
+
+impl From<syntect::highlighting::Color> for Color {
+    fn from(scolor: syntect::highlighting::Color) -> Self {
+        Self {
+            r: scolor.r,
+            g: scolor.g,
+            b: scolor.b,
+        }
+    }
+}
+
+impl From<syntect::highlighting::Style> for CharStyle {
+    fn from(s: syntect::highlighting::Style) -> Self {
+        Self {
+            bg: s.background.into(),
+            fg: s.foreground.into(),
+            modification: Default::default(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CharStyle {
+pub enum CharModification {
     Default,
-    Highlight,
-    UI,
-    Footer,
-    Selected,
-    Style(Style),
+    UnderLine,
+}
+
+impl Default for CharModification {
+    fn default() -> Self {
+        CharModification::Default
+    }
+}
+
+impl fmt::Display for CharModification {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            CharModification::Default => {
+                write!(f, "{}", termion::style::NoUnderline)
+            }
+            CharModification::UnderLine => {
+                write!(f, "{}", termion::style::Underline)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CharStyle {
+    pub fg: Color,
+    pub bg: Color,
+    pub modification: CharModification,
 }
 
 impl CharStyle {
-    pub fn fg_bg(fg: syntect::highlighting::Color, bg: syntect::highlighting::Color) -> Self {
-        CharStyle::Style(Style {
-            foreground: fg,
-            background: bg,
-            font_style: FontStyle::default(),
-        })
+    pub fn fg(fg: Color) -> Self {
+        Self {
+            fg,
+            bg: Default::default(),
+            modification: Default::default(),
+        }
     }
+    pub fn bg(bg: Color) -> Self {
+        Self {
+            fg: Default::default(),
+            bg,
+            modification: Default::default(),
+        }
+    }
+    pub fn fg_bg(fg: Color, bg: Color) -> Self {
+        Self {
+            fg,
+            bg,
+            modification: Default::default(),
+        }
+    }
+}
 
-    pub fn bg(color: syntect::highlighting::Color) -> Self {
-        CharStyle::Style(Style {
-            foreground: Color::WHITE,
-            background: color,
-            font_style: FontStyle::default(),
-        })
-    }
+pub mod styles {
+    use super::{CharStyle, Color, CharModification};
+
+    pub const DEFAULT: CharStyle = CharStyle {
+        fg: Color { r: 255, g: 255, b: 255 },
+        bg: Color {
+            r: 0,
+            g: 0,
+            b: 0,
+        },
+        modification: CharModification::Default,
+    };
+    pub const HIGHLIGHT: CharStyle = CharStyle {
+        fg: Color { r: 255, g: 0, b: 0 },
+        bg: Color {
+            r: 0,
+            g: 0,
+            b: 0,
+        },
+        modification: CharModification::Default,
+    };
+    pub const UI: CharStyle = CharStyle {
+        fg: Color {
+            r: 128,
+            g: 128,
+            b: 128,
+        },
+        bg: Color {
+            r: 0,
+            g: 0,
+            b: 0,
+        },
+        modification: CharModification::Default,
+    };
+    pub const FOOTER: CharStyle = CharStyle {
+        fg: Color {
+            r: 64,
+            g: 64,
+            b: 64,
+        },
+        bg: Color {
+            r: 200,
+            g: 200,
+            b: 200,
+        },
+        modification: CharModification::Default,
+    };
+    pub const SELECTED: CharStyle = CharStyle {
+        fg: Color {
+            r: 200,
+            g: 200,
+            b: 200,
+        },
+        bg: Color { r: 0, g: 0, b: 0 },
+        modification: CharModification::Default,
+    };
+
 }
 
 impl fmt::Display for CharStyle {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            CharStyle::Default => write!(
-                f,
-                "{}{}",
-                Bg(termion::color::Reset),
-                termion::color::Fg(termion::color::Reset)
-            ),
-            CharStyle::Highlight => write!(
-                f,
-                "{}{}{}",
-                Bg(termion::color::Reset),
-                termion::color::Fg(termion::color::Rgb(255, 0, 0)),
-                termion::style::NoUnderline
-            ),
-            CharStyle::UI => write!(
-                f,
-                "{}{}{}",
-                Bg(termion::color::Reset),
-                termion::color::Fg(termion::color::Rgb(128, 128, 128)),
-                termion::style::NoUnderline
-            ),
-            CharStyle::Footer => write!(
-                f,
-                "{}{}{}",
-                Bg(termion::color::Rgb(200, 200, 200)),
-                termion::color::Fg(termion::color::Rgb(64, 64, 64)),
-                termion::style::NoUnderline
-            ),
-            CharStyle::Selected => write!(
-                f,
-                "{}{}{}",
-                Bg(termion::color::Rgb(0, 0, 0)),
-                termion::color::Fg(termion::color::Rgb(200, 200, 200)),
-                termion::style::NoUnderline
-            ),
-            CharStyle::Style(style) => {
-                let fg = style.foreground;
-                let bg = style.background;
-                let font_style = style.font_style;
+        write!(f, "{}{}{}", Fg(Into::<Rgb>::into(self.fg)), Bg(Into::<Rgb>::into(self.bg)), self.modification)
+    }
+}
 
-                write!(
-                    f,
-                    "{}{}",
-                    Fg(Rgb(fg.r, fg.g, fg.b)),
-                    Bg(Rgb(bg.r, bg.g, bg.b)),
-                )
-                .unwrap();
-                if font_style.contains(FontStyle::UNDERLINE) {
-                    write!(f, "{}", termion::style::Underline)
-                } else {
-                    write!(f, "{}", termion::style::NoUnderline)
-                }
-            }
+pub struct DiffStyle {
+    from: CharStyle,
+    to: CharStyle,
+}
+
+impl fmt::Display for DiffStyle {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.from.fg != self.to.fg {
+            write!(f, "{}", Fg(Into::<Rgb>::into(self.to.fg)))?
         }
+        if self.from.bg != self.to.bg {
+            write!(f, "{}", Bg(Into::<Rgb>::into(self.to.bg)))?
+        }
+        if self.from.modification != self.to.modification {
+            write!(f, "{}", self.to.modification)?
+        }
+        Ok(())
     }
 }
 
@@ -203,7 +288,7 @@ impl<'a> LinenumView<'a> {
         let s = format!("{}", self.current_linenum + 1);
         let w = s.len();
         for c in s.chars() {
-            self.view.put(c, CharStyle::UI, None);
+            self.view.put(c, styles::UI, None);
         }
 
         if let Some(o) = self
@@ -212,13 +297,13 @@ impl<'a> LinenumView<'a> {
             .find(|o| o.line == self.current_linenum)
         {
             for _ in 0..self.width - w - 1 {
-                self.view.put(' ', CharStyle::UI, None);
+                self.view.put(' ', styles::UI, None);
             }
             self.view
-                .put(o.level.chars().next().unwrap(), CharStyle::Highlight, None);
+                .put(o.level.chars().next().unwrap(), styles::HIGHLIGHT, None);
         } else {
             for _ in 0..self.width - w {
-                self.view.put(' ', CharStyle::UI, None);
+                self.view.put(' ', styles::UI, None);
             }
         }
     }
@@ -237,7 +322,7 @@ impl<'a> LinenumView<'a> {
 
     fn put_space(&mut self) {
         for _ in 0..self.width {
-            self.view.put(' ', CharStyle::UI, None);
+            self.view.put(' ', styles::UI, None);
         }
     }
 
@@ -265,7 +350,7 @@ impl Default for Term {
             height,
             width,
             cursor: CursorState::Hide,
-            buf: vec![vec![Tile::Char(' ', CharStyle::Default, None); width]; height],
+            buf: vec![vec![Tile::Char(' ', styles::DEFAULT, None); width]; height],
         }
     }
 }
@@ -311,7 +396,7 @@ impl Term {
                     }
                 }
 
-                while res.last() == Some(&(' ', CharStyle::Default)) {
+                while res.last() == Some(&(' ', styles::DEFAULT)) {
                     res.pop();
                 }
 
@@ -331,18 +416,23 @@ impl DoubleBuffer {
             write!(
                 out,
                 "{}{}{}",
-                CharStyle::Default,
+                styles::DEFAULT,
                 termion::clear::All,
                 termion::cursor::Goto(1, 1)
             )?;
 
-            let mut current_style = CharStyle::Default;
+            let mut current_style = styles::DEFAULT;
             for (i, line) in self.back.render().into_iter().enumerate() {
                 for &(c, s) in &line {
-                    if current_style != s {
-                        current_style = s;
-                        write!(out, "{}", current_style)?;
-                    }
+                    write!(
+                        out,
+                        "{}",
+                        DiffStyle {
+                            from: current_style,
+                            to: s
+                        }
+                    )?;
+                    current_style = s;
                     write!(out, "{}", c)?;
                 }
 
@@ -356,8 +446,6 @@ impl DoubleBuffer {
             true
         } else {
             let mut edit = false;
-            let mut current_style = CharStyle::Default;
-            write!(out, "{}", current_style)?;
 
             for (i, (f, b)) in self
                 .front
@@ -368,15 +456,20 @@ impl DoubleBuffer {
             {
                 if f != b {
                     edit = true;
-                    current_style = CharStyle::Default;
                     write!(out, "{}", termion::cursor::Goto(1, i as u16 + 1))?;
+                    let mut current_style = styles::DEFAULT;
                     write!(out, "{}", current_style)?;
 
                     for (c, s) in b {
-                        if current_style != s {
-                            current_style = s;
-                            write!(out, "{}", current_style)?;
-                        }
+                        write!(
+                            out,
+                            "{}",
+                            DiffStyle {
+                                from: current_style,
+                                to: s
+                            }
+                        )?;
+                        current_style = s;
                         write!(out, "{}", c)?;
                     }
                     write!(out, "{}", termion::clear::UntilNewline)?;
