@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fs;
+use std::io::BufReader;
 use std::path;
 use std::process;
 
@@ -68,7 +69,8 @@ pub struct ConfigWithDefault {
 }
 
 fn load_snippet<P: AsRef<path::Path>>(path: P) -> Result<Snippets, failure::Error> {
-    let snippet_set: SnippetSetJson = serde_json::from_reader(fs::File::open(path)?)?;
+    let snippet_set: SnippetSetJson =
+        serde_json::from_reader(BufReader::new(fs::File::open(path)?))?;
     let mut snippets = Snippets::new();
 
     for (_, snippet) in snippet_set.0 {
