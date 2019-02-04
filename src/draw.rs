@@ -3,7 +3,6 @@ use std::fmt;
 use std::io::{self, Write};
 
 use syntect;
-use syntect::highlighting::FontStyle;
 use termion;
 use termion::color::{Bg, Fg, Rgb};
 use unicode_width::UnicodeWidthChar;

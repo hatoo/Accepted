@@ -7,7 +7,6 @@ use std::io::BufReader;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
-use syntect::highlighting::FontStyle;
 use termion;
 use unicode_width::UnicodeWidthChar;
 

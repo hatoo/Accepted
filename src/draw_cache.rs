@@ -8,7 +8,6 @@ use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter};
 use syntect::parsing::SyntaxSet;
 use syntect::parsing::{ParseState, ScopeStack, ScopeStackOp};
 
-use crate::draw;
 use crate::draw::CharStyle;
 use crate::draw::Color;
 use crate::ropey_util::RopeExt;
