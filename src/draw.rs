@@ -412,6 +412,7 @@ impl DoubleBuffer {
 
     pub fn present<T: Write>(&mut self, out: &mut T) -> io::Result<()> {
         let edit = if self.front.height != self.back.height || self.front.width != self.back.width {
+            write!(out, "{}", CursorState::Hide)?;
             write!(
                 out,
                 "{}{}{}",
@@ -445,6 +446,7 @@ impl DoubleBuffer {
             true
         } else {
             let mut edit = false;
+            let mut cursor_hided = false;
 
             for (i, (f, b)) in self
                 .front
@@ -455,6 +457,10 @@ impl DoubleBuffer {
             {
                 if f != b {
                     edit = true;
+                    if !cursor_hided {
+                        cursor_hided = true;
+                        write!(out, "{}", CursorState::Hide)?;
+                    }
                     write!(out, "{}", termion::cursor::Goto(1, i as u16 + 1))?;
                     let mut current_style = styles::DEFAULT;
                     write!(out, "{}", current_style)?;
