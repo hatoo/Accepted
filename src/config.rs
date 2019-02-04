@@ -28,7 +28,7 @@ struct ConfigElementToml {
     indent_width: Option<usize>,
     lsp: Option<Vec<String>>,
     formatter: Option<Vec<String>>,
-    syntax_extension: Option<String>,
+    syntax: Option<String>,
 }
 
 pub struct LanguageConfig {
@@ -103,7 +103,7 @@ fn to_language_config(toml: ConfigElementToml) -> LanguageConfig {
             .as_ref()
             .map(Vec::as_slice)
             .and_then(to_command),
-        syntax_extension: toml.syntax_extension,
+        syntax_extension: toml.syntax,
     }
 }
 
