@@ -90,28 +90,30 @@ fn to_command(args: &[String]) -> Option<Command> {
     })
 }
 
-fn to_language_config(toml: ConfigElementToml) -> LanguageConfig {
-    let snippets = toml
-        .snippets
-        .unwrap_or_default()
-        .iter()
-        .map(|osstr| path::PathBuf::from(osstr))
-        .filter_map(|p| load_snippet(p).ok())
-        .fold(Snippets::new(), |mut a, mut b| {
-            a.append(&mut b);
-            a
-        });
+impl Into<LanguageConfig> for ConfigElementToml {
+    fn into(self) -> LanguageConfig {
+        let snippets = self
+            .snippets
+            .unwrap_or_default()
+            .iter()
+            .map(|osstr| path::PathBuf::from(osstr))
+            .filter_map(|p| load_snippet(p).ok())
+            .fold(Snippets::new(), |mut a, mut b| {
+                a.append(&mut b);
+                a
+            });
 
-    LanguageConfig {
-        snippets,
-        indent_width: toml.indent_width,
-        lsp: toml.lsp.as_ref().map(Vec::as_slice).and_then(to_command),
-        formatter: toml
-            .formatter
-            .as_ref()
-            .map(Vec::as_slice)
-            .and_then(to_command),
-        syntax_extension: toml.syntax,
+        LanguageConfig {
+            snippets,
+            indent_width: self.indent_width,
+            lsp: self.lsp.as_ref().map(Vec::as_slice).and_then(to_command),
+            formatter: self
+                .formatter
+                .as_ref()
+                .map(Vec::as_slice)
+                .and_then(to_command),
+            syntax_extension: self.syntax,
+        }
     }
 }
 
@@ -121,9 +123,9 @@ impl Into<Config> for ConfigToml {
             file: self
                 .file
                 .into_iter()
-                .map(|(k, v)| (OsString::from(k), to_language_config(v)))
+                .map(|(k, v)| (OsString::from(k), v.into()))
                 .collect(),
-            file_default: self.file_default.map(to_language_config),
+            file_default: self.file_default.map(Into::into),
         }
     }
 }
