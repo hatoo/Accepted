@@ -267,7 +267,9 @@ impl<'a> Buffer<'a> {
 
         if let Some(command) = command {
             if let Some(formatted) = formatter::system_format(command.command(), &src) {
-                self.core.set_string(formatted, false);
+                if formatted != self.core.get_string() {
+                    self.core.set_string(formatted, false);
+                }
             }
         }
     }
