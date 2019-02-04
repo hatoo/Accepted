@@ -7,7 +7,10 @@ use std::process;
 
 use serde_derive::{Deserialize, Serialize};
 
-type ConfigToml = HashMap<String, ConfigElementToml>;
+#[derive(Deserialize, Debug)]
+struct ConfigToml  {
+    file: HashMap<String, ConfigElementToml>
+}
 
 const DEFAULT_CONFIG: &str = include_str!("../assets/default_config.toml");
 
@@ -112,6 +115,7 @@ fn parse_config(s: &str) -> Result<Config, failure::Error> {
 
     Ok(Config(
         config_toml
+            .file
             .into_iter()
             .map(|(k, v)| (OsString::from(k), to_language_config(v)))
             .collect(),
@@ -123,6 +127,7 @@ pub fn parse_config_with_default(s: &str) -> Result<ConfigWithDefault, failure::
         .map(|config_toml: ConfigToml| {
             Config(
                 config_toml
+                    .file
                     .into_iter()
                     .map(|(k, v)| (OsString::from(k), to_language_config(v)))
                     .collect(),
@@ -141,6 +146,7 @@ impl Default for ConfigWithDefault {
             .map(|config_toml: ConfigToml| {
                 Config(
                     config_toml
+                        .file
                         .into_iter()
                         .map(|(k, v)| (OsString::from(k), to_language_config(v)))
                         .collect(),

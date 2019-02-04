@@ -1,11 +1,11 @@
-[default]
+[file.default]
 indent_width = 4
 
-[rs]
+[file.rs]
 lsp = ["rls"]
 formatter = ["rustfmt"]
 
-[cpp]
+[file.cpp]
 # Respect clang-format
 indent_width = 2
 lsp = ["clangd"]

@@ -47,7 +47,7 @@ fn main() {
             p
         })
         .and_then(|config_path| fs::read_to_string(&config_path).ok())
-        .map(|s| config::parse_config_with_default(s.as_str()).unwrap())
+        .map(|s| config::parse_config_with_default(s.as_str()).expect("parse config file"))
         .unwrap_or_default();
 
     let stdin = stdin();
