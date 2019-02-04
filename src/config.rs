@@ -115,29 +115,27 @@ fn to_language_config(toml: ConfigElementToml) -> LanguageConfig {
     }
 }
 
-fn parse_config(s: &str) -> Result<Config, failure::Error> {
-    let config_toml: ConfigToml = toml::from_str(&s)?;
-
-    Ok(Config {
-        file: config_toml
-            .file
-            .into_iter()
-            .map(|(k, v)| (OsString::from(k), to_language_config(v)))
-            .collect(),
-        file_default: config_toml.file_default.map(to_language_config),
-    })
-}
-
-pub fn parse_config_with_default(s: &str) -> Result<ConfigWithDefault, failure::Error> {
-    let default = toml::from_str(DEFAULT_CONFIG)
-        .map(|config_toml: ConfigToml| Config {
-            file: config_toml
+impl Into<Config> for ConfigToml {
+    fn into(self) -> Config {
+        Config {
+            file: self
                 .file
                 .into_iter()
                 .map(|(k, v)| (OsString::from(k), to_language_config(v)))
                 .collect(),
-            file_default: config_toml.file_default.map(to_language_config),
-        })
+            file_default: self.file_default.map(to_language_config),
+        }
+    }
+}
+
+fn parse_config(s: &str) -> Result<Config, failure::Error> {
+    let config_toml: ConfigToml = toml::from_str(&s)?;
+    Ok(config_toml.into())
+}
+
+pub fn parse_config_with_default(s: &str) -> Result<ConfigWithDefault, failure::Error> {
+    let default = toml::from_str::<ConfigToml>(DEFAULT_CONFIG)
+        .map(Into::into)
         .unwrap();
 
     let config = parse_config(s)?;
@@ -147,15 +145,8 @@ pub fn parse_config_with_default(s: &str) -> Result<ConfigWithDefault, failure::
 
 impl Default for ConfigWithDefault {
     fn default() -> Self {
-        let default = toml::from_str(DEFAULT_CONFIG)
-            .map(|config_toml: ConfigToml| Config {
-                file: config_toml
-                    .file
-                    .into_iter()
-                    .map(|(k, v)| (OsString::from(k), to_language_config(v)))
-                    .collect(),
-                file_default: config_toml.file_default.map(to_language_config),
-            })
+        let default = toml::from_str::<ConfigToml>(DEFAULT_CONFIG)
+            .map(Into::into)
             .unwrap();
 
         Self {
