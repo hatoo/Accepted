@@ -59,12 +59,8 @@ impl Default for CharModification {
 impl fmt::Display for CharModification {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CharModification::Default => {
-                write!(f, "{}", termion::style::NoUnderline)
-            }
-            CharModification::UnderLine => {
-                write!(f, "{}", termion::style::Underline)
-            }
+            CharModification::Default => write!(f, "{}", termion::style::NoUnderline),
+            CharModification::UnderLine => write!(f, "{}", termion::style::Underline),
         }
     }
 }
@@ -101,24 +97,20 @@ impl CharStyle {
 }
 
 pub mod styles {
-    use super::{CharStyle, Color, CharModification};
+    use super::{CharModification, CharStyle, Color};
 
     pub const DEFAULT: CharStyle = CharStyle {
-        fg: Color { r: 255, g: 255, b: 255 },
-        bg: Color {
-            r: 0,
-            g: 0,
-            b: 0,
+        fg: Color {
+            r: 255,
+            g: 255,
+            b: 255,
         },
+        bg: Color { r: 0, g: 0, b: 0 },
         modification: CharModification::Default,
     };
     pub const HIGHLIGHT: CharStyle = CharStyle {
         fg: Color { r: 255, g: 0, b: 0 },
-        bg: Color {
-            r: 0,
-            g: 0,
-            b: 0,
-        },
+        bg: Color { r: 0, g: 0, b: 0 },
         modification: CharModification::Default,
     };
     pub const UI: CharStyle = CharStyle {
@@ -127,11 +119,7 @@ pub mod styles {
             g: 128,
             b: 128,
         },
-        bg: Color {
-            r: 0,
-            g: 0,
-            b: 0,
-        },
+        bg: Color { r: 0, g: 0, b: 0 },
         modification: CharModification::Default,
     };
     pub const FOOTER: CharStyle = CharStyle {
@@ -161,7 +149,13 @@ pub mod styles {
 
 impl fmt::Display for CharStyle {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}{}{}", Fg(Into::<Rgb>::into(self.fg)), Bg(Into::<Rgb>::into(self.bg)), self.modification)
+        write!(
+            f,
+            "{}{}{}",
+            Fg(Into::<Rgb>::into(self.fg)),
+            Bg(Into::<Rgb>::into(self.bg)),
+            self.modification
+        )
     }
 }
 

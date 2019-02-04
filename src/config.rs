@@ -8,8 +8,10 @@ use std::process;
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Deserialize, Debug)]
-struct ConfigToml  {
-    file: HashMap<String, ConfigElementToml>
+struct ConfigToml {
+    file: HashMap<String, ConfigElementToml>,
+    #[serde(rename = "file-default")]
+    file_default: Option<ConfigElementToml>,
 }
 
 const DEFAULT_CONFIG: &str = include_str!("../assets/default_config.toml");
@@ -56,7 +58,10 @@ impl Command {
 }
 
 #[derive(Default)]
-struct Config(HashMap<OsString, LanguageConfig>);
+struct Config {
+    file: HashMap<OsString, LanguageConfig>,
+    file_default: Option<LanguageConfig>,
+}
 pub struct ConfigWithDefault {
     default: Config,
     config: Config,
@@ -113,25 +118,25 @@ fn to_language_config(toml: ConfigElementToml) -> LanguageConfig {
 fn parse_config(s: &str) -> Result<Config, failure::Error> {
     let config_toml: ConfigToml = toml::from_str(&s)?;
 
-    Ok(Config(
-        config_toml
+    Ok(Config {
+        file: config_toml
             .file
             .into_iter()
             .map(|(k, v)| (OsString::from(k), to_language_config(v)))
             .collect(),
-    ))
+        file_default: config_toml.file_default.map(to_language_config),
+    })
 }
 
 pub fn parse_config_with_default(s: &str) -> Result<ConfigWithDefault, failure::Error> {
     let default = toml::from_str(DEFAULT_CONFIG)
-        .map(|config_toml: ConfigToml| {
-            Config(
-                config_toml
-                    .file
-                    .into_iter()
-                    .map(|(k, v)| (OsString::from(k), to_language_config(v)))
-                    .collect(),
-            )
+        .map(|config_toml: ConfigToml| Config {
+            file: config_toml
+                .file
+                .into_iter()
+                .map(|(k, v)| (OsString::from(k), to_language_config(v)))
+                .collect(),
+            file_default: config_toml.file_default.map(to_language_config),
         })
         .unwrap();
 
@@ -143,14 +148,13 @@ pub fn parse_config_with_default(s: &str) -> Result<ConfigWithDefault, failure::
 impl Default for ConfigWithDefault {
     fn default() -> Self {
         let default = toml::from_str(DEFAULT_CONFIG)
-            .map(|config_toml: ConfigToml| {
-                Config(
-                    config_toml
-                        .file
-                        .into_iter()
-                        .map(|(k, v)| (OsString::from(k), to_language_config(v)))
-                        .collect(),
-                )
+            .map(|config_toml: ConfigToml| Config {
+                file: config_toml
+                    .file
+                    .into_iter()
+                    .map(|(k, v)| (OsString::from(k), to_language_config(v)))
+                    .collect(),
+                file_default: config_toml.file_default.map(to_language_config),
             })
             .unwrap();
 
@@ -162,20 +166,18 @@ impl Default for ConfigWithDefault {
 }
 
 impl Config {
-    const DEFAULT_KEY: &'static str = "default";
-
     fn get<'a, T, F: Fn(&'a LanguageConfig) -> Option<T>>(
         &'a self,
         extension: Option<&OsStr>,
         f: F,
     ) -> Option<T> {
         if let Some(extension) = extension {
-            self.0
+            self.file
                 .get(extension)
                 .and_then(&f)
-                .or(self.0.get(&OsString::from(Self::DEFAULT_KEY)).and_then(&f))
+                .or(self.file_default.as_ref().and_then(&f))
         } else {
-            self.0.get(&OsString::from(Self::DEFAULT_KEY)).and_then(&f)
+            self.file_default.as_ref().and_then(&f)
         }
     }
 
@@ -194,21 +196,21 @@ impl Config {
     fn snippets(&self, extension: Option<&OsStr>) -> Snippets {
         if let Some(extension) = extension {
             let mut snippets = self
-                .0
+                .file
                 .get(extension)
                 .map(|c| c.snippets.clone())
                 .unwrap_or_default();
             let mut default_snippets = self
-                .0
-                .get(&OsString::from(Self::DEFAULT_KEY))
+                .file_default
+                .as_ref()
                 .map(|c| c.snippets.clone())
                 .unwrap_or_default();
 
             snippets.append(&mut default_snippets);
             snippets
         } else {
-            self.0
-                .get(&OsString::from(Self::DEFAULT_KEY))
+            self.file_default
+                .as_ref()
                 .map(|c| c.snippets.clone())
                 .unwrap_or_default()
         }
