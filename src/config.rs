@@ -239,9 +239,10 @@ impl ConfigWithDefault {
         self.config.snippets(extension)
     }
 
-    pub fn syntax_extension(&self, extension: Option<&OsStr>) -> Option<&str> {
+    pub fn syntax_extension<'a>(&'a self, extension: Option<&'a OsStr>) -> Option<&'a str> {
         self.config
             .syntax_extension(extension)
             .or_else(|| self.default.syntax_extension(extension))
+            .or_else(|| extension.and_then(|s| s.to_str()))
     }
 }
