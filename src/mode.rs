@@ -122,6 +122,12 @@ struct ViewProcess {
     pub end: Option<Instant>,
 }
 
+impl Drop for ViewProcess {
+    fn drop(&mut self) {
+        let _ = self.process.kill();
+    }
+}
+
 #[derive(Default)]
 struct Goto {
     row: Vec<char>,
