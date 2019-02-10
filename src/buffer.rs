@@ -147,7 +147,6 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn set_language(&mut self) {
-        // self.language = language_specific::detect_language(extension);
         self.compiler = self.config.compiler(self.extension()).map(Compiler::new);
         self.restart_lsp();
     }
@@ -189,7 +188,6 @@ impl<'a> Buffer<'a> {
         self.cache = DrawCache::new(&self.syntax);
         self.compile(false);
         self.reset_snippet();
-        self.restart_lsp();
     }
 
     pub fn save(&mut self, is_optimize: bool) -> bool {
