@@ -4,7 +4,7 @@ use std::io::{self, Write};
 
 use syntect;
 use termion;
-use termion::color::{Bg, Fg, Rgb};
+use termion::color::{AnsiValue, Bg, Fg, Rgb};
 use unicode_width::UnicodeWidthChar;
 
 use crate::compiler::CompilerOutput;
@@ -21,6 +21,12 @@ pub struct Color {
 impl Into<Rgb> for Color {
     fn into(self) -> Rgb {
         Rgb(self.r, self.g, self.b)
+    }
+}
+
+impl Into<AnsiValue> for Color {
+    fn into(self) -> AnsiValue {
+        AnsiValue(ansi_colours::ansi256_from_rgb((self.r, self.g, self.b)))
     }
 }
 
@@ -147,19 +153,35 @@ pub mod styles {
 
 }
 
-impl fmt::Display for CharStyle {
+pub struct StyleWithColorType {
+    is_ansi_color: bool,
+    style: CharStyle,
+}
+
+impl fmt::Display for StyleWithColorType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}{}{}",
-            Fg(Into::<Rgb>::into(self.fg)),
-            Bg(Into::<Rgb>::into(self.bg)),
-            self.modification
-        )
+        if self.is_ansi_color {
+            write!(
+                f,
+                "{}{}{}",
+                Fg(Into::<AnsiValue>::into(self.style.fg)),
+                Bg(Into::<AnsiValue>::into(self.style.bg)),
+                self.style.modification
+            )
+        } else {
+            write!(
+                f,
+                "{}{}{}",
+                Fg(Into::<Rgb>::into(self.style.fg)),
+                Bg(Into::<Rgb>::into(self.style.bg)),
+                self.style.modification
+            )
+        }
     }
 }
 
 pub struct DiffStyle {
+    is_ansi_color: bool,
     from: CharStyle,
     to: CharStyle,
 }
@@ -167,10 +189,18 @@ pub struct DiffStyle {
 impl fmt::Display for DiffStyle {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.from.fg != self.to.fg {
-            write!(f, "{}", Fg(Into::<Rgb>::into(self.to.fg)))?
+            if self.is_ansi_color {
+                write!(f, "{}", Fg(Into::<AnsiValue>::into(self.to.fg)))?
+            } else {
+                write!(f, "{}", Fg(Into::<Rgb>::into(self.to.fg)))?
+            }
         }
         if self.from.bg != self.to.bg {
-            write!(f, "{}", Bg(Into::<Rgb>::into(self.to.bg)))?
+            if self.is_ansi_color {
+                write!(f, "{}", Bg(Into::<AnsiValue>::into(self.to.bg)))?
+            } else {
+                write!(f, "{}", Bg(Into::<Rgb>::into(self.to.bg)))?
+            }
         }
         if self.from.modification != self.to.modification {
             write!(f, "{}", self.to.modification)?
@@ -404,13 +434,16 @@ impl DoubleBuffer {
         self.back.view(orig, height, width)
     }
 
-    pub fn present<T: Write>(&mut self, out: &mut T) -> io::Result<()> {
+    pub fn present<T: Write>(&mut self, out: &mut T, is_ansi_color: bool) -> io::Result<()> {
         let edit = if self.front.height != self.back.height || self.front.width != self.back.width {
             write!(out, "{}", CursorState::Hide)?;
             write!(
                 out,
                 "{}{}{}",
-                styles::DEFAULT,
+                StyleWithColorType {
+                    is_ansi_color,
+                    style: styles::DEFAULT
+                },
                 termion::clear::All,
                 termion::cursor::Goto(1, 1)
             )?;
@@ -422,6 +455,7 @@ impl DoubleBuffer {
                         out,
                         "{}",
                         DiffStyle {
+                            is_ansi_color,
                             from: current_style,
                             to: s
                         }
@@ -457,13 +491,21 @@ impl DoubleBuffer {
                     }
                     write!(out, "{}", termion::cursor::Goto(1, i as u16 + 1))?;
                     let mut current_style = styles::DEFAULT;
-                    write!(out, "{}", current_style)?;
+                    write!(
+                        out,
+                        "{}",
+                        StyleWithColorType {
+                            is_ansi_color,
+                            style: current_style
+                        }
+                    )?;
 
                     for (c, s) in b {
                         write!(
                             out,
                             "{}",
                             DiffStyle {
+                                is_ansi_color,
                                 from: current_style,
                                 to: s
                             }
