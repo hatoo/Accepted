@@ -29,12 +29,26 @@ struct SnippetJson {
 pub type Snippets = BTreeMap<String, String>;
 
 #[derive(Deserialize, Debug)]
+enum CompilerType {
+    None,
+    Rustc,
+    Gcc,
+}
+
+#[derive(Deserialize, Debug)]
+struct CompilerConfig {
+    command: Vec<String>,
+    output_type: CompilerType,
+}
+
+#[derive(Deserialize, Debug)]
 struct LanguageConfigToml {
     snippets: Option<Vec<String>>,
     indent_width: Option<usize>,
     lsp: Option<Vec<String>>,
     formatter: Option<Vec<String>>,
     syntax: Option<String>,
+    compiler: Option<CompilerConfig>,
 }
 
 pub struct LanguageConfig {
