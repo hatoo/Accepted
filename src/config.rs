@@ -46,6 +46,7 @@ pub struct CompilerConfig {
 
 #[derive(Deserialize, Debug)]
 struct LanguageConfigToml {
+    ansi_color: Option<bool>,
     snippets: Option<Vec<String>>,
     indent_width: Option<usize>,
     lsp: Option<Vec<String>>,
@@ -56,6 +57,7 @@ struct LanguageConfigToml {
 
 #[derive(Debug)]
 pub struct LanguageConfig {
+    ansi_color: Option<bool>,
     snippets: Snippets,
     indent_width: Option<usize>,
     lsp: Option<Command>,
@@ -126,6 +128,7 @@ impl Into<LanguageConfig> for LanguageConfigToml {
             });
 
         LanguageConfig {
+            ansi_color: self.ansi_color,
             snippets,
             indent_width: self.indent_width,
             lsp: self.lsp.as_ref().map(Vec::as_slice).and_then(Command::new),
@@ -197,6 +200,10 @@ impl Config {
         }
     }
 
+    fn ansi_color(&self, extension: Option<&OsStr>) -> Option<bool> {
+        self.get(extension, |l| l.ansi_color)
+    }
+
     fn indent_width(&self, extension: Option<&OsStr>) -> Option<usize> {
         self.get(extension, |l| l.indent_width)
     }
@@ -244,6 +251,13 @@ impl Config {
 }
 
 impl ConfigWithDefault {
+    pub fn ansi_color(&self, extension: Option<&OsStr>) -> bool {
+        self.config
+            .ansi_color(extension)
+            .or_else(|| self.default.ansi_color(extension))
+            .unwrap_or_default()
+    }
+
     // Always provide index_width
     pub fn indent_width(&self, extension: Option<&OsStr>) -> usize {
         self.config

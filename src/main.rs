@@ -98,7 +98,8 @@ fn main() {
         }
 
         state.draw(&mut draw.back);
-        draw.present(&mut stdout, false).unwrap();
+        draw.present(&mut stdout, state.buf.is_ansi_color())
+            .unwrap();
         stdout.flush().unwrap();
     }
 }

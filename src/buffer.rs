@@ -129,6 +129,10 @@ impl<'a> Buffer<'a> {
         self.config.indent_width(self.extension())
     }
 
+    pub fn is_ansi_color(&self) -> bool {
+        self.config.ansi_color(self.extension())
+    }
+
     pub fn restart_lsp(&mut self) {
         let ext = self
             .extension()
