@@ -10,9 +10,9 @@ use serde_derive::{Deserialize, Serialize};
 
 #[derive(Deserialize, Debug)]
 struct ConfigToml {
-    file: HashMap<String, ConfigElementToml>,
+    file: HashMap<String, LanguageConfigToml>,
     #[serde(rename = "file-default")]
-    file_default: Option<ConfigElementToml>,
+    file_default: Option<LanguageConfigToml>,
 }
 
 const DEFAULT_CONFIG: &str = include_str!("../assets/default_config.toml");
@@ -29,7 +29,7 @@ struct SnippetJson {
 pub type Snippets = BTreeMap<String, String>;
 
 #[derive(Deserialize, Debug)]
-struct ConfigElementToml {
+struct LanguageConfigToml {
     snippets: Option<Vec<String>>,
     indent_width: Option<usize>,
     lsp: Option<Vec<String>>,
@@ -92,7 +92,7 @@ fn to_command(args: &[String]) -> Option<Command> {
     })
 }
 
-impl Into<LanguageConfig> for ConfigElementToml {
+impl Into<LanguageConfig> for LanguageConfigToml {
     fn into(self) -> LanguageConfig {
         let snippets = self
             .snippets
