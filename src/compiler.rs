@@ -28,7 +28,7 @@ pub struct Compiler<'a> {
 impl<'a> Compiler<'a> {
     pub fn new(config: &'a CompilerConfig) -> Self {
         let worker: Box<dyn CompilerWorker> = match config.output_type {
-            None => Box::new(Text),
+            None => Box::new(Unknown::default()),
             Some(CompilerType::Gcc) => Box::new(Cpp::default()),
             Some(CompilerType::Rustc) => Box::new(Rust::default()),
         };
@@ -117,7 +117,25 @@ pub struct Rust {
     job_queue: JobQueue<(process::Command, CompileId), (CompileId, CompileResult)>,
 }
 
-pub struct Text;
+pub struct Unknown {
+    job_queue: JobQueue<(process::Command, CompileId), (CompileId, CompileResult)>,
+}
+
+impl Default for Unknown {
+    fn default() -> Self {
+        let job_queue = JobQueue::new(|(mut cmd, req): (process::Command, CompileId)| {
+            let messages = Vec::new();
+            let mut success = false;
+
+            if let Ok(cmd) = cmd.stderr(process::Stdio::piped()).output() {
+                success = cmd.status.success();
+            }
+            (req, CompileResult { messages, success })
+        });
+
+        Self { job_queue }
+    }
+}
 
 impl Default for Rust {
     fn default() -> Self {
@@ -189,6 +207,21 @@ impl Default for Cpp {
     }
 }
 
+impl CompilerWorker for Unknown {
+    fn compile(&self, command: process::Command, compile_id: CompileId) {
+        self.job_queue.send((command, compile_id)).unwrap();
+    }
+    fn try_recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
+        self.job_queue.rx().try_recv().ok()
+    }
+    fn recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
+        self.job_queue.rx().recv().ok()
+    }
+    fn is_compiling(&self) -> bool {
+        self.job_queue.is_running().unwrap()
+    }
+}
+
 impl CompilerWorker for Cpp {
     fn compile(&self, command: process::Command, compile_id: CompileId) {
         self.job_queue.send((command, compile_id)).unwrap();
@@ -218,5 +251,3 @@ impl CompilerWorker for Rust {
         self.job_queue.is_running().unwrap()
     }
 }
-
-impl CompilerWorker for Text {}
