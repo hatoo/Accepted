@@ -26,7 +26,7 @@ pub struct CompileResult {
     pub messages: Vec<CompilerOutput>,
 }
 
-pub trait Language {
+pub trait Compiler {
     // Must be async
     fn compile(&self, _path: path::PathBuf, _compile_id: CompileId) {}
     // Do not Block
@@ -42,7 +42,7 @@ pub trait Language {
     }
 }
 
-pub fn detect_language(extension: &str) -> Box<dyn Language> {
+pub fn detect_language(extension: &str) -> Box<dyn Compiler> {
     match extension {
         "cpp" | "c" => Box::new(Cpp::default()),
         "rs" => Box::new(Rust::default()),
@@ -161,7 +161,7 @@ impl Default for Cpp {
     }
 }
 
-impl Language for Cpp {
+impl Compiler for Cpp {
     fn compile(&self, path: path::PathBuf, compile_id: CompileId) {
         self.job_queue.send((path, compile_id)).unwrap();
     }
@@ -176,7 +176,7 @@ impl Language for Cpp {
     }
 }
 
-impl Language for Rust {
+impl Compiler for Rust {
     fn compile(&self, path: path::PathBuf, compile_id: CompileId) {
         self.job_queue.send((path, compile_id)).unwrap();
     }
@@ -191,4 +191,4 @@ impl Language for Rust {
     }
 }
 
-impl Language for Text {}
+impl Compiler for Text {}

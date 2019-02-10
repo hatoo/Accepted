@@ -29,16 +29,18 @@ struct SnippetJson {
 pub type Snippets = BTreeMap<String, String>;
 
 #[derive(Deserialize, Debug)]
-enum CompilerType {
-    None,
+pub enum CompilerType {
+    #[serde(rename = "rustc")]
     Rustc,
+    #[serde(rename = "gcc")]
     Gcc,
 }
 
 #[derive(Deserialize, Debug)]
-struct CompilerConfig {
+pub struct CompilerConfig {
     command: Vec<String>,
-    output_type: CompilerType,
+    #[serde(rename = "type")]
+    output_type: Option<CompilerType>,
 }
 
 #[derive(Deserialize, Debug)]

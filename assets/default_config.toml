@@ -2,6 +2,7 @@
 indent_width = 4
 
 [file.rs]
+compiler = { command=["rustc", "$FileName$"], type="rustc" }
 lsp = ["rls"]
 formatter = ["rustfmt"]
 

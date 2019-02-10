@@ -67,7 +67,7 @@ pub struct Buffer<'a> {
     pub yank: Yank,
     last_save: Id,
     pub lsp: Option<LSPClient>,
-    language: Box<dyn language_specific::Language>,
+    language: Box<dyn language_specific::Compiler>,
     row_offset: usize,
     last_compiler_result: Option<CompileResult>,
     cache: DrawCache<'a>,
@@ -149,7 +149,7 @@ impl<'a> Buffer<'a> {
         self.restart_lsp();
     }
 
-    pub fn language(&self) -> &dyn language_specific::Language {
+    pub fn language(&self) -> &dyn language_specific::Compiler {
         self.language.as_ref()
     }
 
