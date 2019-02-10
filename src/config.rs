@@ -54,6 +54,7 @@ struct LanguageConfigToml {
     compiler: Option<CompilerConfig>,
 }
 
+#[derive(Debug)]
 pub struct LanguageConfig {
     snippets: Snippets,
     indent_width: Option<usize>,
@@ -63,6 +64,7 @@ pub struct LanguageConfig {
     compiler: Option<CompilerConfig>,
 }
 
+#[derive(Debug)]
 pub struct Command {
     pub program: OsString,
     pub args: Vec<OsString>,
@@ -82,11 +84,12 @@ impl Command {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct Config {
     file: HashMap<OsString, LanguageConfig>,
     file_default: Option<LanguageConfig>,
 }
+#[derive(Debug)]
 pub struct ConfigWithDefault {
     default: Config,
     config: Config,

@@ -66,7 +66,7 @@ fn main() {
 
     let syntax_parent = accepted::syntax::SyntaxParent::default();
 
-    let mut buf = Buffer::new(&syntax_parent, config);
+    let mut buf = Buffer::new(&syntax_parent, &config);
     if let Some(path) = file {
         buf.open(path);
     }

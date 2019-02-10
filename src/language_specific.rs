@@ -1,7 +1,5 @@
-use std::ffi::OsString;
 use std::io;
 use std::io::BufRead;
-use std::path;
 use std::path::PathBuf;
 use std::process;
 
@@ -17,13 +15,13 @@ use crate::job_queue::JobQueue;
 use crate::rustc;
 
 pub struct Compiler<'a> {
-    config: &'a  CompilerConfig,
+    config: &'a CompilerConfig,
     worker: Box<dyn CompilerWorker>,
 }
 
 impl<'a> Compiler<'a> {
     pub fn new(config: &'a CompilerConfig) -> Self {
-        let worker : Box<dyn CompilerWorker> = match config.output_type {
+        let worker: Box<dyn CompilerWorker> = match config.output_type {
             None => Box::new(Text),
             Some(CompilerType::Gcc) => Box::new(Cpp::default()),
             Some(CompilerType::Rustc) => Box::new(Rust::default()),
@@ -32,12 +30,10 @@ impl<'a> Compiler<'a> {
         Self { config, worker }
     }
 
-    pub fn compiler(&self, path: PathBuf, compile_id: CompileId) {
+    pub fn compile(&self, path: PathBuf, compile_id: CompileId) {
         if let Some((head, tail)) = self.config.command.split_first() {
             let mut commaned = process::Command::new(head);
-            let file_path = path
-                .as_os_str().to_str()
-                .unwrap_or_default();
+            let file_path = path.as_os_str().to_str().unwrap_or_default();
 
             let file_stem = path
                 .file_stem()

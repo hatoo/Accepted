@@ -18,9 +18,9 @@ use crate::draw;
 use crate::draw::{styles, CharStyle, LinenumView, View};
 use crate::draw_cache::DrawCache;
 use crate::formatter;
-use crate::language_specific::Compiler;
 use crate::language_specific::CompileId;
 use crate::language_specific::CompileResult;
+use crate::language_specific::Compiler;
 use crate::lsp::LSPClient;
 use crate::ropey_util::RopeExt;
 use crate::syntax;
@@ -61,7 +61,7 @@ pub struct Buffer<'a> {
     pub core: Core,
     pub search: Vec<char>,
     syntax_parent: &'a syntax::SyntaxParent,
-    config: config::ConfigWithDefault,
+    config: &'a config::ConfigWithDefault,
     syntax: syntax::Syntax<'a>,
     pub snippet: BTreeMap<String, String>,
     pub yank: Yank,
@@ -82,9 +82,11 @@ impl<'a> Buffer<'a> {
         (rows as usize, cols as usize)
     }
 
-    pub fn new(syntax_parent: &'a syntax::SyntaxParent, config: config::ConfigWithDefault) -> Self {
+    pub fn new(
+        syntax_parent: &'a syntax::SyntaxParent,
+        config: &'a config::ConfigWithDefault,
+    ) -> Self {
         let syntax = syntax_parent.load_syntax_or_txt("txt");
-        let language = language_specific::detect_language("txt");
 
         let mut res = Self {
             path: None,
@@ -160,11 +162,7 @@ impl<'a> Buffer<'a> {
 
     pub fn set_path(&mut self, path: PathBuf) {
         if self.extension() != path.extension() {
-            self.set_language(
-                path.extension()
-                    .map(|o| o.to_str().unwrap_or("txt"))
-                    .unwrap_or("txt"),
-            );
+            self.set_language();
         }
         self.path = Some(path);
     }
@@ -176,13 +174,6 @@ impl<'a> Buffer<'a> {
             Core::default()
         };
 
-        let extension = path
-            .as_ref()
-            .extension()
-            .map(|o| o.to_str().unwrap_or(""))
-            .unwrap_or("txt");
-
-        self.set_language(extension);
         let syntax_extension = self
             .config
             .syntax_extension(path.as_ref().extension())
@@ -194,6 +185,7 @@ impl<'a> Buffer<'a> {
         self.last_save = core.buffer_changed();
         self.core = core;
         self.path = Some(path.as_ref().to_path_buf());
+        self.set_language();
         self.cache = DrawCache::new(&self.syntax);
         self.compile(false);
         self.reset_snippet();
@@ -286,8 +278,9 @@ impl<'a> Buffer<'a> {
         };
 
         if let Some(path) = self.path.as_ref() {
-            self.language
-                .compile(path.clone(), self.last_compiler_submit);
+            if let Some(compiler) = self.compiler.as_ref() {
+                compiler.compile(path.clone(), self.last_compiler_submit);
+            }
         }
     }
 
@@ -313,23 +306,30 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn poll_compile_message(&mut self) {
-        while let Some((id, res)) = self.language.try_recv_compile_result() {
-            self.last_compiler_compiled = id;
-            self.last_compiler_result = Some(res);
-        }
-    }
-
-    pub fn wait_compile_message(&mut self) {
-        while self.is_compiling() {
-            if let Some((id, res)) = self.language.recv_compile_result() {
+        if let Some(compiler) = self.compiler.as_ref() {
+            while let Some((id, res)) = compiler.try_recv_compile_result() {
                 self.last_compiler_compiled = id;
                 self.last_compiler_result = Some(res);
             }
         }
     }
 
+    pub fn wait_compile_message(&mut self) {
+        while self.is_compiling() {
+            if let Some(compiler) = self.compiler.as_ref() {
+                if let Some((id, res)) = compiler.recv_compile_result() {
+                    self.last_compiler_compiled = id;
+                    self.last_compiler_result = Some(res);
+                }
+            }
+        }
+    }
+
     pub fn is_compiling(&self) -> bool {
-        self.language.is_compiling()
+        self.compiler
+            .as_ref()
+            .map(|c| c.is_compiling())
+            .unwrap_or(false)
     }
 
     pub fn draw(&mut self, view: View) -> Option<Cursor> {
