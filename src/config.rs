@@ -8,14 +8,14 @@ use std::process;
 
 use serde_derive::{Deserialize, Serialize};
 
+const DEFAULT_CONFIG: &str = include_str!("../assets/default_config.toml");
+
 #[derive(Deserialize, Debug)]
 struct ConfigToml {
     file: HashMap<String, LanguageConfigToml>,
     #[serde(rename = "file-default")]
     file_default: Option<LanguageConfigToml>,
 }
-
-const DEFAULT_CONFIG: &str = include_str!("../assets/default_config.toml");
 
 #[derive(Serialize, Deserialize, Debug)]
 struct SnippetSetJson(HashMap<String, SnippetJson>);
@@ -57,6 +57,7 @@ pub struct LanguageConfig {
     lsp: Option<Command>,
     formatter: Option<Command>,
     syntax_extension: Option<String>,
+    compiler: Option<CompilerConfig>,
 }
 
 pub struct Command {
@@ -65,6 +66,12 @@ pub struct Command {
 }
 
 impl Command {
+    pub fn new(args: &[String]) -> Option<Self> {
+        args.split_first().map(|(fst, rest)| Self {
+            program: OsString::from(fst),
+            args: rest.iter().map(OsString::from).collect(),
+        })
+    }
     pub fn command(&self) -> process::Command {
         let mut res = process::Command::new(&self.program);
         res.args(self.args.iter());
@@ -99,13 +106,6 @@ fn load_snippet<P: AsRef<path::Path>>(path: P) -> Result<Snippets, failure::Erro
     Ok(snippets)
 }
 
-fn to_command(args: &[String]) -> Option<Command> {
-    args.split_first().map(|(fst, rest)| Command {
-        program: OsString::from(fst),
-        args: rest.iter().map(OsString::from).collect(),
-    })
-}
-
 impl Into<LanguageConfig> for LanguageConfigToml {
     fn into(self) -> LanguageConfig {
         let snippets = self
@@ -122,13 +122,14 @@ impl Into<LanguageConfig> for LanguageConfigToml {
         LanguageConfig {
             snippets,
             indent_width: self.indent_width,
-            lsp: self.lsp.as_ref().map(Vec::as_slice).and_then(to_command),
+            lsp: self.lsp.as_ref().map(Vec::as_slice).and_then(Command::new),
             formatter: self
                 .formatter
                 .as_ref()
                 .map(Vec::as_slice)
-                .and_then(to_command),
+                .and_then(Command::new),
             syntax_extension: self.syntax,
+            compiler: self.compiler,
         }
     }
 }
