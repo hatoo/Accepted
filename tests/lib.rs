@@ -22,14 +22,16 @@ impl<'a> BufferModeExt for BufferMode<'a> {
 #[allow(dead_code)]
 fn with_buffer_mode<F: FnOnce(BufferMode)>(func: F) {
     let syntax_parent = accepted::syntax::SyntaxParent::default();
-    let buf = Buffer::new(&syntax_parent, config::ConfigWithDefault::default());
+    let config = config::ConfigWithDefault::default();
+    let buf = Buffer::new(&syntax_parent, &config);
     let state = BufferMode::new(buf);
     func(state)
 }
 
 fn with_buffer_mode_from<F: FnOnce(BufferMode)>(init: &str, func: F) {
     let syntax_parent = accepted::syntax::SyntaxParent::default();
-    let mut buf = Buffer::new(&syntax_parent, config::ConfigWithDefault::default());
+    let config = config::ConfigWithDefault::default();
+    let mut buf = Buffer::new(&syntax_parent, &config);
     buf.core.set_string(init.into(), true);
     let state = BufferMode::new(buf);
     func(state)
