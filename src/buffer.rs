@@ -18,7 +18,7 @@ use crate::draw;
 use crate::draw::{styles, CharStyle, LinenumView, View};
 use crate::draw_cache::DrawCache;
 use crate::formatter;
-use crate::language_specific;
+use crate::language_specific::Compiler;
 use crate::language_specific::CompileId;
 use crate::language_specific::CompileResult;
 use crate::lsp::LSPClient;
@@ -67,7 +67,7 @@ pub struct Buffer<'a> {
     pub yank: Yank,
     last_save: Id,
     pub lsp: Option<LSPClient>,
-    language: Box<dyn language_specific::Compiler>,
+    compiler: Option<Compiler<'a>>,
     row_offset: usize,
     last_compiler_result: Option<CompileResult>,
     cache: DrawCache<'a>,
@@ -96,7 +96,7 @@ impl<'a> Buffer<'a> {
             yank: Yank::default(),
             last_save: Id::default(),
             lsp: None,
-            language,
+            compiler: config.compiler(None).map(Compiler::new),
             row_offset: 0,
             last_compiler_result: None,
             syntax_parent,
@@ -144,13 +144,10 @@ impl<'a> Buffer<'a> {
         self.cache = DrawCache::new(&self.syntax);
     }
 
-    pub fn set_language(&mut self, extension: &str) {
-        self.language = language_specific::detect_language(extension);
+    pub fn set_language(&mut self) {
+        // self.language = language_specific::detect_language(extension);
+        self.compiler = self.config.compiler(self.extension()).map(Compiler::new);
         self.restart_lsp();
-    }
-
-    pub fn language(&self) -> &dyn language_specific::Compiler {
-        self.language.as_ref()
     }
 
     pub fn indent(&mut self) {

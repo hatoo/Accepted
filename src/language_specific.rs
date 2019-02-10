@@ -8,11 +8,76 @@ use std::process;
 use regex;
 
 use crate::compiler::CompilerOutput;
+use crate::config::CompilerConfig;
+use crate::config::CompilerType;
 use crate::core::Cursor;
 use crate::core::CursorRange;
 use crate::core::Id;
 use crate::job_queue::JobQueue;
 use crate::rustc;
+
+pub struct Compiler<'a> {
+    config: &'a  CompilerConfig,
+    worker: Box<dyn CompilerWorker>,
+}
+
+impl<'a> Compiler<'a> {
+    pub fn new(config: &'a CompilerConfig) -> Self {
+        let worker : Box<dyn CompilerWorker> = match config.output_type {
+            None => Box::new(Text),
+            Some(CompilerType::Gcc) => Box::new(Cpp::default()),
+            Some(CompilerType::Rustc) => Box::new(Rust::default()),
+        };
+
+        Self { config, worker }
+    }
+
+    pub fn compiler(&self, path: PathBuf, compile_id: CompileId) {
+        if let Some((head, tail)) = self.config.command.split_first() {
+            let mut commaned = process::Command::new(head);
+            let file_path = path
+                .as_os_str().to_str()
+                .unwrap_or_default();
+
+            let file_stem = path
+                .file_stem()
+                .and_then(|o| o.to_str())
+                .unwrap_or_default();
+
+            if compile_id.is_optimize {
+                commaned.args(
+                    tail.iter()
+                        .map(|s| {
+                            s.replace("$FilePath$", file_path)
+                                .replace("$FileStem$", file_stem)
+                        })
+                        .chain(self.config.optimize_option.iter().map(|s| {
+                            s.replace("$FilePath$", file_path)
+                                .replace("$FileStem$", file_stem)
+                        })),
+                );
+            } else {
+                commaned.args(tail.iter().map(|s| {
+                    s.replace("$FilePath$", file_path)
+                        .replace("$FileStem$", file_stem)
+                }));
+            }
+
+            self.worker.compile(commaned, compile_id);
+        }
+    }
+
+    pub fn try_recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
+        self.worker.try_recv_compile_result()
+    }
+    // Block
+    pub fn recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
+        self.worker.recv_compile_result()
+    }
+    pub fn is_compiling(&self) -> bool {
+        self.worker.is_compiling()
+    }
+}
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
 pub struct CompileId {
@@ -26,9 +91,9 @@ pub struct CompileResult {
     pub messages: Vec<CompilerOutput>,
 }
 
-pub trait Compiler {
+trait CompilerWorker {
     // Must be async
-    fn compile(&self, _path: path::PathBuf, _compile_id: CompileId) {}
+    fn compile(&self, _command: process::Command, _compile_id: CompileId) {}
     // Do not Block
     fn try_recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
         None
@@ -42,45 +107,19 @@ pub trait Compiler {
     }
 }
 
-pub fn detect_language(extension: &str) -> Box<dyn Compiler> {
-    match extension {
-        "cpp" | "c" => Box::new(Cpp::default()),
-        "rs" => Box::new(Rust::default()),
-        _ => Box::new(Text),
-    }
-}
-
 pub struct Cpp {
-    job_queue: JobQueue<(PathBuf, CompileId), (CompileId, CompileResult)>,
+    job_queue: JobQueue<(process::Command, CompileId), (CompileId, CompileResult)>,
 }
 
 pub struct Rust {
-    job_queue: JobQueue<(PathBuf, CompileId), (CompileId, CompileResult)>,
+    job_queue: JobQueue<(process::Command, CompileId), (CompileId, CompileResult)>,
 }
 
 pub struct Text;
 
 impl Default for Rust {
     fn default() -> Self {
-        let job_queue = JobQueue::new(|(path, req): (PathBuf, CompileId)| {
-            let mut rustc = process::Command::new("rustc");
-            if req.is_optimize {
-                rustc.args(&[
-                    &OsString::from("-Z"),
-                    &OsString::from("unstable-options"),
-                    &OsString::from("--error-format=json"),
-                    &OsString::from("-O"),
-                    path.as_os_str(),
-                ]);
-            } else {
-                rustc.args(&[
-                    &OsString::from("-Z"),
-                    &OsString::from("unstable-options"),
-                    &OsString::from("--error-format=json"),
-                    path.as_os_str(),
-                ]);
-            }
-
+        let job_queue = JobQueue::new(|(mut rustc, req): (process::Command, CompileId)| {
             let mut messages = Vec::new();
             let mut success = false;
 
@@ -108,20 +147,7 @@ impl Default for Rust {
 
 impl Default for Cpp {
     fn default() -> Self {
-        let job_queue = JobQueue::new(|(path, req): (PathBuf, CompileId)| {
-            let mut clang = process::Command::new("clang++");
-            let stem = path.file_stem().unwrap();
-            if req.is_optimize {
-                clang.args(&[
-                    path.as_os_str(),
-                    &OsString::from("-O2"),
-                    &OsString::from("-o"),
-                    stem,
-                ]);
-            } else {
-                clang.args(&[path.as_os_str(), &OsString::from("-o"), stem]);
-            }
-
+        let job_queue = JobQueue::new(|(mut clang, req): (process::Command, CompileId)| {
             let mut messages = Vec::new();
             let mut success = false;
 
@@ -161,9 +187,9 @@ impl Default for Cpp {
     }
 }
 
-impl Compiler for Cpp {
-    fn compile(&self, path: path::PathBuf, compile_id: CompileId) {
-        self.job_queue.send((path, compile_id)).unwrap();
+impl CompilerWorker for Cpp {
+    fn compile(&self, command: process::Command, compile_id: CompileId) {
+        self.job_queue.send((command, compile_id)).unwrap();
     }
     fn try_recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
         self.job_queue.rx().try_recv().ok()
@@ -176,9 +202,9 @@ impl Compiler for Cpp {
     }
 }
 
-impl Compiler for Rust {
-    fn compile(&self, path: path::PathBuf, compile_id: CompileId) {
-        self.job_queue.send((path, compile_id)).unwrap();
+impl CompilerWorker for Rust {
+    fn compile(&self, command: process::Command, compile_id: CompileId) {
+        self.job_queue.send((command, compile_id)).unwrap();
     }
     fn try_recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
         self.job_queue.rx().try_recv().ok()
@@ -191,4 +217,4 @@ impl Compiler for Rust {
     }
 }
 
-impl Compiler for Text {}
+impl CompilerWorker for Text {}

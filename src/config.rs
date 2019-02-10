@@ -28,7 +28,7 @@ struct SnippetJson {
 
 pub type Snippets = BTreeMap<String, String>;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub enum CompilerType {
     #[serde(rename = "rustc")]
     Rustc,
@@ -36,11 +36,12 @@ pub enum CompilerType {
     Gcc,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct CompilerConfig {
-    command: Vec<String>,
+    pub command: Vec<String>,
+    pub optimize_option: Vec<String>,
     #[serde(rename = "type")]
-    output_type: Option<CompilerType>,
+    pub output_type: Option<CompilerType>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -205,6 +206,10 @@ impl Config {
         self.get(extension, |l| l.formatter.as_ref())
     }
 
+    fn compiler(&self, extension: Option<&OsStr>) -> Option<&CompilerConfig> {
+        self.get(extension, |l| l.compiler.as_ref())
+    }
+
     fn snippets(&self, extension: Option<&OsStr>) -> Snippets {
         if let Some(extension) = extension {
             let mut snippets = self
@@ -253,6 +258,12 @@ impl ConfigWithDefault {
         self.config
             .formatter(extension)
             .or_else(|| self.default.formatter(extension))
+    }
+
+    pub fn compiler(&self, extension: Option<&OsStr>) -> Option<&CompilerConfig> {
+        self.config
+            .compiler(extension)
+            .or_else(|| self.default.compiler(extension))
     }
 
     pub fn snippets(&self, extension: Option<&OsStr>) -> Snippets {
