@@ -1,6 +1,7 @@
 use syntect;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::ThemeSet;
+use syntect::parsing::SyntaxDefinition;
 use syntect::parsing::SyntaxSet;
 
 pub struct Syntax<'a> {
@@ -16,8 +17,13 @@ pub struct SyntaxParent {
 
 impl Default for SyntaxParent {
     fn default() -> Self {
+        const TOML: &str = include_str!("../assets/TOML.sublime-syntax");
+        let syntax_set = SyntaxSet::load_defaults_nonewlines();
+        let mut builder = syntax_set.into_builder();
+        builder.add(SyntaxDefinition::load_from_str(TOML, false, None).unwrap());
+        let syntax_set = builder.build();
         Self {
-            syntax_set: SyntaxSet::load_defaults_nonewlines(),
+            syntax_set,
             theme_set: ThemeSet::load_defaults(),
         }
     }
