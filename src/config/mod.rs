@@ -8,7 +8,7 @@ use std::process;
 
 use serde_derive::{Deserialize, Serialize};
 
-const DEFAULT_CONFIG: &str = include_str!("../assets/default_config.toml");
+const DEFAULT_CONFIG: &str = include_str!("../../assets/default_config.toml");
 
 #[derive(Deserialize, Debug)]
 struct ConfigToml {
