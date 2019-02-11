@@ -117,7 +117,7 @@ impl<'a> Buffer<'a> {
         self.path.as_ref().and_then(|p| p.extension())
     }
 
-    pub fn get_config<A: typemap::Key>(&self) -> Option<&A::Value> {
+    pub fn get_config<A: typemap::Key>(&self) -> Option<&'a A::Value> {
         self.config.get::<A>(self.path())
     }
 
@@ -131,15 +131,11 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn indent_width(&self) -> usize {
-        self.config
-            .get::<keys::IndentWidth>(self.path())
-            .cloned()
-            .unwrap_or(4)
+        self.get_config::<keys::IndentWidth>().cloned().unwrap_or(4)
     }
 
     pub fn is_ansi_color(&self) -> bool {
-        self.config
-            .get::<keys::ANSIColor>(self.path())
+        self.get_config::<keys::ANSIColor>()
             .cloned()
             .unwrap_or_default()
     }
@@ -162,10 +158,7 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn set_language(&mut self) {
-        self.compiler = self
-            .config
-            .get::<keys::Compiler>(self.path())
-            .map(Compiler::new);
+        self.compiler = self.get_config::<keys::Compiler>().map(Compiler::new);
         self.restart_lsp();
     }
 
@@ -191,9 +184,10 @@ impl<'a> Buffer<'a> {
             Core::default()
         };
 
+        self.path = Some(path.as_ref().to_path_buf());
+
         let syntax_extension = self
-            .config
-            .get::<keys::SyntaxExtension>(path.as_ref().into())
+            .get_config::<keys::SyntaxExtension>()
             .cloned()
             .or_else(|| {
                 path.as_ref()
@@ -208,7 +202,6 @@ impl<'a> Buffer<'a> {
         self.row_offset = 0;
         self.last_save = core.buffer_changed();
         self.core = core;
-        self.path = Some(path.as_ref().to_path_buf());
         self.set_language();
         self.cache = DrawCache::new(&self.syntax);
         self.compile(false);
