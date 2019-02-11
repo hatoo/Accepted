@@ -1,4 +1,4 @@
-[file-default]
+[file_default]
 indent_width = 4
 
 [file.rs]

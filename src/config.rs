@@ -13,7 +13,6 @@ const DEFAULT_CONFIG: &str = include_str!("../assets/default_config.toml");
 #[derive(Deserialize, Debug)]
 struct ConfigToml {
     file: HashMap<String, LanguageConfigToml>,
-    #[serde(rename = "file-default")]
     file_default: Option<LanguageConfigToml>,
 }
 
