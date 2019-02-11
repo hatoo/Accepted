@@ -1,12 +1,13 @@
-use std::collections::{BTreeMap, HashMap};
+use serde_derive::Deserialize;
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::ffi::OsString;
-use std::fs;
-use std::io::BufReader;
 use std::path;
 use std::process;
 
-use serde_derive::{Deserialize, Serialize};
+mod snippet;
+
+use crate::config::snippet::{load_snippet, Snippets};
 
 const DEFAULT_CONFIG: &str = include_str!("../../assets/default_config.toml");
 
@@ -15,17 +16,6 @@ struct ConfigToml {
     file: HashMap<String, LanguageConfigToml>,
     file_default: Option<LanguageConfigToml>,
 }
-
-#[derive(Serialize, Deserialize, Debug)]
-struct SnippetSetJson(HashMap<String, SnippetJson>);
-
-#[derive(Serialize, Deserialize, Debug)]
-struct SnippetJson {
-    prefix: String,
-    body: Vec<String>,
-}
-
-pub type Snippets = BTreeMap<String, String>;
 
 #[derive(Deserialize, Debug, Clone)]
 pub enum CompilerType {
@@ -94,23 +84,6 @@ struct Config {
 pub struct ConfigWithDefault {
     default: Config,
     config: Config,
-}
-
-fn load_snippet<P: AsRef<path::Path>>(path: P) -> Result<Snippets, failure::Error> {
-    let snippet_set: SnippetSetJson =
-        serde_json::from_reader(BufReader::new(fs::File::open(path)?))?;
-    let mut snippets = Snippets::new();
-
-    for (_, snippet) in snippet_set.0 {
-        let mut buf = String::new();
-        for line in &snippet.body {
-            buf.push_str(line);
-            buf.push('\n');
-        }
-        snippets.insert(snippet.prefix, buf);
-    }
-
-    Ok(snippets)
 }
 
 impl Into<LanguageConfig> for LanguageConfigToml {
