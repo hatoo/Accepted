@@ -3,11 +3,13 @@ use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path;
+use typemap::Key;
 
 mod snippet;
 pub mod types;
 
 use crate::config::snippet::load_snippet;
+use crate::config::types::keys;
 use crate::config::types::Command;
 use crate::config::types::CompilerConfig;
 
@@ -39,10 +41,9 @@ impl Default for LanguageConfig {
 }
 
 impl LanguageConfig {
-    fn insert_option<A>(&mut self, value: Option<A>)
-    {
+    fn insert_option<Key: typemap::Key>(&mut self, value: Option<Key::Value>) {
         if let Some(value) = value {
-            self.0.insert(value);
+            self.0.insert::<Key>(value);
         }
     }
 }
@@ -73,25 +74,20 @@ impl Into<LanguageConfig> for LanguageConfigToml {
 
         let mut language_config = LanguageConfig::default();
 
-        language_config.insert_option(self.ansi_color.map(types::ANSIColor));
-        language_config.0.insert(types::Snippets(snippets));
-        language_config.insert_option(self.indent_width.map(types::IndentWidth));
-        language_config.insert_option(
-            self.lsp
-                .as_ref()
-                .map(Vec::as_slice)
-                .and_then(Command::new)
-                .map(types::LSP),
+        language_config.insert_option::<keys::ANSIColor>(self.ansi_color);
+        language_config.0.insert::<keys::Snippets>(snippets);
+        language_config.insert_option::<keys::IndentWidth>(self.indent_width);
+        language_config.insert_option::<keys::LSP>(
+            self.lsp.as_ref().map(Vec::as_slice).and_then(Command::new),
         );
-        language_config.insert_option(
+        language_config.insert_option::<keys::Formatter>(
             self.formatter
                 .as_ref()
                 .map(Vec::as_slice)
-                .and_then(Command::new)
-                .map(types::Formatter),
+                .and_then(Command::new),
         );
-        language_config.insert_option(self.syntax.map(types::SyntaxExtension));
-        language_config.0.insert(self.compiler);
+        language_config.insert_option::<keys::SyntaxExtension>(self.syntax);
+        language_config.insert_option::<keys::Compiler>(self.compiler);
 
         language_config
     }
@@ -139,24 +135,58 @@ impl Default for ConfigWithDefault {
 }
 
 impl Config {
-    fn get<A>(&mut self, extension: Option<&OsStr>) -> Option<&A>
-    {
+    fn get<A: Key>(&self, extension: Option<&OsStr>) -> Option<&A::Value> {
         if let Some(extension) = extension {
             self.file
                 .get(extension)
-                .and_then(|config| config.0.get())
-                .or_else(|| self.file_default.as_ref().and_then(|config| config.0.get()))
+                .and_then(|config| config.0.get::<A>())
+                .or_else(|| {
+                    self.file_default
+                        .as_ref()
+                        .and_then(|config| config.0.get::<A>())
+                })
         } else {
-            self.file_default.as_ref().and_then(|config| config.0.get())
+            self.file_default
+                .as_ref()
+                .and_then(|config| config.0.get::<A>())
+        }
+    }
+
+    fn snippets(&self, extension: Option<&OsStr>) -> BTreeMap<String, String> {
+        if let Some(extension) = extension {
+            let mut snippets = self
+                .file
+                .get(extension)
+                .and_then(|config| config.0.get::<keys::Snippets>())
+                .cloned()
+                .unwrap_or_default();
+            let mut default_snippets = self
+                .file_default
+                .as_ref()
+                .and_then(|config| config.0.get::<types::keys::Snippets>())
+                .cloned()
+                .unwrap_or_default();
+
+            snippets.append(&mut default_snippets);
+            snippets
+        } else {
+            self.file_default
+                .as_ref()
+                .and_then(|config| config.0.get::<types::keys::Snippets>())
+                .cloned()
+                .unwrap_or_default()
         }
     }
 }
 
 impl ConfigWithDefault {
-    fn get<A>(&mut self, extension: Option<&OsStr>) -> Option<&A>
-    {
+    pub fn get<A: Key>(&self, extension: Option<&OsStr>) -> Option<&A::Value> {
         self.config
-            .get(extension)
-            .or_else(|| self.default.get(extension))
+            .get::<A>(extension)
+            .or_else(|| self.default.get::<A>(extension))
+    }
+
+    pub fn snippets(&self, extension: Option<&OsStr>) -> BTreeMap<String, String> {
+        self.config.snippets(extension)
     }
 }

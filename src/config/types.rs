@@ -1,5 +1,4 @@
 use serde_derive::Deserialize;
-use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::process;
 
@@ -41,9 +40,45 @@ pub struct CompilerConfig {
 
 //
 
-pub struct ANSIColor(pub bool);
-pub struct Snippets(pub BTreeMap<String, String>);
-pub struct IndentWidth(pub usize);
-pub struct LSP(pub Command);
-pub struct Formatter(pub Command);
-pub struct SyntaxExtension(pub String);
+pub mod keys {
+    use crate::config::types::Command;
+    use crate::config::types::CompilerConfig;
+    use std::collections::BTreeMap;
+    use typemap::Key;
+
+    pub struct ANSIColor;
+    impl Key for ANSIColor {
+        type Value = bool;
+    }
+
+    pub struct Snippets;
+    impl Key for Snippets {
+        type Value = BTreeMap<String, String>;
+    }
+
+    pub struct IndentWidth;
+    impl Key for IndentWidth {
+        type Value = usize;
+    }
+
+    pub struct LSP;
+    impl Key for LSP {
+        type Value = Command;
+    }
+
+    pub struct Formatter;
+    impl Key for Formatter {
+        type Value = Command;
+    }
+
+    pub struct SyntaxExtension;
+    impl Key for SyntaxExtension {
+        type Value = String;
+    }
+
+    pub struct Compiler;
+    impl Key for Compiler {
+        type Value = CompilerConfig;
+    }
+
+}

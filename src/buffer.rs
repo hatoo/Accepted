@@ -14,6 +14,7 @@ use crate::compiler::CompileId;
 use crate::compiler::CompileResult;
 use crate::compiler::Compiler;
 use crate::config;
+use crate::config::types::keys;
 use crate::core::Cursor;
 use crate::core::CursorRange;
 use crate::core::Id;
@@ -98,7 +99,7 @@ impl<'a> Buffer<'a> {
             yank: Yank::default(),
             last_save: Id::default(),
             lsp: None,
-            compiler: config.compiler(None).map(Compiler::new),
+            compiler: config.get::<keys::Compiler>(None).map(Compiler::new),
             row_offset: 0,
             last_compiler_result: None,
             syntax_parent,
@@ -126,11 +127,17 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn indent_width(&self) -> usize {
-        self.config.indent_width(self.extension())
+        self.config
+            .get::<keys::IndentWidth>(self.extension())
+            .cloned()
+            .unwrap_or(4)
     }
 
     pub fn is_ansi_color(&self) -> bool {
-        self.config.ansi_color(self.extension())
+        self.config
+            .get::<keys::ANSIColor>(self.extension())
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub fn restart_lsp(&mut self) {
@@ -141,7 +148,7 @@ impl<'a> Buffer<'a> {
             .into_owned();
         self.lsp = self
             .config
-            .lsp(self.extension())
+            .get::<keys::LSP>(self.extension())
             .and_then(|c| LSPClient::start(c.command(), ext));
     }
 
@@ -151,7 +158,10 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn set_language(&mut self) {
-        self.compiler = self.config.compiler(self.extension()).map(Compiler::new);
+        self.compiler = self
+            .config
+            .get::<keys::Compiler>(self.extension())
+            .map(Compiler::new);
         self.restart_lsp();
     }
 
@@ -179,9 +189,16 @@ impl<'a> Buffer<'a> {
 
         let syntax_extension = self
             .config
-            .syntax_extension(path.as_ref().extension())
-            .unwrap_or_default()
-            .to_string();
+            .get::<keys::SyntaxExtension>(path.as_ref().extension())
+            .cloned()
+            .or_else(|| {
+                path.as_ref()
+                    .extension()
+                    .unwrap_or_default()
+                    .to_str()
+                    .map(String::from)
+            })
+            .unwrap_or_default();
         self.set_syntax(&syntax_extension);
 
         self.row_offset = 0;
@@ -254,10 +271,10 @@ impl<'a> Buffer<'a> {
 
     pub fn format(&mut self) {
         let src = self.core.get_string();
-        let command = self.config.formatter(self.extension());
+        let formatter = self.config.get::<keys::Formatter>(self.extension());
 
-        if let Some(command) = command {
-            if let Some(formatted) = formatter::system_format(command.command(), &src) {
+        if let Some(formatter) = formatter {
+            if let Some(formatted) = formatter::system_format(formatter.command(), &src) {
                 if formatted != self.core.get_string() {
                     self.core.set_string(formatted, false);
                 }
