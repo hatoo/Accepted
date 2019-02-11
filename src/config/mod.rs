@@ -3,11 +3,13 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path;
-use std::process;
 
 mod snippet;
+pub mod types;
 
 use crate::config::snippet::{load_snippet, Snippets};
+use crate::config::types::Command;
+use crate::config::types::CompilerConfig;
 
 const DEFAULT_CONFIG: &str = include_str!("../../assets/default_config.toml");
 
@@ -15,22 +17,6 @@ const DEFAULT_CONFIG: &str = include_str!("../../assets/default_config.toml");
 struct ConfigToml {
     file: HashMap<String, LanguageConfigToml>,
     file_default: Option<LanguageConfigToml>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub enum CompilerType {
-    #[serde(rename = "rustc")]
-    Rustc,
-    #[serde(rename = "gcc")]
-    Gcc,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct CompilerConfig {
-    pub command: Vec<String>,
-    pub optimize_option: Vec<String>,
-    #[serde(rename = "type")]
-    pub output_type: Option<CompilerType>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -53,26 +39,6 @@ pub struct LanguageConfig {
     formatter: Option<Command>,
     syntax_extension: Option<String>,
     compiler: Option<CompilerConfig>,
-}
-
-#[derive(Debug)]
-pub struct Command {
-    pub program: OsString,
-    pub args: Vec<OsString>,
-}
-
-impl Command {
-    pub fn new(args: &[String]) -> Option<Self> {
-        args.split_first().map(|(fst, rest)| Self {
-            program: OsString::from(fst),
-            args: rest.iter().map(OsString::from).collect(),
-        })
-    }
-    pub fn command(&self) -> process::Command {
-        let mut res = process::Command::new(&self.program);
-        res.args(self.args.iter());
-        res
-    }
 }
 
 #[derive(Default, Debug)]

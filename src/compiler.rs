@@ -5,8 +5,8 @@ use std::process;
 
 use regex;
 
-use crate::config::CompilerConfig;
-use crate::config::CompilerType;
+use crate::config::types::CompilerConfig;
+use crate::config::types::CompilerType;
 use crate::core::Cursor;
 use crate::core::CursorRange;
 use crate::core::Id;
