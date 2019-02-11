@@ -1,5 +1,6 @@
 [file_default]
 indent_width = 4
+ansi_color = false
 
 [file.rs]
 compiler = { command=["rustc", "$FilePath$", "-Z", "unstable-options", "--error-format=json"], type="rustc", optimize_option=["-O"] }
