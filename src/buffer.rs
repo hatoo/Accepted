@@ -118,11 +118,11 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn get_config<A: typemap::Key>(&self) -> Option<&A::Value> {
-        self.config.get::<A>(self.extension())
+        self.config.get::<A>(self.path())
     }
 
     fn reset_snippet(&mut self) {
-        self.snippet = self.config.snippets(self.extension());
+        self.snippet = self.config.snippets(self.path());
     }
 
     pub fn extend_cache_duration(&mut self, duration: std::time::Duration) {
@@ -132,14 +132,14 @@ impl<'a> Buffer<'a> {
 
     pub fn indent_width(&self) -> usize {
         self.config
-            .get::<keys::IndentWidth>(self.extension())
+            .get::<keys::IndentWidth>(self.path())
             .cloned()
             .unwrap_or(4)
     }
 
     pub fn is_ansi_color(&self) -> bool {
         self.config
-            .get::<keys::ANSIColor>(self.extension())
+            .get::<keys::ANSIColor>(self.path())
             .cloned()
             .unwrap_or_default()
     }
@@ -152,7 +152,7 @@ impl<'a> Buffer<'a> {
             .into_owned();
         self.lsp = self
             .config
-            .get::<keys::LSP>(self.extension())
+            .get::<keys::LSP>(self.path())
             .and_then(|c| LSPClient::start(c.command(), ext));
     }
 
@@ -164,7 +164,7 @@ impl<'a> Buffer<'a> {
     pub fn set_language(&mut self) {
         self.compiler = self
             .config
-            .get::<keys::Compiler>(self.extension())
+            .get::<keys::Compiler>(self.path())
             .map(Compiler::new);
         self.restart_lsp();
     }
@@ -193,7 +193,7 @@ impl<'a> Buffer<'a> {
 
         let syntax_extension = self
             .config
-            .get::<keys::SyntaxExtension>(path.as_ref().extension())
+            .get::<keys::SyntaxExtension>(path.as_ref().into())
             .cloned()
             .or_else(|| {
                 path.as_ref()
@@ -275,7 +275,7 @@ impl<'a> Buffer<'a> {
 
     pub fn format(&mut self) {
         let src = self.core.get_string();
-        let formatter = self.config.get::<keys::Formatter>(self.extension());
+        let formatter = self.config.get::<keys::Formatter>(self.path());
 
         if let Some(formatter) = formatter {
             if let Some(formatted) = formatter::system_format(formatter.command(), &src) {

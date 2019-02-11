@@ -1,6 +1,5 @@
 use serde_derive::Deserialize;
 use std::collections::{BTreeMap, HashMap};
-use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path;
 use typemap::Key;
@@ -18,6 +17,7 @@ const DEFAULT_CONFIG: &str = include_str!("../../assets/default_config.toml");
 #[derive(Deserialize, Debug)]
 struct ConfigToml {
     file: HashMap<String, LanguageConfigToml>,
+    file_name: HashMap<String, LanguageConfigToml>,
     file_default: Option<LanguageConfigToml>,
 }
 
@@ -51,6 +51,7 @@ impl LanguageConfig {
 #[derive(Default)]
 struct Config {
     file: HashMap<OsString, LanguageConfig>,
+    file_name: HashMap<OsString, LanguageConfig>,
     file_default: Option<LanguageConfig>,
 }
 
@@ -101,6 +102,11 @@ impl Into<Config> for ConfigToml {
                 .into_iter()
                 .map(|(k, v)| (OsString::from(k), v.into()))
                 .collect(),
+            file_name: self
+                .file_name
+                .into_iter()
+                .map(|(k, v)| (OsString::from(k), v.into()))
+                .collect(),
             file_default: self.file_default.map(Into::into),
         }
     }
@@ -135,10 +141,14 @@ impl Default for ConfigWithDefault {
 }
 
 impl Config {
-    fn get<A: Key>(&self, extension: Option<&OsStr>) -> Option<&A::Value> {
-        if let Some(extension) = extension {
-            self.file
-                .get(extension)
+    fn get<A: Key>(&self, path: Option<&path::Path>) -> Option<&A::Value> {
+        if let Some(path) = path {
+            path.file_name()
+                .and_then(|file_name| self.file_name.get(file_name))
+                .or_else(|| {
+                    path.extension()
+                        .and_then(|extension| self.file.get(extension))
+                })
                 .and_then(|config| config.0.get::<A>())
                 .or_else(|| {
                     self.file_default
@@ -152,22 +162,35 @@ impl Config {
         }
     }
 
-    fn snippets(&self, extension: Option<&OsStr>) -> BTreeMap<String, String> {
-        if let Some(extension) = extension {
-            let mut snippets = self
-                .file
-                .get(extension)
-                .and_then(|config| config.0.get::<keys::Snippets>())
-                .cloned()
+    fn snippets(&self, path: Option<&path::Path>) -> BTreeMap<String, String> {
+        if let Some(path) = path {
+            let mut snippets = path
+                .file_name()
+                .and_then(|file_name| {
+                    self.file_name
+                        .get(file_name)
+                        .and_then(|config| config.0.get::<keys::Snippets>().cloned())
+                })
                 .unwrap_or_default();
-            let mut default_snippets = self
+
+            let mut snippets_ext = path
+                .extension()
+                .and_then(|extension| {
+                    self.file
+                        .get(extension)
+                        .and_then(|config| config.0.get::<keys::Snippets>().cloned())
+                })
+                .unwrap_or_default();
+
+            let mut snippets_default = self
                 .file_default
                 .as_ref()
                 .and_then(|config| config.0.get::<types::keys::Snippets>())
                 .cloned()
                 .unwrap_or_default();
 
-            snippets.append(&mut default_snippets);
+            snippets.append(&mut snippets_ext);
+            snippets.append(&mut snippets_default);
             snippets
         } else {
             self.file_default
@@ -180,13 +203,13 @@ impl Config {
 }
 
 impl ConfigWithDefault {
-    pub fn get<A: Key>(&self, extension: Option<&OsStr>) -> Option<&A::Value> {
+    pub fn get<A: Key>(&self, path: Option<&path::Path>) -> Option<&A::Value> {
         self.config
-            .get::<A>(extension)
-            .or_else(|| self.default.get::<A>(extension))
+            .get::<A>(path)
+            .or_else(|| self.default.get::<A>(path))
     }
 
-    pub fn snippets(&self, extension: Option<&OsStr>) -> BTreeMap<String, String> {
-        self.config.snippets(extension)
+    pub fn snippets(&self, path: Option<&path::Path>) -> BTreeMap<String, String> {
+        self.config.snippets(path)
     }
 }
