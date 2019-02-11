@@ -117,6 +117,10 @@ impl<'a> Buffer<'a> {
         self.path.as_ref().and_then(|p| p.extension())
     }
 
+    pub fn get_config<A: typemap::Key>(&self) -> Option<&A::Value> {
+        self.config.get::<A>(self.extension())
+    }
+
     fn reset_snippet(&mut self) {
         self.snippet = self.config.snippets(self.extension());
     }
