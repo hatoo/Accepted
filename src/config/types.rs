@@ -1,4 +1,5 @@
 use serde_derive::Deserialize;
+use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::process;
 
@@ -37,3 +38,12 @@ pub struct CompilerConfig {
     #[serde(rename = "type")]
     pub output_type: Option<CompilerType>,
 }
+
+//
+
+pub struct ANSIColor(pub bool);
+pub struct Snippets(pub BTreeMap<String, String>);
+pub struct IndentWidth(pub usize);
+pub struct LSP(pub Command);
+pub struct Formatter(pub Command);
+pub struct SyntaxExtension(pub String);

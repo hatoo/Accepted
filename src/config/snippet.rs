@@ -13,12 +13,12 @@ pub struct SnippetJson {
     body: Vec<String>,
 }
 
-pub type Snippets = BTreeMap<String, String>;
-
-pub fn load_snippet<P: AsRef<path::Path>>(path: P) -> Result<Snippets, failure::Error> {
+pub fn load_snippet<P: AsRef<path::Path>>(
+    path: P,
+) -> Result<BTreeMap<String, String>, failure::Error> {
     let snippet_set: SnippetSetJson =
         serde_json::from_reader(BufReader::new(fs::File::open(path)?))?;
-    let mut snippets = Snippets::new();
+    let mut snippets = BTreeMap::new();
 
     for (_, snippet) in snippet_set.0 {
         let mut buf = String::new();

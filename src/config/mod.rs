@@ -1,5 +1,5 @@
 use serde_derive::Deserialize;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path;
@@ -7,7 +7,7 @@ use std::path;
 mod snippet;
 pub mod types;
 
-use crate::config::snippet::{load_snippet, Snippets};
+use crate::config::snippet::load_snippet;
 use crate::config::types::Command;
 use crate::config::types::CompilerConfig;
 
@@ -30,23 +30,29 @@ struct LanguageConfigToml {
     compiler: Option<CompilerConfig>,
 }
 
-#[derive(Debug)]
-pub struct LanguageConfig {
-    ansi_color: Option<bool>,
-    snippets: Snippets,
-    indent_width: Option<usize>,
-    lsp: Option<Command>,
-    formatter: Option<Command>,
-    syntax_extension: Option<String>,
-    compiler: Option<CompilerConfig>,
+pub struct LanguageConfig(typemap::TypeMap);
+
+impl Default for LanguageConfig {
+    fn default() -> Self {
+        Self(typemap::TypeMap::new())
+    }
 }
 
-#[derive(Default, Debug)]
+impl LanguageConfig {
+    fn insert_option<A>(&mut self, value: Option<A>)
+    {
+        if let Some(value) = value {
+            self.0.insert(value);
+        }
+    }
+}
+
+#[derive(Default)]
 struct Config {
     file: HashMap<OsString, LanguageConfig>,
     file_default: Option<LanguageConfig>,
 }
-#[derive(Debug)]
+
 pub struct ConfigWithDefault {
     default: Config,
     config: Config,
@@ -60,24 +66,34 @@ impl Into<LanguageConfig> for LanguageConfigToml {
             .iter()
             .map(path::PathBuf::from)
             .filter_map(|p| load_snippet(p).ok())
-            .fold(Snippets::new(), |mut a, mut b| {
+            .fold(BTreeMap::new(), |mut a, mut b| {
                 a.append(&mut b);
                 a
             });
 
-        LanguageConfig {
-            ansi_color: self.ansi_color,
-            snippets,
-            indent_width: self.indent_width,
-            lsp: self.lsp.as_ref().map(Vec::as_slice).and_then(Command::new),
-            formatter: self
-                .formatter
+        let mut language_config = LanguageConfig::default();
+
+        language_config.insert_option(self.ansi_color.map(types::ANSIColor));
+        language_config.0.insert(types::Snippets(snippets));
+        language_config.insert_option(self.indent_width.map(types::IndentWidth));
+        language_config.insert_option(
+            self.lsp
                 .as_ref()
                 .map(Vec::as_slice)
-                .and_then(Command::new),
-            syntax_extension: self.syntax,
-            compiler: self.compiler,
-        }
+                .and_then(Command::new)
+                .map(types::LSP),
+        );
+        language_config.insert_option(
+            self.formatter
+                .as_ref()
+                .map(Vec::as_slice)
+                .and_then(Command::new)
+                .map(types::Formatter),
+        );
+        language_config.insert_option(self.syntax.map(types::SyntaxExtension));
+        language_config.0.insert(self.compiler);
+
+        language_config
     }
 }
 
@@ -123,112 +139,24 @@ impl Default for ConfigWithDefault {
 }
 
 impl Config {
-    fn get<'a, T, F: Fn(&'a LanguageConfig) -> Option<T>>(
-        &'a self,
-        extension: Option<&OsStr>,
-        f: F,
-    ) -> Option<T> {
+    fn get<A>(&mut self, extension: Option<&OsStr>) -> Option<&A>
+    {
         if let Some(extension) = extension {
             self.file
                 .get(extension)
-                .and_then(&f)
-                .or_else(|| self.file_default.as_ref().and_then(&f))
+                .and_then(|config| config.0.get())
+                .or_else(|| self.file_default.as_ref().and_then(|config| config.0.get()))
         } else {
-            self.file_default.as_ref().and_then(&f)
+            self.file_default.as_ref().and_then(|config| config.0.get())
         }
-    }
-
-    fn ansi_color(&self, extension: Option<&OsStr>) -> Option<bool> {
-        self.get(extension, |l| l.ansi_color)
-    }
-
-    fn indent_width(&self, extension: Option<&OsStr>) -> Option<usize> {
-        self.get(extension, |l| l.indent_width)
-    }
-
-    fn lsp(&self, extension: Option<&OsStr>) -> Option<&Command> {
-        self.get(extension, |l| l.lsp.as_ref())
-    }
-
-    fn formatter(&self, extension: Option<&OsStr>) -> Option<&Command> {
-        self.get(extension, |l| l.formatter.as_ref())
-    }
-
-    fn compiler(&self, extension: Option<&OsStr>) -> Option<&CompilerConfig> {
-        self.get(extension, |l| l.compiler.as_ref())
-    }
-
-    fn snippets(&self, extension: Option<&OsStr>) -> Snippets {
-        if let Some(extension) = extension {
-            let mut snippets = self
-                .file
-                .get(extension)
-                .map(|c| c.snippets.clone())
-                .unwrap_or_default();
-            let mut default_snippets = self
-                .file_default
-                .as_ref()
-                .map(|c| c.snippets.clone())
-                .unwrap_or_default();
-
-            snippets.append(&mut default_snippets);
-            snippets
-        } else {
-            self.file_default
-                .as_ref()
-                .map(|c| c.snippets.clone())
-                .unwrap_or_default()
-        }
-    }
-
-    pub fn syntax_extension(&self, extension: Option<&OsStr>) -> Option<&str> {
-        self.get(extension, |l| {
-            l.syntax_extension.as_ref().map(String::as_str)
-        })
     }
 }
 
 impl ConfigWithDefault {
-    pub fn ansi_color(&self, extension: Option<&OsStr>) -> bool {
+    fn get<A>(&mut self, extension: Option<&OsStr>) -> Option<&A>
+    {
         self.config
-            .ansi_color(extension)
-            .or_else(|| self.default.ansi_color(extension))
-            .unwrap_or_default()
-    }
-
-    // Always provide index_width
-    pub fn indent_width(&self, extension: Option<&OsStr>) -> usize {
-        self.config
-            .indent_width(extension)
-            .unwrap_or_else(|| self.default.indent_width(extension).unwrap())
-    }
-
-    pub fn lsp(&self, extension: Option<&OsStr>) -> Option<&Command> {
-        self.config
-            .lsp(extension)
-            .or_else(|| self.default.lsp(extension))
-    }
-
-    pub fn formatter(&self, extension: Option<&OsStr>) -> Option<&Command> {
-        self.config
-            .formatter(extension)
-            .or_else(|| self.default.formatter(extension))
-    }
-
-    pub fn compiler(&self, extension: Option<&OsStr>) -> Option<&CompilerConfig> {
-        self.config
-            .compiler(extension)
-            .or_else(|| self.default.compiler(extension))
-    }
-
-    pub fn snippets(&self, extension: Option<&OsStr>) -> Snippets {
-        self.config.snippets(extension)
-    }
-
-    pub fn syntax_extension<'a>(&'a self, extension: Option<&'a OsStr>) -> Option<&'a str> {
-        self.config
-            .syntax_extension(extension)
-            .or_else(|| self.default.syntax_extension(extension))
-            .or_else(|| extension.and_then(|s| s.to_str()))
+            .get(extension)
+            .or_else(|| self.default.get(extension))
     }
 }
