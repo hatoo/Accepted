@@ -16,8 +16,8 @@ const DEFAULT_CONFIG: &str = include_str!("../../assets/default_config.toml");
 
 #[derive(Deserialize, Debug)]
 struct ConfigToml {
-    file: HashMap<String, LanguageConfigToml>,
-    file_name: HashMap<String, LanguageConfigToml>,
+    file: Option<HashMap<String, LanguageConfigToml>>,
+    file_name: Option<HashMap<String, LanguageConfigToml>>,
     file_default: Option<LanguageConfigToml>,
 }
 
@@ -99,11 +99,13 @@ impl Into<Config> for ConfigToml {
         Config {
             file: self
                 .file
+                .unwrap_or_default()
                 .into_iter()
                 .map(|(k, v)| (OsString::from(k), v.into()))
                 .collect(),
             file_name: self
                 .file_name
+                .unwrap_or_default()
                 .into_iter()
                 .map(|(k, v)| (OsString::from(k), v.into()))
                 .collect(),

@@ -13,3 +13,6 @@ indent_width = 2
 compiler = { command=["clang", "$FilePath$", "-o", "$FileStem$"], type="gcc", optimize_option=["-O2"] }
 lsp = ["clangd"]
 formatter = ["clang-format"]
+
+[file_name.COMMIT_EDITMSG]
+syntax = "sh"
