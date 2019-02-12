@@ -397,10 +397,10 @@ impl Mode for Normal {
                         let matched = buf.core.current_line_after_cursor().len_chars()
                             >= buf.search.len()
                             && buf
-                            .core
-                            .current_line_after_cursor()
-                            .slice(..buf.search.len())
-                            == search;
+                                .core
+                                .current_line_after_cursor()
+                                .slice(..buf.search.len())
+                                == search;
                         if matched || buf.core.cursor() == orig_pos {
                             buf.show_cursor();
                             break;
@@ -423,14 +423,14 @@ impl Mode for Normal {
                     cursor: buf.core.cursor(),
                     line_mode: false,
                 }
-                    .into();
+                .into();
             }
             Event::Key(Key::Char('V')) => {
                 return Visual {
                     cursor: buf.core.cursor(),
                     line_mode: true,
                 }
-                    .into();
+                .into();
             }
             Event::Key(Key::Char('p')) => {
                 if buf.yank.insert_newline {
@@ -492,7 +492,7 @@ impl Mode for Normal {
                     cursor: buf.core.cursor(),
                     line_mode: false,
                 }
-                    .into();
+                .into();
             }
             Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
                 buf.scroll_up();
@@ -671,7 +671,7 @@ impl Mode for Insert {
                 buf.core.delete();
                 if buf.core.char_at_cursor().is_some()
                     && buf.core.char_at_cursor()
-                    == parens.iter().find(|t| c == Some(t.0)).map(|t| t.1)
+                        == parens.iter().find(|t| c == Some(t.0)).map(|t| t.1)
                 {
                     buf.core.delete();
                 }
@@ -955,7 +955,7 @@ impl Mode for Prefix {
                     return Save {
                         path: String::new(),
                     }
-                        .into();
+                    .into();
                 }
             }
             Event::Key(Key::Char('a')) => {
@@ -963,12 +963,12 @@ impl Mode for Prefix {
                     return Save {
                         path: path.to_string_lossy().into(),
                     }
-                        .into();
+                    .into();
                 } else {
                     return Save {
                         path: String::new(),
                     }
-                        .into();
+                    .into();
                 }
             }
             Event::Key(Key::Char('y')) => {
@@ -980,7 +980,7 @@ impl Mode for Prefix {
                         } else {
                             "Failed to copy to clipboard"
                         }
-                            .into(),
+                        .into(),
                     ),
                     false,
                 );
@@ -994,7 +994,7 @@ impl Mode for Prefix {
                         } else {
                             "Failed to restart LSP"
                         }
-                            .into(),
+                        .into(),
                     ),
                     false,
                 );
@@ -1493,7 +1493,7 @@ impl Mode for Find {
             }
             Event::Key(Key::Char(c)) if !c.is_control() => {
                 let cursor = buf.core.cursor();
-                let range: Box<dyn Iterator<Item=usize>> = if self.to_right {
+                let range: Box<dyn Iterator<Item = usize>> = if self.to_right {
                     Box::new(cursor.col + 1..buf.core.current_line().len_chars())
                 } else {
                     Box::new((0..cursor.col).rev())

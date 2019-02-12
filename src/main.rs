@@ -5,7 +5,7 @@ use std::sync::mpsc::channel;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use clap::{App, Arg, crate_authors, crate_version};
+use clap::{crate_authors, crate_version, App, Arg};
 use rbtag::BuildInfo;
 use serde_derive::{Deserialize, Serialize};
 use termion::event::{Event, Key};
@@ -13,9 +13,9 @@ use termion::input::{MouseTerminal, TermRead};
 use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
 
-use accepted::{Buffer, BufferMode};
 use accepted::config;
 use accepted::draw::DoubleBuffer;
+use accepted::{Buffer, BufferMode};
 
 #[derive(BuildInfo)]
 struct BuildTag;
@@ -33,7 +33,7 @@ fn main() {
     let matches = App::new("Accepted")
         .author(crate_authors!())
         .version(crate_version!())
-        .long_version(format!("v{} {}", crate_version!(), BuildTag.get_build_commit(), ).as_str())
+        .long_version(format!("v{} {}", crate_version!(), BuildTag.get_build_commit(),).as_str())
         .about("A text editor to be ACCEPTED")
         .bin_name("acc")
         .arg(Arg::with_name("file"))

@@ -1,7 +1,7 @@
 use std;
 use std::borrow::Cow;
-use std::cmp::{max, min};
 use std::cmp::Ordering;
+use std::cmp::{max, min};
 use std::io;
 use std::io::Read;
 use std::num::Wrapping;

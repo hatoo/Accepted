@@ -481,40 +481,40 @@ impl DoubleBuffer {
                 .into_iter()
                 .zip(self.back.render().into_iter())
                 .enumerate()
-                {
-                    if f != b {
-                        edit = true;
-                        if !cursor_hided {
-                            cursor_hided = true;
-                            write!(out, "{}", CursorState::Hide)?;
+            {
+                if f != b {
+                    edit = true;
+                    if !cursor_hided {
+                        cursor_hided = true;
+                        write!(out, "{}", CursorState::Hide)?;
+                    }
+                    write!(out, "{}", termion::cursor::Goto(1, i as u16 + 1))?;
+                    let mut current_style = styles::DEFAULT;
+                    write!(
+                        out,
+                        "{}",
+                        StyleWithColorType {
+                            is_ansi_color,
+                            style: current_style,
                         }
-                        write!(out, "{}", termion::cursor::Goto(1, i as u16 + 1))?;
-                        let mut current_style = styles::DEFAULT;
+                    )?;
+
+                    for (c, s) in b {
                         write!(
                             out,
                             "{}",
-                            StyleWithColorType {
+                            DiffStyle {
                                 is_ansi_color,
-                                style: current_style,
+                                from: current_style,
+                                to: s,
                             }
                         )?;
-
-                        for (c, s) in b {
-                            write!(
-                                out,
-                                "{}",
-                                DiffStyle {
-                                    is_ansi_color,
-                                    from: current_style,
-                                    to: s,
-                                }
-                            )?;
-                            current_style = s;
-                            write!(out, "{}", c)?;
-                        }
-                        write!(out, "{}", termion::clear::UntilNewline)?;
+                        current_style = s;
+                        write!(out, "{}", c)?;
                     }
+                    write!(out, "{}", termion::clear::UntilNewline)?;
                 }
+            }
             edit
         };
 

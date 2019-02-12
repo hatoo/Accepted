@@ -11,21 +11,21 @@ use termion;
 use unicode_width::UnicodeWidthChar;
 
 use crate::compiler::CompileId;
-use crate::compiler::Compiler;
 use crate::compiler::CompileResult;
+use crate::compiler::Compiler;
 use crate::config;
 use crate::config::types::keys;
-use crate::Core;
 use crate::core::Cursor;
 use crate::core::CursorRange;
 use crate::core::Id;
 use crate::draw;
-use crate::draw::{CharStyle, LinenumView, styles, View};
+use crate::draw::{styles, CharStyle, LinenumView, View};
 use crate::draw_cache::DrawCache;
 use crate::formatter;
 use crate::lsp::LSPClient;
 use crate::ropey_util::RopeExt;
 use crate::syntax;
+use crate::Core;
 
 pub struct Yank {
     pub insert_newline: bool,
@@ -282,9 +282,9 @@ impl<'a> Buffer<'a> {
     pub fn compile(&mut self, is_optimize: bool) {
         if self.last_compiler_submit
             == (CompileId {
-            id: self.core.buffer_changed(),
-            is_optimize,
-        })
+                id: self.core.buffer_changed(),
+                is_optimize,
+            })
         {
             return;
         }
