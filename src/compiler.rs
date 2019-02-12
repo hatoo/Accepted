@@ -180,7 +180,7 @@ impl Default for Cpp {
                 let re = regex::Regex::new(
                     r"^[^:]*:(?P<line>\d*):(?P<col>\d*): (?P<level>[^:]*): (?P<msg>.*)",
                 )
-                .unwrap();
+                    .unwrap();
 
                 while {
                     line.clear();

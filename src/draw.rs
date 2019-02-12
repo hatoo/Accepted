@@ -150,7 +150,6 @@ pub mod styles {
         bg: Color { r: 0, g: 0, b: 0 },
         modification: CharModification::Default,
     };
-
 }
 
 pub struct StyleWithColorType {
@@ -442,7 +441,7 @@ impl DoubleBuffer {
                 "{}{}{}",
                 StyleWithColorType {
                     is_ansi_color,
-                    style: styles::DEFAULT
+                    style: styles::DEFAULT,
                 },
                 termion::clear::All,
                 termion::cursor::Goto(1, 1)
@@ -457,7 +456,7 @@ impl DoubleBuffer {
                         DiffStyle {
                             is_ansi_color,
                             from: current_style,
-                            to: s
+                            to: s,
                         }
                     )?;
                     current_style = s;
@@ -482,40 +481,40 @@ impl DoubleBuffer {
                 .into_iter()
                 .zip(self.back.render().into_iter())
                 .enumerate()
-            {
-                if f != b {
-                    edit = true;
-                    if !cursor_hided {
-                        cursor_hided = true;
-                        write!(out, "{}", CursorState::Hide)?;
-                    }
-                    write!(out, "{}", termion::cursor::Goto(1, i as u16 + 1))?;
-                    let mut current_style = styles::DEFAULT;
-                    write!(
-                        out,
-                        "{}",
-                        StyleWithColorType {
-                            is_ansi_color,
-                            style: current_style
+                {
+                    if f != b {
+                        edit = true;
+                        if !cursor_hided {
+                            cursor_hided = true;
+                            write!(out, "{}", CursorState::Hide)?;
                         }
-                    )?;
-
-                    for (c, s) in b {
+                        write!(out, "{}", termion::cursor::Goto(1, i as u16 + 1))?;
+                        let mut current_style = styles::DEFAULT;
                         write!(
                             out,
                             "{}",
-                            DiffStyle {
+                            StyleWithColorType {
                                 is_ansi_color,
-                                from: current_style,
-                                to: s
+                                style: current_style,
                             }
                         )?;
-                        current_style = s;
-                        write!(out, "{}", c)?;
+
+                        for (c, s) in b {
+                            write!(
+                                out,
+                                "{}",
+                                DiffStyle {
+                                    is_ansi_color,
+                                    from: current_style,
+                                    to: s,
+                                }
+                            )?;
+                            current_style = s;
+                            write!(out, "{}", c)?;
+                        }
+                        write!(out, "{}", termion::clear::UntilNewline)?;
                     }
-                    write!(out, "{}", termion::clear::UntilNewline)?;
                 }
-            }
             edit
         };
 

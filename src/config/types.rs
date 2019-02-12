@@ -1,6 +1,7 @@
-use serde_derive::Deserialize;
 use std::ffi::OsString;
 use std::process;
+
+use serde_derive::Deserialize;
 
 #[derive(Debug)]
 pub struct Command {
@@ -41,44 +42,52 @@ pub struct CompilerConfig {
 //
 
 pub mod keys {
-    use crate::config::types::Command;
-    use crate::config::types::CompilerConfig;
     use std::collections::BTreeMap;
+
     use typemap::Key;
 
+    use crate::config::types::Command;
+    use crate::config::types::CompilerConfig;
+
     pub struct ANSIColor;
+
     impl Key for ANSIColor {
         type Value = bool;
     }
 
     pub struct Snippets;
+
     impl Key for Snippets {
         type Value = BTreeMap<String, String>;
     }
 
     pub struct IndentWidth;
+
     impl Key for IndentWidth {
         type Value = usize;
     }
 
     pub struct LSP;
+
     impl Key for LSP {
         type Value = Command;
     }
 
     pub struct Formatter;
+
     impl Key for Formatter {
         type Value = Command;
     }
 
     pub struct SyntaxExtension;
+
     impl Key for SyntaxExtension {
         type Value = String;
     }
 
     pub struct Compiler;
+
     impl Key for Compiler {
         type Value = CompilerConfig;
     }
-
 }

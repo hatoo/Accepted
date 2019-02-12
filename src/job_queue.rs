@@ -1,5 +1,5 @@
-use std::sync::mpsc;
 use std::sync::{self, Arc, Mutex};
+use std::sync::mpsc;
 use std::thread;
 
 pub struct JobQueue<S, T> {

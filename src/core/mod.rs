@@ -1,17 +1,19 @@
-use crate::indent;
-use crate::ropey_util::{is_line_end, RopeExt};
-use ropey::{self, Rope, RopeSlice};
 use std;
 use std::borrow::Cow;
-use std::cmp::Ordering;
 use std::cmp::{max, min};
+use std::cmp::Ordering;
 use std::io;
 use std::io::Read;
 use std::num::Wrapping;
 
-pub mod operation;
+use ropey::{self, Rope, RopeSlice};
+
+use crate::indent;
+use crate::ropey_util::{is_line_end, RopeExt};
 
 use self::operation::{Operation, OperationArg};
+
+pub mod operation;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Id(Wrapping<usize>);

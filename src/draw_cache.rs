@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use ropey::Rope;
-use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter};
-use syntect::parsing::SyntaxSet;
+use syntect::highlighting::{Highlighter, HighlightIterator, HighlightState};
 use syntect::parsing::{ParseState, ScopeStack, ScopeStackOp};
+use syntect::parsing::SyntaxSet;
 
 use crate::draw::CharStyle;
 use crate::draw::Color;
@@ -126,7 +126,7 @@ impl DrawState {
                 .collect::<Vec<_>>()
                 .into_iter()
         })
-        .collect()
+            .collect()
     }
 
     fn next(&mut self, line: &str, syntax_set: &SyntaxSet, highlighter: &Highlighter) {
@@ -197,13 +197,13 @@ impl<'a> DrawCache<'a> {
 
             for line in self.state_cache.len() * Self::CACHE_WIDTH
                 ..(self.state_cache.len() + 1) * Self::CACHE_WIDTH
-            {
-                state.next(
-                    &Cow::from(buffer.l(line)),
-                    self.syntax_set,
-                    &self.highlighter,
-                );
-            }
+                {
+                    state.next(
+                        &Cow::from(buffer.l(line)),
+                        self.syntax_set,
+                        &self.highlighter,
+                    );
+                }
 
             self.state_cache.push(state);
 
@@ -226,9 +226,29 @@ impl<'a> DrawCache<'a> {
             if let Some(mut state) = self.near_state(i) {
                 for i in i - (i % Self::CACHE_WIDTH)
                     ..min(
-                        buffer.len_lines(),
-                        i - (i % Self::CACHE_WIDTH) + Self::CACHE_WIDTH,
-                    )
+                    buffer.len_lines(),
+                    i - (i % Self::CACHE_WIDTH) + Self::CACHE_WIDTH,
+                )
+                    {
+                        let draw = state.highlight(
+                            &Cow::from(buffer.l(i)),
+                            self.syntax_set,
+                            &self.highlighter,
+                            self.bg,
+                        );
+
+                        self.draw_cache.insert(i, draw);
+                    }
+            }
+        }
+
+        if !self.draw_cache.contains_key(&i) && !self.draw_cache_pseudo.contains_key(&i) {
+            let mut state = self.start_state();
+            for i in i - (i % Self::CACHE_WIDTH)
+                ..min(
+                buffer.len_lines(),
+                i - (i % Self::CACHE_WIDTH) + Self::CACHE_WIDTH,
+            )
                 {
                     let draw = state.highlight(
                         &Cow::from(buffer.l(i)),
@@ -237,28 +257,8 @@ impl<'a> DrawCache<'a> {
                         self.bg,
                     );
 
-                    self.draw_cache.insert(i, draw);
+                    self.draw_cache_pseudo.insert(i, draw);
                 }
-            }
-        }
-
-        if !self.draw_cache.contains_key(&i) && !self.draw_cache_pseudo.contains_key(&i) {
-            let mut state = self.start_state();
-            for i in i - (i % Self::CACHE_WIDTH)
-                ..min(
-                    buffer.len_lines(),
-                    i - (i % Self::CACHE_WIDTH) + Self::CACHE_WIDTH,
-                )
-            {
-                let draw = state.highlight(
-                    &Cow::from(buffer.l(i)),
-                    self.syntax_set,
-                    &self.highlighter,
-                    self.bg,
-                );
-
-                self.draw_cache_pseudo.insert(i, draw);
-            }
         }
     }
 

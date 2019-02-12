@@ -1,8 +1,10 @@
-use crate::core::{Cursor, CursorRange};
-use crate::ropey_util::{is_line_end, RopeExt};
-use ropey::Rope;
 use std::cmp::min;
 use std::fmt::Debug;
+
+use ropey::Rope;
+
+use crate::core::{Cursor, CursorRange};
+use crate::ropey_util::{is_line_end, RopeExt};
 
 pub struct OperationArg<'a> {
     pub buffer: &'a mut Rope,
@@ -198,6 +200,7 @@ impl Operation for DeleteRange {
         Some(self.range.l().row)
     }
 }
+
 impl Operation for Set {
     fn perform(&mut self, arg: OperationArg) -> Option<usize> {
         if self.from.is_none() {

@@ -12,7 +12,7 @@ pub fn is_line_end(c: char) -> bool {
     [
         '\u{000a}', '\u{000b}', '\u{000c}', '\u{000d}', '\u{0085}', '\u{2028}', '\u{2029}',
     ]
-    .contains(&c)
+        .contains(&c)
 }
 
 impl<'a> RopeSliceExt for RopeSlice<'a> {

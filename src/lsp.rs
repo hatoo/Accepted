@@ -76,7 +76,7 @@ impl LSPClient {
                 send_notify::<_, languageserver_types::notification::DidOpenTextDocument>(
                     &mut stdin, open,
                 )
-                .unwrap();
+                    .unwrap();
                 let completion = languageserver_types::CompletionParams {
                     text_document: languageserver_types::TextDocumentIdentifier {
                         uri: file_url.clone(),
@@ -90,7 +90,7 @@ impl LSPClient {
                 send_request::<_, languageserver_types::request::Completion>(
                     &mut stdin, 1, completion,
                 )
-                .unwrap();
+                    .unwrap();
             }
         });
 
@@ -125,7 +125,7 @@ impl LSPClient {
                         let completion = serde_json::from_value::<
                             languageserver_types::CompletionResponse,
                         >(suc.result)
-                        .unwrap();
+                            .unwrap();
 
                         let completion = extract_completion(completion);
                         tx.send(completion).unwrap();
@@ -159,8 +159,8 @@ fn send_request<T: Write, R: languageserver_types::request::Request>(
     id: u64,
     params: R::Params,
 ) -> Result<()>
-where
-    R::Params: serde::Serialize,
+    where
+        R::Params: serde::Serialize,
 {
     if let serde_json::value::Value::Object(params) = serde_json::to_value(params).unwrap() {
         let req = jsonrpc_core::Call::MethodCall(jsonrpc_core::MethodCall {
@@ -180,8 +180,8 @@ fn send_notify<T: Write, R: languageserver_types::notification::Notification>(
     t: &mut T,
     params: R::Params,
 ) -> Result<()>
-where
-    R::Params: serde::Serialize,
+    where
+        R::Params: serde::Serialize,
 {
     if let serde_json::value::Value::Object(params) = serde_json::to_value(params).unwrap() {
         let req = jsonrpc_core::Notification {

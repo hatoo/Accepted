@@ -1,16 +1,17 @@
-use serde_derive::Deserialize;
 use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsString;
 use std::path;
+
+use serde_derive::Deserialize;
 use typemap::Key;
+
+use crate::config::snippet::load_snippet;
+use crate::config::types::Command;
+use crate::config::types::CompilerConfig;
+use crate::config::types::keys;
 
 mod snippet;
 pub mod types;
-
-use crate::config::snippet::load_snippet;
-use crate::config::types::keys;
-use crate::config::types::Command;
-use crate::config::types::CompilerConfig;
 
 const DEFAULT_CONFIG: &str = include_str!("../../assets/default_config.toml");
 

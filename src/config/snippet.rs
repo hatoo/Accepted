@@ -1,8 +1,9 @@
-use serde_derive::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io::BufReader;
 use std::path;
+
+use serde_derive::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SnippetSetJson(HashMap<String, SnippetJson>);
