@@ -6,9 +6,9 @@ use serde_derive::Deserialize;
 use typemap::Key;
 
 use crate::config::snippet::load_snippet;
+use crate::config::types::keys;
 use crate::config::types::Command;
 use crate::config::types::CompilerConfig;
-use crate::config::types::keys;
 
 mod snippet;
 pub mod types;
@@ -167,7 +167,7 @@ impl Config {
 
     fn snippets(&self, path: Option<&path::Path>) -> BTreeMap<String, String> {
         if let Some(path) = path {
-            let mut snippets = path
+            let mut snippets_file_name = path
                 .file_name()
                 .and_then(|file_name| {
                     self.file_name
@@ -192,9 +192,9 @@ impl Config {
                 .cloned()
                 .unwrap_or_default();
 
-            snippets.append(&mut snippets_ext);
-            snippets.append(&mut snippets_default);
-            snippets
+            snippets_file_name.append(&mut snippets_ext);
+            snippets_file_name.append(&mut snippets_default);
+            snippets_file_name
         } else {
             self.file_default
                 .as_ref()
