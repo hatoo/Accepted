@@ -67,7 +67,8 @@ impl Into<LanguageConfig> for LanguageConfigToml {
             .snippets
             .unwrap_or_default()
             .iter()
-            .map(path::PathBuf::from)
+            .map(|s| shellexpand::full(s).unwrap())
+            .map(|s| path::PathBuf::from(s.as_ref()))
             .filter_map(|p| load_snippet(p).ok())
             .fold(BTreeMap::new(), |mut a, mut b| {
                 a.append(&mut b);
