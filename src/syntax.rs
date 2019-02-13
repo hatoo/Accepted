@@ -18,9 +18,11 @@ pub struct SyntaxParent {
 impl Default for SyntaxParent {
     fn default() -> Self {
         const TOML: &str = include_str!("../assets/TOML.sublime-syntax");
+        const GIT_COMMIT: &str = include_str!("../assets/Git Commit.sublime-syntax");
         let syntax_set = SyntaxSet::load_defaults_nonewlines();
         let mut builder = syntax_set.into_builder();
         builder.add(SyntaxDefinition::load_from_str(TOML, false, None).unwrap());
+        builder.add(SyntaxDefinition::load_from_str(GIT_COMMIT, false, None).unwrap());
         let syntax_set = builder.build();
         Self {
             syntax_set,
