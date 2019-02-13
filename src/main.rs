@@ -47,7 +47,21 @@ fn main() {
             p
         })
         .and_then(|config_path| fs::read_to_string(&config_path).ok())
-        .map(|s| config::parse_config_with_default(s.as_str()).expect("parse config file"))
+        .and_then(|s| {
+            let result = config::parse_config_with_default(s.as_str());
+            match result {
+                Err(err) => {
+                    let mut buf = String::new();
+                    println!("Failed to load config.toml");
+                    println!("Reason: {}", err);
+                    println!();
+                    println!("Press Enter to continue");
+                    std::io::stdin().read_line(&mut buf).unwrap();
+                    None
+                }
+                Ok(config) => Some(config),
+            }
+        })
         .unwrap_or_default();
 
     let stdin = stdin();
