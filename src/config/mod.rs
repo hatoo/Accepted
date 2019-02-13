@@ -18,7 +18,6 @@ const DEFAULT_CONFIG: &str = include_str!("../../assets/default_config.toml");
 #[derive(Deserialize, Debug)]
 struct ConfigToml {
     file: Option<HashMap<String, LanguageConfigToml>>,
-    file_name: Option<HashMap<String, LanguageConfigToml>>,
     file_default: Option<LanguageConfigToml>,
 }
 
@@ -52,7 +51,6 @@ impl LanguageConfig {
 #[derive(Default)]
 struct Config {
     file: HashMap<OsString, LanguageConfig>,
-    file_name: HashMap<OsString, LanguageConfig>,
     file_default: Option<LanguageConfig>,
 }
 
@@ -105,12 +103,6 @@ impl Into<Config> for ConfigToml {
                 .into_iter()
                 .map(|(k, v)| (OsString::from(k), v.into()))
                 .collect(),
-            file_name: self
-                .file_name
-                .unwrap_or_default()
-                .into_iter()
-                .map(|(k, v)| (OsString::from(k), v.into()))
-                .collect(),
             file_default: self.file_default.map(Into::into),
         }
     }
@@ -147,12 +139,8 @@ impl Default for ConfigWithDefault {
 impl Config {
     fn get<A: Key>(&self, path: Option<&path::Path>) -> Option<&A::Value> {
         if let Some(path) = path {
-            path.file_name()
-                .and_then(|file_name| self.file_name.get(file_name))
-                .or_else(|| {
-                    path.extension()
-                        .and_then(|extension| self.file.get(extension))
-                })
+            let key = path.extension().or_else(|| path.file_name());
+            key.and_then(|k| self.file.get(k))
                 .and_then(|config| config.0.get::<A>())
                 .or_else(|| {
                     self.file_default
@@ -168,20 +156,11 @@ impl Config {
 
     fn snippets(&self, path: Option<&path::Path>) -> BTreeMap<String, String> {
         if let Some(path) = path {
-            let mut snippets_file_name = path
-                .file_name()
-                .and_then(|file_name| {
-                    self.file_name
-                        .get(file_name)
-                        .and_then(|config| config.0.get::<keys::Snippets>().cloned())
-                })
-                .unwrap_or_default();
-
-            let mut snippets_ext = path
-                .extension()
-                .and_then(|extension| {
+            let key = path.extension().or_else(|| path.file_name());
+            let mut snippets = key
+                .and_then(|k| {
                     self.file
-                        .get(extension)
+                        .get(k)
                         .and_then(|config| config.0.get::<keys::Snippets>().cloned())
                 })
                 .unwrap_or_default();
@@ -193,9 +172,8 @@ impl Config {
                 .cloned()
                 .unwrap_or_default();
 
-            snippets_file_name.append(&mut snippets_ext);
-            snippets_file_name.append(&mut snippets_default);
-            snippets_file_name
+            snippets.append(&mut snippets_default);
+            snippets
         } else {
             self.file_default
                 .as_ref()
