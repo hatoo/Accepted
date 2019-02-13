@@ -192,6 +192,7 @@ impl<'a> Buffer<'a> {
             .or_else(|| {
                 path.as_ref()
                     .extension()
+                    .or_else(|| path.as_ref().file_name())
                     .unwrap_or_default()
                     .to_str()
                     .map(String::from)
