@@ -138,20 +138,10 @@ impl Default for ConfigWithDefault {
 
 impl Config {
     fn get<A: Key>(&self, path: Option<&path::Path>) -> Option<&A::Value> {
-        if let Some(path) = path {
-            let key = path.extension().or_else(|| path.file_name());
-            key.and_then(|k| self.file.get(k))
-                .and_then(|config| config.0.get::<A>())
-                .or_else(|| {
-                    self.file_default
-                        .as_ref()
-                        .and_then(|config| config.0.get::<A>())
-                })
-        } else {
-            self.file_default
-                .as_ref()
-                .and_then(|config| config.0.get::<A>())
-        }
+        path.and_then(|path| path.extension().or_else(|| path.file_name()))
+            .and_then(|k| self.file.get(k))
+            .or_else(|| self.file_default.as_ref())
+            .and_then(|config| config.0.get::<A>())
     }
 
     fn snippets(&self, path: Option<&path::Path>) -> BTreeMap<String, String> {
