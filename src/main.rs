@@ -37,7 +37,7 @@ fn main() {
     });
 
     let after_help = if let Some(config_path) = config_path.as_ref() {
-        format!("Config file will loaded from {}", config_path.display())
+        format!("Config file will be loaded from {}", config_path.display())
     } else {
         "No config path detected in this system".to_string()
     };
