@@ -30,22 +30,30 @@ struct Snippet {
 }
 
 fn main() {
+    let config_path = dirs::config_dir().map(|mut p| {
+        p.push("acc");
+        p.push("config.toml");
+        p
+    });
+
+    let after_help = if let Some(config_path) = config_path.as_ref() {
+        format!("Config file will loaded from {}", config_path.display())
+    } else {
+        "No config path detected in this system".into()
+    };
+
     let matches = App::new("Accepted")
         .author(crate_authors!())
         .version(crate_version!())
         .long_version(format!("v{} {}", crate_version!(), BuildTag.get_build_commit(),).as_str())
         .about("A text editor to be ACCEPTED")
+        .after_help(after_help.as_str())
         .bin_name("acc")
         .arg(Arg::with_name("file"))
         .get_matches();
 
     let file = matches.value_of_os("file");
-    let config = dirs::config_dir()
-        .map(|mut p| {
-            p.push("acc");
-            p.push("config.toml");
-            p
-        })
+    let config = config_path
         .and_then(|config_path| fs::read_to_string(&config_path).ok())
         .and_then(|s| {
             let result = config::parse_config_with_default(s.as_str());
