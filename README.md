@@ -86,7 +86,7 @@ SPACE -> q to Quit.
 
 ## Configuration
 
-You can configure this by toml file placed in `[config_dir]/acc/init.toml`
+You can configure this by toml file placed in `[config_dir]/acc/config.toml`
 
 `config_dir` is defined in [here](https://docs.rs/dirs/1.0.3/dirs/fn.config_dir.html).
 
