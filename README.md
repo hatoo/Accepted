@@ -125,7 +125,7 @@ This supports vscode style snippet.
 You can specify snippet files in configure
 
 ```toml
-# On */rs files
+# On *.rs files
 [file.rs]
 # Use a snippet in this path
 snippets=["~.config/acc/snippet.json"]
