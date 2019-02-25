@@ -16,6 +16,7 @@ Currently Accepted supports Rust and C++.
 
 ### Features
 
+* Preconfigured for Rust and C++
 * Autoformat with [Rustfmt](https://github.com/rust-lang-nursery/rustfmt) / [ClangFormat](https://clang.llvm.org/docs/ClangFormat.html) / or specify with configuration
 * Completion with [RLS](https://github.com/rust-lang-nursery/rls) / [Clangd](https://clang.llvm.org/extra/clangd.html) / or Other LSP servers
 * Auto compile and show compiler messages (Supports rustc / gcc / clang)
@@ -83,21 +84,53 @@ SPACE -> T to compile (optimized) and run with clipboard input.
 
 SPACE -> q to Quit.
 
-## Snippet support
+## Configuration
+
+You can configure this by toml file placed in `[config_dir]/acc/init.toml`
+
+`config_dir` is defined in [here](https://docs.rs/dirs/1.0.3/dirs/fn.config_dir.html).
+
+Below is default configure.
+You can override with your own configure.
+
+```TOML
+# Configure to defaults
+[file_default]
+indent_width = 4
+# Set true if you are running in legacy terminal which has no true color
+ansi_color = false
+
+# Configure for *.rs files
+[file.rs]
+# Setting compiler and its type.
+compiler = { command=["rustc", "$FilePath$", "-Z", "unstable-options", "--error-format=json"], type="rustc", optimize_option=["-O"] }
+# Setting LSP server command
+lsp = ["rls"]
+# Setting formatter command
+formatter = ["rustfmt"]
+
+[file.cpp]
+# Configure for *.cpp files
+# Respect clang-format
+indent_width = 2
+compiler = { command=["clang", "$FilePath$", "-o", "$FileStem$"], type="gcc", optimize_option=["-O2"] }
+lsp = ["clangd"]
+formatter = ["clang-format"]
+```
+
+### Snippet Support
 
 This supports vscode style snippet.
 
-You can configure by toml file placed in `[config_dir]/acc/init.toml`
+You can specify snippet files in configure
 
-config_dir is defined in [here](https://docs.rs/dirs/1.0.3/dirs/fn.config_dir.html).
-
-The only configurable thing is snippet 
-
+```toml
+# On */rs files
+[file.rs]
+# Use a snippet in this path
+snippets=["~.config/acc/snippet.json"]
 ```
-snippet = ["path_to_snippet_file"]
-```
-
 
 ## Contribution
 
-Any kind of contribution including feature request is welcome !!
+Any kind of contribution including feature request is welcome!!
