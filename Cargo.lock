@@ -1,6 +1,6 @@
 [[package]]
 name = "accepted"
-version = "0.1.20"
+version = "0.2.0"
 dependencies = [
  "aho-corasick 0.6.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "ansi_colours 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
