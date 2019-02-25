@@ -16,9 +16,9 @@ Currently Accepted supports Rust and C++.
 
 ### Features
 
-* Autoformat with [Rustfmt](https://github.com/rust-lang-nursery/rustfmt) / [ClangFormat](https://clang.llvm.org/docs/ClangFormat.html)
-* Completion with [RLS](https://github.com/rust-lang-nursery/rls) / [Clangd](https://clang.llvm.org/extra/clangd.html)
-* Auto compile and show compiler messages
+* Autoformat with [Rustfmt](https://github.com/rust-lang-nursery/rustfmt) / [ClangFormat](https://clang.llvm.org/docs/ClangFormat.html) / or specify with configuration
+* Completion with [RLS](https://github.com/rust-lang-nursery/rls) / [Clangd](https://clang.llvm.org/extra/clangd.html) / or Other LSP servers
+* Auto compile and show compiler messages (Supports rustc / gcc / clang)
 * Easy to test a single a code
 * VScode style snippet support
 * Mouse support
