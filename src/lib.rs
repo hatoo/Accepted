@@ -22,7 +22,7 @@ mod text_object;
 pub mod theme;
 
 pub struct BufferMode<'a> {
-    pub buf: Buffer<'a>,
+    buf: Buffer<'a>,
     mode: Box<Mode>,
     is_recording: bool,
     dot_macro: Vec<termion::event::Event>,
@@ -85,5 +85,10 @@ impl<'a> BufferMode<'a> {
 
     pub fn draw(&mut self, term: &mut draw::Term) {
         self.mode.draw(&mut self.buf, term)
+    }
+
+    /// This method should be called every frame
+    pub fn background_task_duration(&mut self, duration: std::time::Duration) {
+        self.buf.extend_cache_duration(duration);
     }
 }

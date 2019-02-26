@@ -101,7 +101,7 @@ fn main() {
 
     loop {
         let start_frame = Instant::now();
-        state.buf.extend_cache_duration(frame);
+        state.background_task_duration(frame);
         let now = Instant::now();
 
         let evt = if (now - start_frame) > frame {
