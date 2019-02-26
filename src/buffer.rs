@@ -15,6 +15,7 @@ use crate::compiler::CompileResult;
 use crate::compiler::Compiler;
 use crate::config;
 use crate::config::types::keys;
+use crate::core::Core;
 use crate::core::Cursor;
 use crate::core::CursorRange;
 use crate::core::Id;
@@ -25,7 +26,6 @@ use crate::formatter;
 use crate::lsp::LSPClient;
 use crate::ropey_util::RopeExt;
 use crate::syntax;
-use crate::Core;
 
 pub struct Yank {
     pub insert_newline: bool,

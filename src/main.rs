@@ -13,9 +13,10 @@ use termion::input::{MouseTerminal, TermRead};
 use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
 
+use accepted::buffer::Buffer;
+use accepted::buffer_mode::BufferMode;
 use accepted::config;
 use accepted::draw::DoubleBuffer;
-use accepted::{Buffer, BufferMode};
 
 #[derive(BuildInfo)]
 struct BuildTag;
