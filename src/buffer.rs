@@ -134,12 +134,6 @@ impl<'a> Buffer<'a> {
         self.get_config::<keys::IndentWidth>().cloned().unwrap_or(4)
     }
 
-    pub fn is_ansi_color(&self) -> bool {
-        self.get_config::<keys::ANSIColor>()
-            .cloned()
-            .unwrap_or_default()
-    }
-
     pub fn restart_lsp(&mut self) {
         let ext = self
             .extension()

@@ -1027,7 +1027,8 @@ impl Mode for Prefix {
                                 return Normal::with_message("Failed to paste".into()).into();
                             }
                         } else {
-                            return Normal::with_message(format!("Failed to run {:?}", prog)).into();
+                            return Normal::with_message(format!("Failed to run {:?}", prog))
+                                .into();
                         }
                     } else {
                         return Normal::with_message("Failed to run".into()).into();

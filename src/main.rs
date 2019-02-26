@@ -120,8 +120,14 @@ fn main() {
         }
 
         state.draw(&mut draw.back);
-        draw.present(&mut stdout, state.buf.is_ansi_color())
-            .unwrap();
+        draw.present(
+            &mut stdout,
+            config
+                .get::<config::types::keys::ANSIColor>(None)
+                .cloned()
+                .unwrap_or(false),
+        )
+        .unwrap();
         stdout.flush().unwrap();
     }
 }
