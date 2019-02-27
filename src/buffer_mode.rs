@@ -3,7 +3,7 @@ use crate::draw;
 use crate::mode::{Mode, Normal, Transition};
 
 pub struct BufferMode<'a> {
-    pub buf: Buffer<'a>,
+    buf: Buffer<'a>,
     mode: Box<Mode>,
     is_recording: bool,
     dot_macro: Vec<termion::event::Event>,
@@ -19,6 +19,10 @@ impl<'a> BufferMode<'a> {
             dot_macro: Vec::new(),
             recording_macro: Vec::new(),
         }
+    }
+
+    pub fn buf(&self) -> &Buffer {
+        &self.buf
     }
 
     pub fn event(&mut self, event: termion::event::Event) -> bool {
