@@ -75,7 +75,7 @@ pub struct DoubleBuffer {
 }
 
 #[derive(Debug)]
-pub struct View<'a> {
+pub struct TermView<'a> {
     parent: &'a mut Term,
     orig: (usize, usize),
     height: usize,
@@ -85,7 +85,7 @@ pub struct View<'a> {
 }
 
 pub struct LinenumView<'a> {
-    view: View<'a>,
+    view: TermView<'a>,
     current_linenum: usize,
     width: usize,
     rustc_outputs: &'a [CompilerOutput],
@@ -96,7 +96,7 @@ impl<'a> LinenumView<'a> {
         current_linenum: usize,
         max_linenum: usize,
         rustc_outputs: &'a [CompilerOutput],
-        view: View<'a>,
+        view: TermView<'a>,
     ) -> Self {
         let width = format!("{}", max_linenum + 1).len() + 2;
         let mut res = Self {
@@ -194,11 +194,11 @@ impl Term {
         None
     }
 
-    pub fn view(&mut self, orig: (usize, usize), height: usize, width: usize) -> View {
+    pub fn view(&mut self, orig: (usize, usize), height: usize, width: usize) -> TermView {
         assert!(orig.0 + height <= self.height);
         assert!(orig.1 + width <= self.width);
 
-        View {
+        TermView {
             parent: self,
             orig,
             height,
@@ -236,7 +236,7 @@ impl Term {
 }
 
 impl DoubleBuffer {
-    pub fn view(&mut self, orig: (usize, usize), height: usize, width: usize) -> View {
+    pub fn view(&mut self, orig: (usize, usize), height: usize, width: usize) -> TermView {
         self.back.view(orig, height, width)
     }
 
@@ -339,7 +339,7 @@ impl DoubleBuffer {
     }
 }
 
-impl<'a> View<'a> {
+impl<'a> TermView<'a> {
     pub fn is_out(&self) -> bool {
         self.cursor.row >= self.orig.0 + self.height
     }

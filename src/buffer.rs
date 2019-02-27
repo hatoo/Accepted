@@ -20,7 +20,7 @@ use crate::core::Cursor;
 use crate::core::CursorRange;
 use crate::core::Id;
 use crate::draw;
-use crate::draw::{styles, CharStyle, LinenumView, View};
+use crate::draw::{styles, CharStyle, LinenumView, TermView};
 use crate::draw_cache::DrawCache;
 use crate::formatter;
 use crate::lsp::LSPClient;
@@ -343,14 +343,14 @@ impl<'a> Buffer<'a> {
             .unwrap_or(false)
     }
 
-    pub fn draw(&mut self, view: View) -> Option<Cursor> {
+    pub fn draw(&mut self, view: TermView) -> Option<Cursor> {
         self.poll_compile_message();
         self.draw_with_selected(view, None)
     }
 
     pub fn draw_with_selected(
         &mut self,
-        mut view: View,
+        mut view: TermView,
         selected: Option<CursorRange>,
     ) -> Option<Cursor> {
         view.bg = self.syntax.theme.settings.background.map(|c| c.into());
