@@ -68,12 +68,6 @@ pub struct Term {
     buf: Vec<Vec<Tile>>,
 }
 
-#[derive(Debug, Default)]
-pub struct DoubleBuffer {
-    front: Term,
-    pub back: Term,
-}
-
 #[derive(Debug)]
 pub struct TermView<'a> {
     parent: &'a mut Term,
@@ -89,6 +83,12 @@ pub struct LinenumView<'a> {
     current_linenum: usize,
     width: usize,
     rustc_outputs: &'a [CompilerOutput],
+}
+
+#[derive(Debug, Default)]
+pub struct DoubleBuffer {
+    front: Term,
+    pub back: Term,
 }
 
 impl<'a> LinenumView<'a> {
@@ -235,6 +235,77 @@ impl Term {
     }
 }
 
+impl<'a> TermView<'a> {
+    pub fn is_out(&self) -> bool {
+        self.cursor.row >= self.orig.0 + self.height
+    }
+
+    pub fn newline(&mut self) -> Option<Cursor> {
+        if self.is_out() {
+            None
+        } else {
+            let prev = self.cursor;
+            if let Some(bg) = self.bg {
+                if !self.cause_newline(' ') {
+                    self.put(' ', CharStyle::bg(bg), None);
+                }
+            }
+            self.cursor.row += 1;
+            self.cursor.col = self.orig.1;
+            Some(prev)
+        }
+    }
+
+    pub fn cause_newline(&self, c: char) -> bool {
+        if self.is_out() {
+            return true;
+        }
+
+        let w = c.width().unwrap_or(0);
+        self.cursor.col + w >= self.orig.1 + self.width
+    }
+
+    pub fn put(&mut self, c: char, style: CharStyle, pos: Option<Cursor>) -> Option<Cursor> {
+        if self.is_out() {
+            return None;
+        }
+
+        let prev = self.cursor;
+        let w = c.width().unwrap_or(0);
+        if w > 0 {
+            if self.cursor.col + w >= self.orig.1 + self.width {
+                self.newline();
+                if self.is_out() {
+                    return None;
+                }
+            }
+            self.parent.buf[self.cursor.row][self.cursor.col] = Tile::Char(c, style, pos);
+            self.cursor.col += 1;
+            for _ in 1..w {
+                self.parent.buf[self.cursor.row][self.cursor.col] = Tile::Empty;
+                self.cursor.col += 1;
+            }
+            Some(prev)
+        } else {
+            Some(prev)
+        }
+    }
+
+    pub fn puts(&mut self, s: &str, style: CharStyle) {
+        for c in s.chars() {
+            self.put(c, style, None);
+        }
+    }
+
+    pub fn put_inline(&mut self, c: char, style: CharStyle, pos: Option<Cursor>) -> Option<Cursor> {
+        if self.cause_newline(c) {
+            None
+        } else {
+            self.put(c, style, pos)
+        }
+    }
+}
+
 impl DoubleBuffer {
     pub fn view(&mut self, orig: (usize, usize), height: usize, width: usize) -> TermView {
         self.back.view(orig, height, width)
@@ -336,76 +407,5 @@ impl DoubleBuffer {
     pub fn redraw(&mut self) {
         self.front.height = 0;
         self.front.width = 0;
-    }
-}
-
-impl<'a> TermView<'a> {
-    pub fn is_out(&self) -> bool {
-        self.cursor.row >= self.orig.0 + self.height
-    }
-
-    pub fn newline(&mut self) -> Option<Cursor> {
-        if self.is_out() {
-            None
-        } else {
-            let prev = self.cursor;
-            if let Some(bg) = self.bg {
-                if !self.cause_newline(' ') {
-                    self.put(' ', CharStyle::bg(bg), None);
-                }
-            }
-            self.cursor.row += 1;
-            self.cursor.col = self.orig.1;
-            Some(prev)
-        }
-    }
-
-    pub fn cause_newline(&self, c: char) -> bool {
-        if self.is_out() {
-            return true;
-        }
-
-        let w = c.width().unwrap_or(0);
-        self.cursor.col + w >= self.orig.1 + self.width
-    }
-
-    pub fn put(&mut self, c: char, style: CharStyle, pos: Option<Cursor>) -> Option<Cursor> {
-        if self.is_out() {
-            return None;
-        }
-
-        let prev = self.cursor;
-        let w = c.width().unwrap_or(0);
-        if w > 0 {
-            if self.cursor.col + w >= self.orig.1 + self.width {
-                self.newline();
-                if self.is_out() {
-                    return None;
-                }
-            }
-            self.parent.buf[self.cursor.row][self.cursor.col] = Tile::Char(c, style, pos);
-            self.cursor.col += 1;
-            for _ in 1..w {
-                self.parent.buf[self.cursor.row][self.cursor.col] = Tile::Empty;
-                self.cursor.col += 1;
-            }
-            Some(prev)
-        } else {
-            Some(prev)
-        }
-    }
-
-    pub fn puts(&mut self, s: &str, style: CharStyle) {
-        for c in s.chars() {
-            self.put(c, style, None);
-        }
-    }
-
-    pub fn put_inline(&mut self, c: char, style: CharStyle, pos: Option<Cursor>) -> Option<Cursor> {
-        if self.cause_newline(c) {
-            None
-        } else {
-            self.put(c, style, pos)
-        }
     }
 }
