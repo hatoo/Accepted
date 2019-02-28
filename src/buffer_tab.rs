@@ -4,6 +4,8 @@ use crate::config::ConfigWithDefault;
 use crate::draw;
 use crate::syntax::SyntaxParent;
 
+use termion::event::Event;
+
 pub struct BufferTab<'a> {
     syntax_parent: &'a SyntaxParent,
     config: &'a ConfigWithDefault,
@@ -28,6 +30,10 @@ impl<'a> BufferTab<'a> {
 
     pub fn buffer_mode_mut(&mut self) -> &mut BufferMode<'a> {
         &mut self.buffers[self.index]
+    }
+
+    pub fn event(&mut self, event: Event) -> bool {
+        self.buffer_mode_mut().event(event)
     }
 
     pub fn draw(&mut self, view: draw::TermView) -> draw::CursorState {

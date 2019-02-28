@@ -113,7 +113,7 @@ fn main() {
             if evt == Event::Key(Key::Ctrl('l')) {
                 draw.redraw();
             }
-            if state.buffer_mode_mut().event(evt) {
+            if state.event(evt) {
                 return;
             }
         }
