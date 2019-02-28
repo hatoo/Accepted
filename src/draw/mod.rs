@@ -197,7 +197,7 @@ impl Term {
 }
 
 impl<'a> TermView<'a> {
-    pub fn relative_view(
+    pub fn view(
         &'a mut self,
         orig: (usize, usize),
         height: usize,
