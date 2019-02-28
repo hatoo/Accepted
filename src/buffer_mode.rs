@@ -69,7 +69,9 @@ impl<'a> BufferMode<'a> {
     }
 
     pub fn draw(&mut self, term: &mut draw::Term) {
-        self.mode.draw(&mut self.buf, term)
+        term.cursor = self
+            .mode
+            .draw(&mut self.buf, term.view((0, 0), term.height, term.width));
     }
 
     /// This method should be called every frame

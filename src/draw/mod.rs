@@ -221,7 +221,7 @@ impl<'a> TermView<'a> {
         }
     }
 
-    pub fn height(&self)  -> usize {
+    pub fn height(&self) -> usize {
         self.height
     }
 

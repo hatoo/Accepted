@@ -49,7 +49,7 @@ impl<T: Mode + 'static> From<T> for Transition {
 pub trait Mode {
     fn init(&mut self, _buf: &mut Buffer) {}
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition;
-    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term);
+    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState;
 }
 
 pub struct Normal {
@@ -511,15 +511,15 @@ impl Mode for Normal {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
-        let height = term.height;
-        let width = term.width;
-        let cursor = buf.draw(term.view((0, 0), height - 1, width));
-        term.cursor = cursor
+    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+        let height = view.height();
+        let width = view.width();
+        let cursor = buf
+            .draw(view.view((0, 0), height - 1, width))
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide);
 
-        let mut footer = term.view((height - 1, 0), 1, width);
+        let mut footer = view.view((height - 1, 0), 1, width);
         if let Some(message) = buf.compiler_message_on_cursor() {
             footer.puts(message, draw::styles::FOOTER);
         } else {
@@ -552,6 +552,8 @@ impl Mode for Normal {
             }
         }
         self.frame = (std::num::Wrapping(self.frame) + std::num::Wrapping(1)).0;
+
+        cursor
     }
 }
 
@@ -765,12 +767,12 @@ impl Mode for Insert {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
         self.poll(buf);
-        let height = term.height;
-        let width = term.width;
-        let mut cursor = buf.draw(term.view((0, 0), height, width));
-        term.cursor = cursor
+        let height = view.height();
+        let width = view.width();
+        let mut cursor = buf.draw(view.view((0, 0), height, width));
+        let res = cursor
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Bar))
             .unwrap_or(draw::CursorState::Hide);
 
@@ -782,7 +784,7 @@ impl Mode for Insert {
 
         if let Some(cursor) = cursor {
             if cursor.col + completion_width <= width && cursor.row + completion_height <= height {
-                let mut view = term.view(cursor.into_tuple(), completion_height, completion_width);
+                let mut view = view.view(cursor.into_tuple(), completion_height, completion_width);
                 for i in 0..min(completion_height, self.completion_len()) {
                     let is_selected = Some(i) == self.completion_index;
                     if i < self.completions.len() {
@@ -812,6 +814,8 @@ impl Mode for Insert {
                 }
             }
         }
+
+        res
     }
 }
 
@@ -831,13 +835,12 @@ impl Mode for R {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
-        let height = term.height;
-        let width = term.width;
-        let cursor = buf.draw(term.view((0, 0), height, width));
-        term.cursor = cursor
+    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+        let height = view.height();
+        let width = view.width();
+        buf.draw(view.view((0, 0), height, width))
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Underline))
-            .unwrap_or(draw::CursorState::Hide);
+            .unwrap_or(draw::CursorState::Hide)
     }
 }
 
@@ -861,19 +864,21 @@ impl Mode for Search {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
-        let height = term.height - 1;
-        let width = term.width;
-        let cursor = buf.draw(term.view((0, 0), height, width));
-        term.cursor = cursor
+    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+        let height = view.height() - 1;
+        let width = view.width();
+        let cursor = buf
+            .draw(view.view((0, 0), height, width))
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide);
 
-        let mut footer = term.view((height, 0), 1, width);
+        let mut footer = view.view((height, 0), 1, width);
         footer.put('/', draw::styles::DEFAULT, None);
         for &c in &buf.search {
             footer.put(c, draw::styles::DEFAULT, None);
         }
+
+        cursor
     }
 }
 
@@ -904,18 +909,18 @@ impl Mode for Save {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
-        if term.height < 2 {
-            return;
+    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+        if view.height() < 2 {
+            return draw::CursorState::Hide;
         }
-        let height = term.height - 2;
-        let width = term.width;
-        let cursor = buf.draw(term.view((0, 0), height, width));
-        term.cursor = cursor
+        let height = view.height() - 2;
+        let width = view.width();
+        let cursor = buf
+            .draw(view.view((0, 0), height, width))
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide);
 
-        let mut footer = term.view((height, 0), 2, width);
+        let mut footer = view.view((height, 0), 2, width);
         footer.puts(
             &std::env::current_dir().unwrap().to_string_lossy(),
             draw::styles::UI,
@@ -923,6 +928,8 @@ impl Mode for Save {
         footer.newline();
         footer.puts("> ", draw::styles::UI);
         footer.puts(&self.path, draw::styles::UI);
+
+        cursor
     }
 }
 
@@ -1042,19 +1049,21 @@ impl Mode for Prefix {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
-        let height = term.height - 1;
-        let width = term.width;
-        let cursor = buf.draw(term.view((0, 0), height, width));
-        term.cursor = cursor
+    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+        let height = view.height() - 1;
+        let width = view.width();
+        let cursor = buf
+            .draw(view.view((0, 0), height, width))
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide);
 
-        let mut footer = term.view((height, 0), 1, width);
+        let mut footer = view.view((height, 0), 1, width);
         footer.puts(
             "Prefix ... [Esc: Return] [q: Quit] [s: Save] [a: save As ...] [<Space> Format]",
             draw::styles::FOOTER,
         );
+
+        cursor
     }
 }
 
@@ -1221,14 +1230,13 @@ impl Mode for Visual {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
-        let height = term.height;
-        let width = term.width;
+    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+        let height = view.height();
+        let width = view.width();
         let range = self.get_range(buf.core.cursor(), buf.core.buffer());
-        let cursor = buf.draw_with_selected(term.view((0, 0), height, width), Some(range));
-        term.cursor = cursor
+        buf.draw_with_selected(view.view((0, 0), height, width), Some(range))
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
-            .unwrap_or(draw::CursorState::Hide);
+            .unwrap_or(draw::CursorState::Hide)
     }
 }
 
@@ -1252,7 +1260,7 @@ impl Mode for ViewProcess {
         }
     }
 
-    fn draw(&mut self, _buf: &mut Buffer, term: &mut draw::Term) {
+    fn draw(&mut self, _buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
         if self.end.is_none() {
             if let Ok(Some(_)) = self.process.try_wait() {
                 self.end = Some(Instant::now());
@@ -1267,11 +1275,10 @@ impl Mode for ViewProcess {
             read_cnt -= 1;
         }
 
-        let height = term.height;
-        let width = term.width;
-        term.cursor = draw::CursorState::Hide;
+        let height = view.height();
+        let width = view.width();
         {
-            let mut view = term.view((0, 0), height - 1, width);
+            let mut view = view.view((0, 0), height - 1, width);
             for line in &self.buf[self.row_offset..] {
                 view.puts(line, draw::styles::DEFAULT);
                 view.newline();
@@ -1281,9 +1288,10 @@ impl Mode for ViewProcess {
             }
         }
         {
-            let mut view = term.view((height - 1, 0), 1, width);
+            let mut view = view.view((height - 1, 0), 1, width);
             view.puts("Esc to return", draw::styles::FOOTER);
         }
+        draw::CursorState::Hide
     }
 }
 
@@ -1420,15 +1428,15 @@ impl Mode for TextObjectOperation {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
-        let height = term.height - 1;
-        let width = term.width;
-        let cursor = buf.draw(term.view((0, 0), height, width));
-        term.cursor = cursor
+    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+        let height = view.height() - 1;
+        let width = view.width();
+        let cursor = buf
+            .draw(view.view((0, 0), height, width))
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide);
 
-        let mut footer = term.view((height, 0), 1, width);
+        let mut footer = view.view((height, 0), 1, width);
 
         match self.parser.action {
             Action::Change => {
@@ -1441,6 +1449,8 @@ impl Mode for TextObjectOperation {
                 footer.puts("Yank ", draw::styles::FOOTER);
             }
         }
+
+        cursor
     }
 }
 
@@ -1475,14 +1485,13 @@ impl Mode for S {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
-        let height = term.height;
-        let width = term.width;
+    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+        let height = view.height();
+        let width = view.width();
         let range = self.0;
-        let cursor = buf.draw_with_selected(term.view((0, 0), height, width), Some(range));
-        term.cursor = cursor
+        buf.draw_with_selected(view.view((0, 0), height, width), Some(range))
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
-            .unwrap_or(draw::CursorState::Hide);
+            .unwrap_or(draw::CursorState::Hide)
     }
 }
 
@@ -1515,20 +1524,22 @@ impl Mode for Find {
         }
         Transition::Nothing
     }
-    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
-        let height = term.height;
-        let width = term.width;
-        let cursor = buf.draw(term.view((0, 0), height - 1, width));
-        term.cursor = cursor
+    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+        let height = view.height();
+        let width = view.width();
+        let cursor = buf
+            .draw(view.view((0, 0), height - 1, width))
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide);
 
-        let mut footer = term.view((height - 1, 0), 1, width);
+        let mut footer = view.view((height - 1, 0), 1, width);
         if self.to_right {
             footer.puts("find ->", draw::styles::FOOTER);
         } else {
             footer.puts("find <-", draw::styles::FOOTER);
         }
+
+        cursor
     }
 }
 
@@ -1564,18 +1575,20 @@ impl Mode for Goto {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, term: &mut draw::Term) {
-        let height = term.height - 1;
-        let width = term.width;
-        let cursor = buf.draw(term.view((0, 0), height, width));
-        term.cursor = cursor
+    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+        let height = view.height() - 1;
+        let width = view.width();
+        let cursor = buf
+            .draw(view.view((0, 0), height, width))
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide);
 
-        let mut footer = term.view((height, 0), 1, width);
+        let mut footer = view.view((height, 0), 1, width);
         footer.puts("Goto: ", draw::styles::DEFAULT);
         for &c in &self.row {
             footer.put(c, draw::styles::DEFAULT, None);
         }
+
+        cursor
     }
 }
