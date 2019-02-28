@@ -1,5 +1,6 @@
 pub mod buffer;
 pub mod buffer_mode;
+pub mod buffer_tab;
 mod clipboard;
 mod compiler;
 pub mod config;

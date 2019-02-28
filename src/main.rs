@@ -13,8 +13,7 @@ use termion::input::{MouseTerminal, TermRead};
 use termion::raw::IntoRawMode;
 use termion::screen::AlternateScreen;
 
-use accepted::buffer::Buffer;
-use accepted::buffer_mode::BufferMode;
+use accepted::buffer_tab::BufferTab;
 use accepted::config;
 use accepted::draw::DoubleBuffer;
 
@@ -89,12 +88,11 @@ fn main() {
 
     let syntax_parent = accepted::syntax::SyntaxParent::default();
 
-    let mut buf = Buffer::new(&syntax_parent, &config);
-    if let Some(path) = file {
-        buf.open(path);
-    }
+    let mut state = BufferTab::new(&syntax_parent, &config);
 
-    let mut state = BufferMode::new(buf);
+    if let Some(path) = file {
+        state.buffer_mode_mut().buf.open(path);
+    }
 
     let mut draw = DoubleBuffer::default();
 
@@ -102,7 +100,7 @@ fn main() {
 
     loop {
         let start_frame = Instant::now();
-        state.background_task_duration(frame);
+        state.buffer_mode_mut().background_task_duration(frame);
         let now = Instant::now();
 
         let evt = if (now - start_frame) > frame {
@@ -115,12 +113,12 @@ fn main() {
             if evt == Event::Key(Key::Ctrl('l')) {
                 draw.redraw();
             }
-            if state.event(evt) {
+            if state.buffer_mode_mut().event(evt) {
                 return;
             }
         }
 
-        state.draw(&mut draw.back);
+        draw.back.cursor = state.draw(draw.back.view((0, 0), draw.back.height, draw.back.width));
         draw.present(
             &mut stdout,
             config

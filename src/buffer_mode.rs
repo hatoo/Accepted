@@ -3,7 +3,7 @@ use crate::draw;
 use crate::mode::{Mode, Normal, Transition};
 
 pub struct BufferMode<'a> {
-    buf: Buffer<'a>,
+    pub buf: Buffer<'a>,
     mode: Box<Mode>,
     is_recording: bool,
     dot_macro: Vec<termion::event::Event>,
@@ -68,10 +68,8 @@ impl<'a> BufferMode<'a> {
         false
     }
 
-    pub fn draw(&mut self, term: &mut draw::Term) {
-        term.cursor = self
-            .mode
-            .draw(&mut self.buf, term.view((0, 0), term.height, term.width));
+    pub fn draw(&mut self, view: draw::TermView) -> draw::CursorState {
+        self.mode.draw(&mut self.buf, view)
     }
 
     /// This method should be called every frame
