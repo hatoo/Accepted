@@ -197,6 +197,30 @@ impl Term {
 }
 
 impl<'a> TermView<'a> {
+    pub fn relative_view(
+        &'a mut self,
+        orig: (usize, usize),
+        height: usize,
+        width: usize,
+    ) -> TermView<'a> {
+        let new_orig = (self.orig.0 + orig.0, self.orig.1 + orig.1);
+
+        assert!(new_orig.0 + height <= self.parent.height);
+        assert!(new_orig.1 + width <= self.parent.width);
+
+        Self {
+            parent: &mut self.parent,
+            orig: new_orig,
+            height,
+            width,
+            bg: self.bg,
+            cursor: Cursor {
+                row: new_orig.0,
+                col: new_orig.1,
+            },
+        }
+    }
+
     pub fn is_out(&self) -> bool {
         self.cursor.row >= self.orig.0 + self.height
     }
