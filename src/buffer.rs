@@ -229,7 +229,7 @@ impl<'a> Buffer<'a> {
                 return;
             }
             let cols = cols - LinenumView::prefix_width(self.core.buffer().len_lines());
-            let rows = rows - 1;
+            let rows = rows - 2;
             let mut i = self.core.cursor().row + 1;
             let mut sum = 0;
             while i > 0 && sum + get_rows(&Cow::from(self.core.buffer().l(i - 1)), cols) <= rows {
