@@ -37,7 +37,12 @@ impl<'a> BufferTab<'a> {
     }
 
     pub fn draw(&mut self, view: draw::TermView) -> draw::CursorState {
-        self.buffer_mode_mut()
-            .draw(view.view((0, 0), view.height() - 1, view.width()))
+        let cursor =
+            self.buffer_mode_mut()
+                .draw(view.view((0, 0), view.height() - 1, view.width()));
+        let mut footer = view.view((view.height() - 1, 0), 1, view.width());
+        footer.puts("TAB BAR", draw::styles::FOOTER);
+
+        cursor
     }
 }
