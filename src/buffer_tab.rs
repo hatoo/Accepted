@@ -51,6 +51,11 @@ impl<'a> BufferTab<'a> {
                 )));
                 self.index = self.buffers.len() - 1;
             }
+            TabOperation::ChangeTab(i) => {
+                if i >= 1 && i <= self.buffers.len() {
+                    self.index = i - 1;
+                }
+            }
             TabOperation::Nothing => {}
         }
 

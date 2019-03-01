@@ -26,6 +26,7 @@ use crate::core::CursorRange;
 use crate::core::Id;
 use crate::draw;
 use crate::indent;
+use crate::mode::Transition::Trans;
 use crate::ropey_util::RopeExt;
 use crate::ropey_util::RopeSliceExt;
 use crate::text_object::{self, Action};
@@ -39,6 +40,8 @@ pub enum Transition {
     Return(Option<String>, bool),
     Exit,
     CreateNewTab,
+    // 1-indexed
+    ChangeTab(usize),
 }
 
 impl<T: Mode + 'static> From<T> for Transition {
@@ -1047,6 +1050,11 @@ impl Mode for Prefix {
             }
             Event::Key(Key::Char('c')) => {
                 return Transition::CreateNewTab;
+            }
+            Event::Key(Key::Char(c)) if c.is_digit(10) => {
+                if let Some(i) = c.to_digit(10) {
+                    return Transition::ChangeTab(i as usize);
+                }
             }
             _ => {}
         }

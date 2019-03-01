@@ -15,6 +15,7 @@ pub enum TabOperation {
     Nothing,
     Close,
     NewTab,
+    ChangeTab(usize),
 }
 
 impl<'a> BufferMode<'a> {
@@ -73,6 +74,10 @@ impl<'a> BufferMode<'a> {
             Transition::CreateNewTab => {
                 self.mode = Box::new(Normal::default());
                 return TabOperation::NewTab;
+            }
+            Transition::ChangeTab(i) => {
+                self.mode = Box::new(Normal::default());
+                return TabOperation::ChangeTab(i);
             }
             Transition::Nothing => {}
         }
