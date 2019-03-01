@@ -37,6 +37,7 @@ impl<'a> BufferTab<'a> {
     }
 
     pub fn draw(&mut self, view: draw::TermView) -> draw::CursorState {
-        self.buffer_mode_mut().draw(view)
+        self.buffer_mode_mut()
+            .draw(view.view((0, 0), view.height() - 1, view.width()))
     }
 }
