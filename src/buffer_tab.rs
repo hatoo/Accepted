@@ -1,8 +1,10 @@
 use crate::buffer::Buffer;
 use crate::buffer_mode::BufferMode;
+use crate::buffer_mode::TabOperation;
 use crate::config::ConfigWithDefault;
 use crate::draw;
 use crate::syntax::SyntaxParent;
+use std::cmp::min;
 
 use termion::event::Event;
 
@@ -33,7 +35,26 @@ impl<'a> BufferTab<'a> {
     }
 
     pub fn event(&mut self, event: Event) -> bool {
-        self.buffer_mode_mut().event(event)
+        match self.buffer_mode_mut().event(event) {
+            TabOperation::Close => {
+                if self.buffers.len() <= 1 {
+                    return true;
+                } else {
+                    self.buffers.remove(self.index);
+                    self.index = min(self.buffers.len() - 1, self.index);
+                }
+            }
+            TabOperation::NewTab => {
+                self.buffers.push(BufferMode::new(Buffer::new(
+                    self.syntax_parent,
+                    self.config,
+                )));
+                self.index = self.buffers.len() - 1;
+            }
+            TabOperation::Nothing => {}
+        }
+
+        false
     }
 
     pub fn draw(&mut self, view: draw::TermView) -> draw::CursorState {
@@ -41,7 +62,14 @@ impl<'a> BufferTab<'a> {
             self.buffer_mode_mut()
                 .draw(view.view((0, 0), view.height() - 1, view.width()));
         let mut footer = view.view((view.height() - 1, 0), 1, view.width());
-        footer.puts("TAB BAR", draw::styles::FOOTER);
+
+        for i in 0..self.buffers.len() {
+            if self.index == i {
+                footer.puts(&format!("[{}]", i + 1), draw::styles::FOOTER);
+            } else {
+                footer.puts(&format!(" {} ", i + 1), draw::styles::FOOTER);
+            }
+        }
 
         cursor
     }

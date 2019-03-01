@@ -1,6 +1,7 @@
 use crate::buffer::Buffer;
 use crate::draw;
 use crate::mode::{Mode, Normal, Transition};
+use serde_json::ser::CharEscape::Tab;
 
 pub struct BufferMode<'a> {
     pub buf: Buffer<'a>,
@@ -8,6 +9,12 @@ pub struct BufferMode<'a> {
     is_recording: bool,
     dot_macro: Vec<termion::event::Event>,
     recording_macro: Vec<termion::event::Event>,
+}
+
+pub enum TabOperation {
+    Nothing,
+    Close,
+    NewTab,
 }
 
 impl<'a> BufferMode<'a> {
@@ -25,13 +32,13 @@ impl<'a> BufferMode<'a> {
         &self.buf
     }
 
-    pub fn event(&mut self, event: termion::event::Event) -> bool {
+    pub fn event(&mut self, event: termion::event::Event) -> TabOperation {
         if self.is_recording {
             self.recording_macro.push(event.clone());
         }
         match self.mode.event(&mut self.buf, event.clone()) {
             Transition::Exit => {
-                return true;
+                return TabOperation::Close;
             }
             Transition::Trans(mut t) => {
                 t.init(&mut self.buf);
@@ -63,9 +70,13 @@ impl<'a> BufferMode<'a> {
                 t.init(&mut self.buf);
                 self.mode = t;
             }
+            Transition::CreateNewTab => {
+                self.mode = Box::new(Normal::default());
+                return TabOperation::NewTab;
+            }
             Transition::Nothing => {}
         }
-        false
+        TabOperation::Nothing
     }
 
     pub fn draw(&mut self, view: draw::TermView) -> draw::CursorState {

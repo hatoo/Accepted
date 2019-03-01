@@ -38,6 +38,7 @@ pub enum Transition {
     // Message, is commit dot macro?
     Return(Option<String>, bool),
     Exit,
+    CreateNewTab,
 }
 
 impl<T: Mode + 'static> From<T> for Transition {
@@ -1043,6 +1044,9 @@ impl Mode for Prefix {
                 } else {
                     return Normal::with_message("Save first".into()).into();
                 }
+            }
+            Event::Key(Key::Char('c')) => {
+                return Transition::CreateNewTab;
             }
             _ => {}
         }
