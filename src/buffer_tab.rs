@@ -70,9 +70,9 @@ impl<'a> BufferTab<'a> {
 
         for i in 0..self.buffers.len() {
             if self.index == i {
-                footer.puts(&format!("[{}]", i + 1), draw::styles::FOOTER);
+                footer.puts(&format!("[{}]", i + 1), draw::styles::TAB_BAR);
             } else {
-                footer.puts(&format!(" {} ", i + 1), draw::styles::FOOTER);
+                footer.puts(&format!(" {} ", i + 1), draw::styles::TAB_BAR);
             }
         }
 

@@ -144,6 +144,19 @@ pub mod styles {
         bg: Color { r: 0, g: 0, b: 0 },
         modification: CharModification::Default,
     };
+    pub const TAB_BAR: CharStyle = CharStyle {
+        fg: Color {
+            r: 0xee,
+            g: 0xee,
+            b: 0xee,
+        },
+        bg: Color {
+            r: 0x41,
+            g: 0x69,
+            b: 0xe1,
+        },
+        modification: CharModification::Default,
+    };
 }
 
 pub struct StyleWithColorType {
