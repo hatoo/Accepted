@@ -5,6 +5,7 @@ use crate::config::ConfigWithDefault;
 use crate::draw;
 use crate::syntax::SyntaxParent;
 use std::cmp::min;
+use unicode_width::UnicodeWidthChar;
 
 use termion::event::Event;
 
@@ -63,18 +64,53 @@ impl<'a> BufferTab<'a> {
     }
 
     pub fn draw(&mut self, view: draw::TermView) -> draw::CursorState {
+        const TITLE_LEN: usize = 5;
+
         let cursor =
             self.buffer_mode_mut()
                 .draw(view.view((0, 0), view.height() - 1, view.width()));
         let mut footer = view.view((view.height() - 1, 0), 1, view.width());
 
         for i in 0..self.buffers.len() {
-            if self.index == i {
-                footer.puts(&format!("[{}]", i + 1), draw::styles::TAB_BAR);
+            let title = if let Some(path) = self.buffers[i].buf().path() {
+                path.file_name()
+                    .map(|o| o.to_string_lossy().to_string())
+                    .unwrap_or_default()
             } else {
-                footer.puts(&format!(" {} ", i + 1), draw::styles::TAB_BAR);
+                "*".to_string()
+            };
+
+            let mut msg = String::new();
+            let mut w = 0;
+            let mut is_long = false;
+
+            for c in title.chars() {
+                let c_w = c.width().unwrap_or(0);
+                if w + c_w <= TITLE_LEN {
+                    msg.push(c);
+                    w += c_w;
+                } else {
+                    is_long = true;
+                }
+            }
+
+            for _ in w..TITLE_LEN {
+                msg.push(' ');
+            }
+
+            if is_long {
+                msg.push('…');
+            }
+
+            if self.index == i {
+                footer.puts(&format!(" {} {}", i + 1, msg), draw::styles::TAB_BAR);
+            } else {
+                footer.puts(&format!(" {} {}", i + 1, msg), draw::styles::DEFAULT);
             }
         }
+
+        footer.put(' ', draw::styles::UI, None);
+        // footer.put('t', draw::styles::DEFAULT, None).is_some() ;
 
         cursor
     }
