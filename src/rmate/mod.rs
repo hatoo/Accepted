@@ -104,7 +104,7 @@ fn reader_thread(
         while {
             line.clear();
             reader.read_line(&mut line).ok()?;
-            line != "\n"
+            line != ".\n"
         } {
             // dbg!(&line);
             let mut iter = line.split(": ");
@@ -120,15 +120,13 @@ fn reader_thread(
                 let data = String::from_utf8(buf).ok()?;
                 hash.insert(header.to_string(), data);
                 line.clear();
-                reader.read_line(&mut line).ok()?;
+
+                let mut tail = vec![0; 1];
+                reader.read_exact(&mut tail).ok()?;
             } else {
                 hash.insert(header.to_string(), content.to_string());
             }
         }
-
-        line.clear();
-        reader.read_line(&mut line).ok()?;
-        assert!(line.trim_end() == ".");
 
         let rmate = Rmate {
             display_name: hash.get("display-name").cloned().unwrap_or_default(),
