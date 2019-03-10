@@ -26,7 +26,6 @@ use crate::core::CursorRange;
 use crate::core::Id;
 use crate::draw;
 use crate::indent;
-use crate::mode::Transition::Trans;
 use crate::ropey_util::RopeExt;
 use crate::ropey_util::RopeSliceExt;
 use crate::text_object::{self, Action};
@@ -515,7 +514,7 @@ impl Mode for Normal {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
         let cursor = buf
@@ -771,7 +770,7 @@ impl Mode for Insert {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
         self.poll(buf);
         let height = view.height();
         let width = view.width();
@@ -839,7 +838,7 @@ impl Mode for R {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
         buf.draw(view.view((0, 0), height, width))
@@ -868,7 +867,7 @@ impl Mode for Search {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height() - 1;
         let width = view.width();
         let cursor = buf
@@ -913,7 +912,7 @@ impl Mode for Save {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
         if view.height() < 2 {
             return draw::CursorState::Hide;
         }
@@ -1061,7 +1060,7 @@ impl Mode for Prefix {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height() - 1;
         let width = view.width();
         let cursor = buf
@@ -1242,7 +1241,7 @@ impl Mode for Visual {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
         let range = self.get_range(buf.core.cursor(), buf.core.buffer());
@@ -1272,7 +1271,7 @@ impl Mode for ViewProcess {
         }
     }
 
-    fn draw(&mut self, _buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, _buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
         if self.end.is_none() {
             if let Ok(Some(_)) = self.process.try_wait() {
                 self.end = Some(Instant::now());
@@ -1440,7 +1439,7 @@ impl Mode for TextObjectOperation {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height() - 1;
         let width = view.width();
         let cursor = buf
@@ -1497,7 +1496,7 @@ impl Mode for S {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
         let range = self.0;
@@ -1536,7 +1535,7 @@ impl Mode for Find {
         }
         Transition::Nothing
     }
-    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
         let cursor = buf
@@ -1587,7 +1586,7 @@ impl Mode for Goto {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height() - 1;
         let width = view.width();
         let cursor = buf

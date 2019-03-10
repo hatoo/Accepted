@@ -63,7 +63,7 @@ impl<'a> BufferTab<'a> {
         false
     }
 
-    pub fn draw(&mut self, view: draw::TermView) -> draw::CursorState {
+    pub fn draw(&mut self, mut view: draw::TermView) -> draw::CursorState {
         const TITLE_LEN: usize = 5;
 
         let cursor =

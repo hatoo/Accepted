@@ -159,7 +159,7 @@ impl Term {
         None
     }
 
-    pub fn view(&self, orig: (usize, usize), height: usize, width: usize) -> TermView {
+    pub fn view(&mut self, orig: (usize, usize), height: usize, width: usize) -> TermView {
         assert!(orig.0 + height <= self.height);
         assert!(orig.1 + width <= self.width);
 
@@ -202,14 +202,14 @@ impl Term {
 }
 
 impl<'a> TermView<'a> {
-    pub fn view(&self, orig: (usize, usize), height: usize, width: usize) -> TermView {
+    pub fn view(&mut self, orig: (usize, usize), height: usize, width: usize) -> TermView {
         let new_orig = (self.orig.0 + orig.0, self.orig.1 + orig.1);
 
         assert!(new_orig.0 + height <= self.parent.height);
         assert!(new_orig.1 + width <= self.parent.width);
 
         Self {
-            parent: &self.parent,
+            parent: self.parent,
             orig: new_orig,
             height,
             width,

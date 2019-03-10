@@ -1,7 +1,6 @@
 use crate::buffer::Buffer;
 use crate::draw;
 use crate::mode::{Mode, Normal, Transition};
-use serde_json::ser::CharEscape::Tab;
 
 pub struct BufferMode<'a> {
     pub buf: Buffer<'a>,
