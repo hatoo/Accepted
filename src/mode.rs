@@ -41,6 +41,7 @@ pub enum Transition {
     CreateNewTab,
     // 1-indexed
     ChangeTab(usize),
+    StartRmate,
 }
 
 impl<T: Mode + 'static> From<T> for Transition {
@@ -1059,6 +1060,9 @@ impl Mode for Prefix {
                 if let Some(i) = c.to_digit(10) {
                     return Transition::ChangeTab(i as usize);
                 }
+            }
+            Event::Key(Key::Char('r')) => {
+                return Transition::StartRmate;
             }
             _ => {}
         }

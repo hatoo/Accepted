@@ -2,9 +2,6 @@ use std::borrow::Cow;
 use std::cmp::{max, min};
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
-use std::fs;
-use std::io::BufReader;
-use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
 use termion;

@@ -3,8 +3,11 @@ use crate::buffer_mode::BufferMode;
 use crate::buffer_mode::TabOperation;
 use crate::config::ConfigWithDefault;
 use crate::draw;
+use crate::rmate::{start_server, RmateSave, RmateStorage};
 use crate::syntax::SyntaxParent;
 use std::cmp::min;
+use std::sync::mpsc;
+use std::thread;
 use unicode_width::UnicodeWidthChar;
 
 use termion::event::Event;
@@ -15,6 +18,7 @@ pub struct BufferTab<'a> {
 
     buffers: Vec<BufferMode<'a>>,
     index: usize,
+    rmate: Option<mpsc::Receiver<RmateSave>>,
 }
 
 impl<'a> BufferTab<'a> {
@@ -24,6 +28,7 @@ impl<'a> BufferTab<'a> {
             config,
             buffers: vec![BufferMode::new(Buffer::new(syntax_parent, config))],
             index: 0,
+            rmate: None,
         }
     }
 
@@ -57,6 +62,13 @@ impl<'a> BufferTab<'a> {
                     self.index = i - 1;
                 }
             }
+            TabOperation::StartRmate => {
+                let (tx, rx) = mpsc::channel();
+                thread::spawn(move || {
+                    start_server(tx);
+                });
+                self.rmate = Some(rx);
+            }
             TabOperation::Nothing => {}
         }
 
@@ -64,6 +76,17 @@ impl<'a> BufferTab<'a> {
     }
 
     pub fn draw(&mut self, mut view: draw::TermView) -> draw::CursorState {
+        {
+            if let Some(rmate) = self.rmate.as_ref() {
+                while let Ok(rmate) = rmate.try_recv() {
+                    let rmate: RmateStorage = rmate.into();
+                    let mut buffer = Buffer::new(self.syntax_parent, self.config);
+                    buffer.open(rmate);
+                    self.buffers.push(BufferMode::new(buffer));
+                    self.index = self.buffers.len() - 1;
+                }
+            }
+        }
         const TITLE_LEN: usize = 5;
 
         let cursor =

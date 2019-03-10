@@ -49,12 +49,13 @@ impl Storage for RmateStorage {
     }
 }
 
-fn start_server(sender: mpsc::Sender<RmateSave>) -> Result<(), failure::Error> {
+pub fn start_server(sender: mpsc::Sender<RmateSave>) -> Result<(), failure::Error> {
     let listener = TcpListener::bind("127.0.0.1:52698")?;
 
     for stream in listener.incoming() {
-        let stream = stream?;
-        let stream_reader = stream.try_clone()?;
+        let stream_reader = stream?;
+        let mut stream = stream_reader.try_clone()?;
+        writeln!(stream, "Accepted");
         let (save_tx, save_rx) = mpsc::channel();
 
         let sender_clone = sender.clone();
@@ -96,18 +97,19 @@ fn reader_thread(
         line.clear();
         reader.read_line(&mut line).ok()?;
 
-        assert!(line == "open");
+        assert!(line.trim_end() == "open");
 
         let mut hash = HashMap::new();
 
         while {
             line.clear();
             reader.read_line(&mut line).ok()?;
-            line.trim_end() != "."
+            line != "\n"
         } {
+            // dbg!(&line);
             let mut iter = line.split(": ");
             let header: &str = iter.next()?;
-            let content: &str = iter.next()?;
+            let content: &str = iter.next()?.trim_end();
 
             if header == "data" {
                 let length: usize = content.parse().ok()?;
@@ -117,10 +119,16 @@ fn reader_thread(
 
                 let data = String::from_utf8(buf).ok()?;
                 hash.insert(header.to_string(), data);
+                line.clear();
+                reader.read_line(&mut line).ok()?;
             } else {
                 hash.insert(header.to_string(), content.to_string());
             }
         }
+
+        line.clear();
+        reader.read_line(&mut line).ok()?;
+        assert!(line.trim_end() == ".");
 
         let rmate = Rmate {
             display_name: hash.get("display-name").cloned().unwrap_or_default(),
