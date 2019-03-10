@@ -1,6 +1,10 @@
+use crate::core::Core;
+use crate::storage::Storage;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread;
 
@@ -10,9 +14,39 @@ struct Rmate {
     data: String,
 }
 
-struct RmateSave {
+pub struct RmateSave {
     rmate: Rmate,
     sender: mpsc::Sender<(String, String)>,
+}
+
+pub struct RmateStorage {
+    path: PathBuf,
+    rmate_save: RmateSave,
+}
+
+impl From<RmateSave> for RmateStorage {
+    fn from(rmate_save: RmateSave) -> Self {
+        let path = PathBuf::from(rmate_save.rmate.display_name.clone());
+        Self { path, rmate_save }
+    }
+}
+
+impl Storage for RmateStorage {
+    fn load(&mut self) -> Core {
+        let mut core = Core::default();
+        core.set_string(self.rmate_save.rmate.data.clone(), true);
+        core
+    }
+    fn save(&mut self, core: &Core) {
+        let data = core.get_string();
+        let _ = self
+            .rmate_save
+            .sender
+            .send((self.rmate_save.rmate.token.clone(), data));
+    }
+    fn path(&self) -> &Path {
+        self.path.as_path()
+    }
 }
 
 fn start_server(sender: mpsc::Sender<RmateSave>) -> Result<(), failure::Error> {
@@ -21,11 +55,11 @@ fn start_server(sender: mpsc::Sender<RmateSave>) -> Result<(), failure::Error> {
     for stream in listener.incoming() {
         let stream = stream?;
         let stream_reader = stream.try_clone()?;
-        let (rmate_tx, rmate_rx) = mpsc::channel();
         let (save_tx, save_rx) = mpsc::channel();
 
+        let sender_clone = sender.clone();
         thread::spawn(move || {
-            let _ = reader_thread(stream_reader, save_tx, rmate_tx);
+            let _ = reader_thread(stream_reader, save_tx, sender_clone);
         });
 
         thread::spawn(move || {
