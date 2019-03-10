@@ -16,6 +16,7 @@ mod mode;
 mod rmate;
 mod ropey_util;
 mod rustc;
+pub mod storage;
 pub mod syntax;
 mod text_object;
 pub mod theme;
