@@ -503,6 +503,11 @@ impl Mode for Normal {
             Event::Mouse(MouseEvent::Press(MouseButton::WheelDown, _, _)) => {
                 buf.scroll_down();
             }
+            Event::Key(Key::Char(c)) if c.is_digit(10) => {
+                if let Some(i) = c.to_digit(10) {
+                    return Transition::ChangeTab(i as usize);
+                }
+            }
             _ => {
                 if let Event::Key(Key::Char(c)) = event {
                     if let Some(action) = Action::from_char(c) {
