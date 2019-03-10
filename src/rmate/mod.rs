@@ -37,12 +37,12 @@ impl Storage for RmateStorage {
         core.set_string(self.rmate_save.rmate.data.clone(), true);
         core
     }
-    fn save(&mut self, core: &Core) {
+    fn save(&mut self, core: &Core) -> bool {
         let data = core.get_string();
-        let _ = self
-            .rmate_save
+        self.rmate_save
             .sender
-            .send((self.rmate_save.rmate.token.clone(), data));
+            .send((self.rmate_save.rmate.token.clone(), data))
+            .is_ok()
     }
     fn path(&self) -> &Path {
         self.path.as_path()

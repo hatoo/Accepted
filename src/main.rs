@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::io::{stdin, stdout, Write};
+use std::path::PathBuf;
 use std::sync::mpsc::channel;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -91,7 +92,7 @@ fn main() {
     let mut state = BufferTab::new(&syntax_parent, &config);
 
     if let Some(path) = file {
-        state.buffer_mode_mut().buf.open(path);
+        state.buffer_mode_mut().buf.open(PathBuf::from(path));
     }
 
     let mut draw = DoubleBuffer::default();

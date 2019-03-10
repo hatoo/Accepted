@@ -25,6 +25,7 @@ use crate::draw_cache::DrawCache;
 use crate::formatter;
 use crate::lsp::LSPClient;
 use crate::ropey_util::RopeExt;
+use crate::storage::Storage;
 use crate::syntax;
 
 pub struct Yank {
@@ -58,7 +59,7 @@ fn get_rows(s: &str, width: usize) -> usize {
 }
 
 pub struct Buffer<'a> {
-    path: Option<PathBuf>,
+    storage: Option<Box<dyn Storage>>,
     pub core: Core,
     pub search: Vec<char>,
     syntax_parent: &'a syntax::SyntaxParent,
@@ -90,7 +91,7 @@ impl<'a> Buffer<'a> {
         let syntax = syntax_parent.load_syntax_or_txt("txt");
 
         let mut res = Self {
-            path: None,
+            storage: None,
             core: Core::default(),
             search: Vec::new(),
             cache: DrawCache::new(&syntax),
@@ -113,8 +114,12 @@ impl<'a> Buffer<'a> {
         res
     }
 
+    pub fn path(&self) -> Option<&Path> {
+        self.storage.as_ref().map(|s| s.path())
+    }
+
     fn extension(&self) -> Option<&OsStr> {
-        self.path.as_ref().and_then(|p| p.extension())
+        self.path().and_then(|p| p.extension())
     }
 
     pub fn get_config<A: typemap::Key>(&self) -> Option<&'a A::Value> {
@@ -160,33 +165,22 @@ impl<'a> Buffer<'a> {
         self.core.indent(self.indent_width());
     }
 
-    pub fn path(&self) -> Option<&Path> {
-        self.path.as_ref().map(|p| p.as_path())
-    }
-
     pub fn set_path(&mut self, path: PathBuf) {
-        if self.extension() != path.extension() {
-            self.set_language();
-        }
-        self.path = Some(path);
+        self.storage = Some(Box::new(path));
+        self.set_language();
     }
 
-    pub fn open<P: AsRef<Path>>(&mut self, path: P) {
-        let core = if let Ok(f) = fs::File::open(path.as_ref()) {
-            Core::from_reader(BufReader::new(f)).unwrap()
-        } else {
-            Core::default()
-        };
-
-        self.path = Some(path.as_ref().to_path_buf());
+    pub fn open<S: Storage + 'static>(&mut self, mut storage: S) {
+        self.core = storage.load();
+        self.storage = Some(Box::new(storage));
+        let path = self.path().unwrap();
 
         let syntax_extension = self
             .get_config::<keys::SyntaxExtension>()
             .cloned()
             .or_else(|| {
-                path.as_ref()
-                    .extension()
-                    .or_else(|| path.as_ref().file_name())
+                path.extension()
+                    .or_else(|| path.file_name())
                     .unwrap_or_default()
                     .to_str()
                     .map(String::from)
@@ -195,8 +189,7 @@ impl<'a> Buffer<'a> {
         self.set_syntax(&syntax_extension);
 
         self.row_offset = 0;
-        self.last_save = core.buffer_changed();
-        self.core = core;
+        self.last_save = self.core.buffer_changed();
         self.set_language();
         self.cache = DrawCache::new(&self.syntax);
         self.compile(false);
@@ -204,13 +197,8 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn save(&mut self, is_optimize: bool) -> bool {
-        let saved = if let Some(path) = self.path.as_ref() {
-            if let Ok(f) = fs::File::create(path) {
-                self.core.buffer().write_to(BufWriter::new(f)).unwrap();
-                true
-            } else {
-                false
-            }
+        let saved = if let Some(storage) = self.storage.as_mut() {
+            storage.save(&self.core)
         } else {
             false
         };
@@ -288,9 +276,9 @@ impl<'a> Buffer<'a> {
             is_optimize,
         };
 
-        if let Some(path) = self.path.as_ref() {
+        if let Some(path) = self.path() {
             if let Some(compiler) = self.compiler.as_ref() {
-                compiler.compile(path.clone(), self.last_compiler_submit);
+                compiler.compile(path.to_path_buf(), self.last_compiler_submit);
             }
         }
     }

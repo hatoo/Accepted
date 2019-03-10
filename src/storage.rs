@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 pub trait Storage {
     fn load(&mut self) -> Core;
-    fn save(&mut self, core: &Core);
+    fn save(&mut self, core: &Core) -> bool;
     fn path(&self) -> &Path;
 }
 
@@ -17,9 +17,11 @@ impl Storage for PathBuf {
             .unwrap_or_default()
     }
 
-    fn save(&mut self, core: &Core) {
+    fn save(&mut self, core: &Core) -> bool {
         if let Ok(f) = fs::File::create(self.path()) {
-            let _ = core.buffer().write_to(BufWriter::new(f));
+            core.buffer().write_to(BufWriter::new(f)).is_ok()
+        } else {
+            false
         }
     }
 
