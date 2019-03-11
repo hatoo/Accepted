@@ -3,6 +3,7 @@ use crate::buffer_mode::BufferMode;
 use crate::buffer_mode::TabOperation;
 use crate::config::ConfigWithDefault;
 use crate::draw;
+use crate::draw::CharStyle;
 use crate::rmate::{start_server, RmateSave, RmateStorage};
 use crate::syntax::SyntaxParent;
 use std::cmp::min;
@@ -10,7 +11,46 @@ use std::sync::mpsc;
 use std::thread;
 use unicode_width::UnicodeWidthChar;
 
+use termion;
 use termion::event::Event;
+use termion::event::MouseButton;
+use termion::event::MouseEvent;
+
+struct TabLine {
+    buf: Vec<Option<(char, CharStyle)>>,
+    tab: Vec<Option<usize>>,
+    cursor: usize,
+}
+
+impl TabLine {
+    fn new(width: usize) -> Self {
+        Self {
+            buf: vec![None; width],
+            tab: vec![None; width],
+            cursor: 0,
+        }
+    }
+
+    fn put(&mut self, c: char, style: CharStyle, tab_num: Option<usize>) {
+        if let Some(w) = c.width() {
+            if self.cursor + w < self.buf.len() {
+                self.buf[self.cursor] = Some((c, style));
+                self.tab[self.cursor] = tab_num;
+                self.cursor += 1;
+                for _ in 1..w {
+                    self.tab[self.cursor] = tab_num;
+                    self.cursor += 1;
+                }
+            }
+        }
+    }
+
+    fn puts(&mut self, s: &str, style: CharStyle, tab_num: Option<usize>) {
+        for c in s.chars() {
+            self.put(c, style, tab_num);
+        }
+    }
+}
 
 pub struct BufferTab<'a> {
     syntax_parent: &'a SyntaxParent,
@@ -48,6 +88,18 @@ impl<'a> BufferTab<'a> {
     }
 
     pub fn event(&mut self, event: Event) -> bool {
+        if let Event::Mouse(MouseEvent::Press(MouseButton::Left, col, row)) = event {
+            let (width, height) = termion::terminal_size().unwrap();
+            if row == height {
+                let tab_line = self.draw_tab_line(width as usize);
+                let col = col as usize - 1;
+
+                if let Some(i) = tab_line.tab[col] {
+                    self.index = i;
+                }
+            }
+        }
+
         match self.buffer_mode_mut().event(event) {
             TabOperation::Close => {
                 if self.buffers.len() <= 1 {
@@ -82,38 +134,13 @@ impl<'a> BufferTab<'a> {
         false
     }
 
-    pub fn draw(&mut self, mut view: draw::TermView) -> draw::CursorState {
-        {
-            if let Some(rmate) = self.rmate.as_ref() {
-                match rmate.try_recv() {
-                    Ok(rmate) => {
-                        let rmate: RmateStorage = rmate.into();
-                        let mut buffer = Buffer::new(self.syntax_parent, self.config);
-                        buffer.open(rmate);
-
-                        if self.is_empty() {
-                            self.buffers.clear();
-                        }
-                        self.buffers.push(BufferMode::new(buffer));
-                        self.index = self.buffers.len() - 1;
-                    }
-                    Err(mpsc::TryRecvError::Disconnected) => {
-                        self.rmate = None;
-                    }
-                    _ => {}
-                }
-            }
-        }
+    fn draw_tab_line(&self, width: usize) -> TabLine {
         const TITLE_LEN: usize = 5;
-
-        let cursor =
-            self.buffer_mode_mut()
-                .draw(view.view((0, 0), view.height() - 1, view.width()));
-        let mut footer = view.view((view.height() - 1, 0), 1, view.width());
+        let mut footer = TabLine::new(width);
 
         if self.rmate.is_some() {
-            footer.puts("R", draw::styles::HIGHLIGHT);
-            footer.puts(" ", draw::styles::DEFAULT);
+            footer.puts("R", draw::styles::HIGHLIGHT, None);
+            footer.puts(" ", draw::styles::DEFAULT, None);
         }
 
         for i in 0..self.buffers.len() {
@@ -148,14 +175,60 @@ impl<'a> BufferTab<'a> {
             }
 
             if self.index == i {
-                footer.puts(&format!(" {} {}", i + 1, msg), draw::styles::TAB_BAR);
+                footer.puts(
+                    &format!(" {} {}", i + 1, msg),
+                    draw::styles::TAB_BAR,
+                    Some(i),
+                );
             } else {
-                footer.puts(&format!(" {} {}", i + 1, msg), draw::styles::DEFAULT);
+                footer.puts(
+                    &format!(" {} {}", i + 1, msg),
+                    draw::styles::DEFAULT,
+                    Some(i),
+                );
             }
         }
 
         footer.put(' ', draw::styles::UI, None);
-        // footer.put('t', draw::styles::DEFAULT, None).is_some() ;
+
+        footer
+    }
+
+    pub fn draw(&mut self, mut view: draw::TermView) -> draw::CursorState {
+        {
+            if let Some(rmate) = self.rmate.as_ref() {
+                match rmate.try_recv() {
+                    Ok(rmate) => {
+                        let rmate: RmateStorage = rmate.into();
+                        let mut buffer = Buffer::new(self.syntax_parent, self.config);
+                        buffer.open(rmate);
+
+                        if self.is_empty() {
+                            self.buffers.clear();
+                        }
+                        self.buffers.push(BufferMode::new(buffer));
+                        self.index = self.buffers.len() - 1;
+                    }
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        self.rmate = None;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        let width = view.width();
+
+        let cursor =
+            self.buffer_mode_mut()
+                .draw(view.view((0, 0), view.height() - 1, view.width()));
+        let mut footer = view.view((view.height() - 1, 0), 1, view.width());
+        let tab_line = self.draw_tab_line(width);
+
+        for tile in tab_line.buf {
+            if let Some((c, style)) = tile {
+                footer.put(c, style, None);
+            }
+        }
 
         cursor
     }
