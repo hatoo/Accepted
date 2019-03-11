@@ -119,6 +119,10 @@ impl<'a> Buffer<'a> {
         self.path().and_then(Path::extension)
     }
 
+    pub fn storage(&self) -> Option<&dyn Storage> {
+        self.storage.as_ref().map(AsRef::as_ref)
+    }
+
     pub fn get_config<A: typemap::Key>(&self) -> Option<&'a A::Value> {
         self.config.get::<A>(self.path())
     }

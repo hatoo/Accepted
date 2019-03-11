@@ -40,6 +40,13 @@ impl<'a> BufferTab<'a> {
         &mut self.buffers[self.index]
     }
 
+    // true if just started
+    pub fn is_empty(&self) -> bool {
+        self.buffers.len() == 1
+            && self.buffer_mode().buf.storage().is_none()
+            && self.buffer_mode().buf.core.get_string() == ""
+    }
+
     pub fn event(&mut self, event: Event) -> bool {
         match self.buffer_mode_mut().event(event) {
             TabOperation::Close => {
@@ -83,6 +90,10 @@ impl<'a> BufferTab<'a> {
                         let rmate: RmateStorage = rmate.into();
                         let mut buffer = Buffer::new(self.syntax_parent, self.config);
                         buffer.open(rmate);
+
+                        if self.is_empty() {
+                            self.buffers.clear();
+                        }
                         self.buffers.push(BufferMode::new(buffer));
                         self.index = self.buffers.len() - 1;
                     }
