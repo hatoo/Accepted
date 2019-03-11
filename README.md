@@ -24,6 +24,7 @@ Currently Accepted supports Rust and C++.
 * Easy to test a single a code
 * VScode style snippet support
 * Mouse support
+* rmate protocol
 
 ## Install
 
@@ -84,6 +85,8 @@ SPACE -> t to compile and run with clipboard input.
 SPACE -> T to compile (optimized) and run with clipboard input.
 
 SPACE -> q to Quit.
+
+SPACE -> r to Start rmate server
 
 ## Configuration
 
