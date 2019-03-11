@@ -2,7 +2,8 @@ Accepted
 ===
 
 [![crates.io](https://img.shields.io/crates/v/accepted.svg)](https://crates.io/crates/accepted)
-[![Build Status](https://travis-ci.org/hatoo/Accepted.svg?branch=master)](https://travis-ci.org/hatoo/Accepted) [![Join the chat at https://gitter.im/Accepted-text-editor/community](https://badges.gitter.im/Accepted-text-editor/community.svg)](https://gitter.im/Accepted-text-editor/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Build Status](https://travis-ci.org/hatoo/Accepted.svg?branch=master)](https://travis-ci.org/hatoo/Accepted)
+[![Join the chat at https://gitter.im/Accepted-text-editor/community](https://badges.gitter.im/Accepted-text-editor/community.svg)](https://gitter.im/Accepted-text-editor/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 A terminal text editor to be **ACCEPTED**.
 
