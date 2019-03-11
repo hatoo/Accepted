@@ -94,6 +94,11 @@ impl<'a> BufferTab<'a> {
                 .draw(view.view((0, 0), view.height() - 1, view.width()));
         let mut footer = view.view((view.height() - 1, 0), 1, view.width());
 
+        if self.rmate.is_some() {
+            footer.puts("R", draw::styles::HIGHLIGHT);
+            footer.puts(" ", draw::styles::DEFAULT);
+        }
+
         for i in 0..self.buffers.len() {
             let title = if let Some(path) = self.buffers[i].buf().path() {
                 path.file_name()
