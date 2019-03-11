@@ -53,19 +53,22 @@ pub fn start_server(sender: mpsc::Sender<RmateSave>) -> Result<(), failure::Erro
     let listener = TcpListener::bind("127.0.0.1:52698")?;
 
     for stream in listener.incoming() {
-        let stream_reader = stream?;
-        let mut stream = stream_reader.try_clone()?;
-        writeln!(stream, "Accepted");
-        let (save_tx, save_rx) = mpsc::channel();
+        let _ = || -> Result<(), failure::Error> {
+            let stream_reader = stream?;
+            let mut stream = stream_reader.try_clone()?;
+            writeln!(stream, "Accepted")?;
+            let (save_tx, save_rx) = mpsc::channel();
 
-        let sender_clone = sender.clone();
-        thread::spawn(move || {
-            let _ = reader_thread(stream_reader, save_tx, sender_clone);
-        });
+            let sender_clone = sender.clone();
+            thread::spawn(move || {
+                let _ = reader_thread(stream_reader, save_tx, sender_clone);
+            });
 
-        thread::spawn(move || {
-            let _ = write_thread(stream, save_rx);
-        });
+            thread::spawn(move || {
+                let _ = write_thread(stream, save_rx);
+            });
+            Ok(())
+        }();
     }
 
     Ok(())

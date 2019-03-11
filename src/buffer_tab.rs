@@ -65,7 +65,7 @@ impl<'a> BufferTab<'a> {
             TabOperation::StartRmate => {
                 let (tx, rx) = mpsc::channel();
                 thread::spawn(move || {
-                    start_server(tx);
+                    let _ = start_server(tx);
                 });
                 self.rmate = Some(rx);
             }
