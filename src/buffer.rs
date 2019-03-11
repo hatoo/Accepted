@@ -116,7 +116,7 @@ impl<'a> Buffer<'a> {
     }
 
     fn extension(&self) -> Option<&OsStr> {
-        self.path().and_then(|p| p.extension())
+        self.path().and_then(Path::extension)
     }
 
     pub fn get_config<A: typemap::Key>(&self) -> Option<&'a A::Value> {
@@ -324,7 +324,7 @@ impl<'a> Buffer<'a> {
     pub fn is_compiling(&self) -> bool {
         self.compiler
             .as_ref()
-            .map(|c| c.is_compiling())
+            .map(Compiler::is_compiling)
             .unwrap_or(false)
     }
 
@@ -338,7 +338,7 @@ impl<'a> Buffer<'a> {
         mut view: TermView,
         selected: Option<CursorRange>,
     ) -> Option<Cursor> {
-        view.bg = self.syntax.theme.settings.background.map(|c| c.into());
+        view.bg = self.syntax.theme.settings.background.map(Into::into);
         let v = Vec::new();
         let compiler_outputs = self
             .last_compiler_result

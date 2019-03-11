@@ -12,6 +12,7 @@ use crate::core::CursorRange;
 use crate::core::Id;
 use crate::job_queue::JobQueue;
 use crate::rustc;
+use std::ffi::OsStr;
 
 pub struct CompilerOutput {
     pub message: String,
@@ -41,10 +42,7 @@ impl<'a> Compiler<'a> {
             let mut commaned = process::Command::new(head);
             let file_path = path.as_os_str().to_str().unwrap_or_default();
 
-            let file_stem = path
-                .file_stem()
-                .and_then(|o| o.to_str())
-                .unwrap_or_default();
+            let file_stem = path.file_stem().and_then(OsStr::to_str).unwrap_or_default();
 
             if compile_id.is_optimize {
                 commaned.args(

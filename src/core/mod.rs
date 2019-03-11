@@ -262,7 +262,7 @@ impl Core {
         } else {
             while {
                 self.char_at_cursor()
-                    .map(|c| c.is_alphanumeric())
+                    .map(char::is_alphanumeric)
                     .unwrap_or(true)
                     && self.cursor_inc()
             } {}
@@ -278,12 +278,12 @@ impl Core {
     pub fn b(&mut self) {
         self.cursor_dec();
         while {
-            self.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) && self.cursor_dec()
+            self.char_at_cursor().map(char::is_alphanumeric) != Some(true) && self.cursor_dec()
         } {}
         while {
-            self.char_at_cursor().map(|c| c.is_alphanumeric()) == Some(true) && self.cursor_dec()
+            self.char_at_cursor().map(char::is_alphanumeric) == Some(true) && self.cursor_dec()
         } {}
-        if self.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) {
+        if self.char_at_cursor().map(char::is_alphanumeric) != Some(true) {
             self.cursor_inc();
         }
     }
@@ -298,7 +298,7 @@ impl Core {
             return;
         }
         while {
-            self.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) && self.cursor_inc()
+            self.char_at_cursor().map(char::is_alphanumeric) != Some(true) && self.cursor_inc()
         } {
             if self
                 .char_at_cursor()
@@ -309,7 +309,7 @@ impl Core {
             }
         }
         while {
-            self.char_at_cursor().map(|c| c.is_alphanumeric()) == Some(true) && self.cursor_inc()
+            self.char_at_cursor().map(char::is_alphanumeric) == Some(true) && self.cursor_inc()
         } {
             if self
                 .char_at_cursor()
@@ -319,7 +319,7 @@ impl Core {
                 return;
             }
         }
-        if self.char_at_cursor().map(|c| c.is_alphanumeric()) != Some(true) {
+        if self.char_at_cursor().map(char::is_alphanumeric) != Some(true) {
             self.cursor_dec();
         }
     }

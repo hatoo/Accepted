@@ -5,7 +5,7 @@ use std::ffi::OsString;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::mpsc;
 use std::thread;
@@ -538,7 +538,7 @@ impl Mode for Normal {
                     buf.core.cursor().row + 1,
                     buf.core.cursor().col + 1,
                     buf.path()
-                        .map(|p| p.to_string_lossy())
+                        .map(Path::to_string_lossy)
                         .unwrap_or_else(|| "*".into()),
                     &self.message,
                 ),

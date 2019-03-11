@@ -265,8 +265,8 @@ impl<'a> DrawCache<'a> {
     pub fn get_line(&self, i: usize) -> Option<&[(char, CharStyle)]> {
         self.draw_cache
             .get(&i)
-            .map(|v| v.as_slice())
-            .or_else(|| self.draw_cache_pseudo.get(&i).map(|v| v.as_slice()))
+            .map(Vec::as_slice)
+            .or_else(|| self.draw_cache_pseudo.get(&i).map(Vec::as_slice))
     }
 
     pub fn dirty_from(&mut self, dirty_from: usize) {
