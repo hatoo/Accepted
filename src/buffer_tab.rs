@@ -78,12 +78,18 @@ impl<'a> BufferTab<'a> {
     pub fn draw(&mut self, mut view: draw::TermView) -> draw::CursorState {
         {
             if let Some(rmate) = self.rmate.as_ref() {
-                while let Ok(rmate) = rmate.try_recv() {
-                    let rmate: RmateStorage = rmate.into();
-                    let mut buffer = Buffer::new(self.syntax_parent, self.config);
-                    buffer.open(rmate);
-                    self.buffers.push(BufferMode::new(buffer));
-                    self.index = self.buffers.len() - 1;
+                match rmate.try_recv() {
+                    Ok(rmate) => {
+                        let rmate: RmateStorage = rmate.into();
+                        let mut buffer = Buffer::new(self.syntax_parent, self.config);
+                        buffer.open(rmate);
+                        self.buffers.push(BufferMode::new(buffer));
+                        self.index = self.buffers.len() - 1;
+                    }
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        self.rmate = None;
+                    }
+                    _ => {}
                 }
             }
         }
