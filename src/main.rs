@@ -92,7 +92,7 @@ fn main() {
     let mut state = BufferTab::new(&syntax_parent, &config);
 
     if let Some(path) = file {
-        state.buffer_mode_mut().buf.open(PathBuf::from(path));
+        state.open(PathBuf::from(path));
     }
 
     let mut draw = DoubleBuffer::default();

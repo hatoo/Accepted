@@ -5,6 +5,7 @@ use crate::config::ConfigWithDefault;
 use crate::draw;
 use crate::draw::CharStyle;
 use crate::rmate::{start_server, RmateSave, RmateStorage};
+use crate::storage::Storage;
 use crate::syntax::SyntaxParent;
 use std::cmp::min;
 use std::sync::mpsc;
@@ -70,6 +71,20 @@ impl<'a> BufferTab<'a> {
             index: 0,
             rmate: None,
         }
+    }
+
+    fn new_buffer_mode(&self) -> BufferMode<'a> {
+        BufferMode::new(Buffer::new(self.syntax_parent, self.config))
+    }
+
+    pub fn open<S: Storage + 'static>(&mut self, s: S) {
+        if self.is_empty() {
+            self.buffers.clear();
+        }
+
+        let mut buffer_mode = self.new_buffer_mode();
+        buffer_mode.buf.open(s);
+        self.buffers.push(buffer_mode);
     }
 
     pub fn buffer_mode(&self) -> &BufferMode<'a> {
@@ -200,13 +215,7 @@ impl<'a> BufferTab<'a> {
                 match rmate.try_recv() {
                     Ok(rmate) => {
                         let rmate: RmateStorage = rmate.into();
-                        let mut buffer = Buffer::new(self.syntax_parent, self.config);
-                        buffer.open(rmate);
-
-                        if self.is_empty() {
-                            self.buffers.clear();
-                        }
-                        self.buffers.push(BufferMode::new(buffer));
+                        self.open(rmate);
                         self.index = self.buffers.len() - 1;
                     }
                     Err(mpsc::TryRecvError::Disconnected) => {
