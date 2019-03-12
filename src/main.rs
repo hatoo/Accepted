@@ -50,10 +50,9 @@ fn main() {
         .about("A text editor to be ACCEPTED")
         .after_help(after_help.as_str())
         .bin_name("acc")
-        .arg(Arg::with_name("file"))
+        .arg(Arg::with_name("file").multiple(true))
         .get_matches();
 
-    let file = matches.value_of_os("file");
     let config = config_path
         .and_then(|config_path| fs::read_to_string(&config_path).ok())
         .and_then(|s| {
@@ -91,8 +90,11 @@ fn main() {
 
     let mut state = BufferTab::new(&syntax_parent, &config);
 
-    if let Some(path) = file {
-        state.open(PathBuf::from(path));
+    let files = matches.values_of_os("file");
+    if let Some(files) = files {
+        for path in files {
+            state.open(PathBuf::from(path));
+        }
     }
 
     let mut draw = DoubleBuffer::default();
