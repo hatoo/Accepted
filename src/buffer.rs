@@ -55,6 +55,12 @@ fn get_rows(s: &str, width: usize) -> usize {
     y
 }
 
+enum ShowCursor {
+    None,
+    Show,
+    ShowMiddle,
+}
+
 pub struct Buffer<'a> {
     storage: Option<Box<dyn Storage>>,
     pub core: Core,
@@ -73,14 +79,10 @@ pub struct Buffer<'a> {
     buffer_update: Id,
     last_compiler_submit: CompileId,
     last_compiler_compiled: CompileId,
+    show_cursor_on_draw: ShowCursor,
 }
 
 impl<'a> Buffer<'a> {
-    fn windows_size() -> (usize, usize) {
-        let (cols, rows) = termion::terminal_size().unwrap();
-        (rows as usize, cols as usize)
-    }
-
     pub fn new(
         syntax_parent: &'a syntax::SyntaxParent,
         config: &'a config::ConfigWithDefault,
@@ -105,6 +107,7 @@ impl<'a> Buffer<'a> {
             buffer_update: Id::default(),
             last_compiler_submit: CompileId::default(),
             last_compiler_compiled: CompileId::default(),
+            show_cursor_on_draw: ShowCursor::None,
         };
         res.restart_lsp();
         res.reset_snippet();
@@ -210,15 +213,21 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn show_cursor(&mut self) {
+        self.show_cursor_on_draw = ShowCursor::Show;
+    }
+
+    pub fn show_cursor_middle(&mut self) {
+        self.show_cursor_on_draw = ShowCursor::ShowMiddle;
+    }
+
+    fn show_cursor_(&mut self, rows: usize, cols: usize) {
         if self.row_offset >= self.core.cursor().row {
             self.row_offset = self.core.cursor().row;
         } else {
-            let (rows, cols) = Self::windows_size();
             if cols < LinenumView::prefix_width(self.core.buffer().len_lines()) {
                 return;
             }
             let cols = cols - LinenumView::prefix_width(self.core.buffer().len_lines());
-            let rows = rows - 2;
             let mut i = self.core.cursor().row + 1;
             let mut sum = 0;
             while i > 0 && sum + get_rows(&Cow::from(self.core.buffer().l(i - 1)), cols) <= rows {
@@ -226,6 +235,14 @@ impl<'a> Buffer<'a> {
                 i -= 1;
             }
             self.row_offset = max(i, self.row_offset);
+        }
+    }
+
+    fn show_cursor_middle_(&mut self, rows: usize) {
+        if rows / 2 > self.core.cursor().row {
+            self.row_offset = 0;
+        } else {
+            self.row_offset = self.core.cursor().row - rows / 2;
         }
     }
 
@@ -239,15 +256,6 @@ impl<'a> Buffer<'a> {
 
     pub fn scroll_down(&mut self) {
         self.row_offset = min(self.row_offset + 3, self.core.buffer().len_lines() - 1);
-    }
-
-    pub fn show_cursor_middle(&mut self) {
-        let (rows, _) = Self::windows_size();
-        if rows / 2 > self.core.cursor().row {
-            self.row_offset = 0;
-        } else {
-            self.row_offset = self.core.cursor().row - rows / 2;
-        }
     }
 
     pub fn format(&mut self) {
@@ -342,6 +350,16 @@ impl<'a> Buffer<'a> {
         mut view: TermView,
         selected: Option<CursorRange>,
     ) -> Option<Cursor> {
+        match self.show_cursor_on_draw {
+            ShowCursor::ShowMiddle => {
+                self.show_cursor_middle_(view.height());
+            }
+            ShowCursor::Show => {
+                self.show_cursor_(view.height(), view.width());
+            }
+            ShowCursor::None => {}
+        }
+        self.show_cursor_on_draw = ShowCursor::None;
         view.bg = self.syntax.theme.settings.background.map(Into::into);
         let v = Vec::new();
         let compiler_outputs = self
