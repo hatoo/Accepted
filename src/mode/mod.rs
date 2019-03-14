@@ -30,6 +30,8 @@ use crate::ropey_util::RopeExt;
 use crate::ropey_util::RopeSliceExt;
 use crate::text_object::{self, Action};
 
+mod fuzzy;
+
 pub enum Transition {
     Nothing,
     Trans(Box<Mode>),
@@ -1063,6 +1065,9 @@ impl Mode for Prefix {
             }
             Event::Key(Key::Char('r')) => {
                 return Transition::StartRmate;
+            }
+            Event::Key(Key::Char('f')) => {
+                return fuzzy::FuzzyOpen::default().into();
             }
             _ => {}
         }
