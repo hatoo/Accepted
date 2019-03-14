@@ -12,7 +12,6 @@ use std::sync::mpsc;
 use std::thread;
 use unicode_width::UnicodeWidthChar;
 
-use termion;
 use termion::event::Event;
 use termion::event::MouseButton;
 use termion::event::MouseEvent;
