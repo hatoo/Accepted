@@ -3,6 +3,7 @@ use super::Transition;
 use crate::buffer::Buffer;
 use crate::draw;
 use fuzzy_matcher::clangd::fuzzy_indices;
+use rayon::prelude::*;
 use std::cmp::Reverse;
 use std::collections::HashSet;
 use std::io::{BufRead, BufReader};
@@ -11,7 +12,6 @@ use std::process;
 use std::sync::mpsc;
 use std::thread;
 use termion::event::{Event, Key};
-use rayon::prelude::*;
 
 pub struct FuzzyOpen {
     receiver: mpsc::Receiver<String>,
@@ -46,16 +46,19 @@ impl Default for FuzzyOpen {
 
         thread::spawn(move || {
             let _ = || -> Result<(), failure::Error> {
-                let child = process::Command::new("find")
+                let mut child = process::Command::new("find")
                     .arg(".")
                     .stdout(process::Stdio::piped())
                     .stderr(process::Stdio::piped())
                     .spawn()?;
-                if let Some(stdout) = child.stdout {
+                if let Some(stdout) = child.stdout.take() {
                     let reader = BufReader::new(stdout);
                     for line in reader.lines() {
                         if let Ok(line) = line {
-                            tx.send(line.trim_end().to_string())?;
+                            if tx.send(line.trim_end().to_string()).is_err() {
+                                child.kill()?;
+                                break;
+                            }
                         }
                     }
                 }
