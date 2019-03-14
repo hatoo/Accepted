@@ -5,13 +5,12 @@ use crate::draw;
 use fuzzy_matcher::clangd::fuzzy_indices;
 use std::cmp::Reverse;
 use std::collections::HashSet;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader};
 use std::path;
 use std::process;
 use std::sync::mpsc;
 use std::thread;
-use termion::event::{Event, Key, MouseButton, MouseEvent};
-use toml::macros::push_toml;
+use termion::event::{Event, Key};
 
 pub struct FuzzyOpen {
     receiver: mpsc::Receiver<String>,

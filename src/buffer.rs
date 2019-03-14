@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
-use termion;
 use unicode_width::UnicodeWidthChar;
 
 use crate::compiler::CompileId;
