@@ -48,6 +48,7 @@ impl Default for FuzzyOpen {
                 let child = process::Command::new("find")
                     .arg(".")
                     .stdout(process::Stdio::piped())
+                    .stderr(process::Stdio::piped())
                     .spawn()?;
                 if let Some(stdout) = child.stdout {
                     let reader = BufReader::new(stdout);
