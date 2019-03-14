@@ -29,9 +29,7 @@ fn fuzzy_match(line: &str, query: &str) -> Option<(i64, HashSet<usize>)> {
     for q in query.split_whitespace() {
         if let Some((score, idxs)) = fuzzy_indices(line, q) {
             maxi = std::cmp::max(maxi, score);
-            for i in idxs {
-                set.insert(i);
-            }
+            set.extend(idxs.into_iter());
         } else {
             return None;
         }
