@@ -11,6 +11,7 @@ use std::process;
 use std::sync::mpsc;
 use std::thread;
 use termion::event::{Event, Key};
+use rayon::prelude::*;
 
 pub struct FuzzyOpen {
     receiver: mpsc::Receiver<String>,
@@ -86,7 +87,7 @@ impl FuzzyOpen {
 
             let mut res = self
                 .finds
-                .iter()
+                .par_iter()
                 .enumerate()
                 .filter_map(|(i, s)| {
                     fuzzy_match(s.as_str(), query.as_str())
