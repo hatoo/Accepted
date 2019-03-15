@@ -4,8 +4,9 @@ use crate::buffer::Buffer;
 use crate::draw;
 use fuzzy_matcher::clangd::fuzzy_indices;
 use rayon::prelude::*;
+use std::cmp::Ordering;
 use std::cmp::Reverse;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::io::{BufRead, BufReader};
 use std::path;
 use std::process;
@@ -13,13 +14,45 @@ use std::sync::mpsc;
 use std::thread;
 use termion::event::{Event, Key};
 
+#[derive(Eq)]
+struct MatchedItem {
+    score: i64,
+    index: usize,
+    line: String,
+    match_indices: HashSet<usize>,
+}
+
+impl MatchedItem {
+    fn cmp_key(&self) -> (Reverse<i64>, usize) {
+        (Reverse(self.score), self.index)
+    }
+}
+
+impl PartialEq for MatchedItem {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp_key().eq(&other.cmp_key())
+    }
+}
+
+impl PartialOrd for MatchedItem {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.cmp_key().partial_cmp(&other.cmp_key())
+    }
+}
+
+impl Ord for MatchedItem {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.cmp_key().cmp(&other.cmp_key())
+    }
+}
+
 pub struct FuzzyOpen {
     receiver: mpsc::Receiver<String>,
     finds: Vec<String>,
     line_buf: Vec<char>,
 
     index: usize,
-    result: Vec<(String, HashSet<usize>)>,
+    result: BTreeSet<MatchedItem>,
 }
 
 fn fuzzy_match(line: &str, query: &str) -> Option<(i64, HashSet<usize>)> {
@@ -70,7 +103,7 @@ impl Default for FuzzyOpen {
             line_buf: Vec::new(),
 
             index: 0,
-            result: Vec::new(),
+            result: Default::default(),
         }
     }
 }
@@ -81,24 +114,45 @@ impl FuzzyOpen {
             self.result = self
                 .finds
                 .iter()
-                .map(|s| (s.clone(), Default::default()))
+                .enumerate()
+                .map(|(i, s)| MatchedItem {
+                    score: 0,
+                    index: i,
+                    line: s.clone(),
+                    match_indices: Default::default(),
+                })
                 .collect();
         } else {
             let query: String = self.line_buf.iter().collect();
 
-            let mut res = self
+            self.result = self
                 .finds
                 .par_iter()
                 .enumerate()
                 .filter_map(|(i, s)| {
-                    fuzzy_match(s.as_str(), query.as_str())
-                        .map(|(score, indices)| (score, i, s.clone(), indices))
+                    fuzzy_match(s.as_str(), query.as_str()).map(|(score, indices)| MatchedItem {
+                        score,
+                        index: i,
+                        line: s.clone(),
+                        match_indices: indices,
+                    })
                 })
-                .collect::<Vec<_>>();
-
-            res.sort_by_key(|e| (Reverse(e.0), e.1));
-            self.result = res.into_iter().map(|e| (e.2, e.3)).collect();
+                .collect();
         }
+    }
+
+    fn push_line(&mut self, line: String) {
+        let query: String = self.line_buf.iter().collect();
+        let index = self.finds.len();
+        if let Some((score, matches)) = fuzzy_match(&line, query.as_str()) {
+            self.result.insert(MatchedItem {
+                score,
+                index,
+                match_indices: matches,
+                line: line.clone(),
+            });
+        }
+        self.finds.push(line);
     }
 }
 
@@ -106,8 +160,8 @@ impl Mode for FuzzyOpen {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Char('\n')) => {
-                if let Some((path, _)) = self.result.get(self.index) {
-                    buf.open(path::PathBuf::from(path));
+                if let Some(item) = self.result.iter().nth(self.index) {
+                    buf.open(path::PathBuf::from(&item.line));
                 }
                 return super::Normal::default().into();
             }
@@ -138,13 +192,8 @@ impl Mode for FuzzyOpen {
         Transition::Nothing
     }
     fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
-        let mut pushed = false;
         while let Ok(line) = self.receiver.try_recv() {
-            self.finds.push(line);
-            pushed = true;
-        }
-        if pushed {
-            self.update();
+            self.push_line(line);
         }
 
         let height = view.height();
@@ -163,10 +212,17 @@ impl Mode for FuzzyOpen {
 
             let mut result_view =
                 sub.view((buf_view_len, 0), sub.height() - buf_view_len, sub.width());
-            for (i, (line, matches)) in self.result[..result_view.height()].iter().enumerate().rev()
+            for (i, item) in self
+                .result
+                .iter()
+                .take(result_view.height())
+                .enumerate()
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
             {
-                for (j, c) in line.chars().enumerate() {
-                    let mut style = if matches.contains(&j) {
+                for (j, c) in item.line.chars().enumerate() {
+                    let mut style = if item.match_indices.contains(&j) {
                         draw::styles::HIGHLIGHT
                     } else {
                         draw::styles::DEFAULT
