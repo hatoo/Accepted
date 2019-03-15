@@ -38,7 +38,7 @@ pub fn clipboard_copy(s: &str) -> Result<(), failure::Error> {
     Ok(())
 }
 
-pub fn clipboard_paste() -> Option<String> {
+pub fn clipboard_paste() -> Result<String, failure::Error> {
     let p = Command::new("pbpaste")
         .stdout(process::Stdio::piped())
         .spawn()
@@ -65,10 +65,9 @@ pub fn clipboard_paste() -> Option<String> {
                 .arg("-o")
                 .stdout(process::Stdio::piped())
                 .spawn()
-        })
-        .ok()?;
-    let mut stdout = p.stdout?;
+        })?;
+    let mut stdout = p.stdout.unwrap();
     let mut buf = String::new();
-    stdout.read_to_string(&mut buf).ok()?;
-    Some(buf)
+    stdout.read_to_string(&mut buf)?;
+    Ok(buf)
 }

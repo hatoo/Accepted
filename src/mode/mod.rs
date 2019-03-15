@@ -463,7 +463,7 @@ impl Mode for Normal {
                 buf.show_cursor();
             }
             Event::Key(Key::Ctrl('p')) => {
-                if let Some(s) = clipboard::clipboard_paste() {
+                if let Ok(s) = clipboard::clipboard_paste() {
                     for c in s.chars() {
                         buf.core.insert(c);
                     }
@@ -1032,7 +1032,7 @@ impl Mode for Prefix {
                             .stdin(process::Stdio::piped())
                             .spawn()
                         {
-                            if let Some(input) = clipboard::clipboard_paste() {
+                            if let Ok(input) = clipboard::clipboard_paste() {
                                 if let Some(mut stdin) = child.stdin.take() {
                                     let _ = write!(stdin, "{}", input);
                                 }
@@ -1186,7 +1186,7 @@ impl Mode for Visual {
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
                 buf.core.delete_range(range);
                 if is_clipboard {
-                    if let Some(s) = clipboard::clipboard_paste() {
+                    if let Ok(s) = clipboard::clipboard_paste() {
                         for c in s.chars() {
                             buf.core.insert(c);
                         }
