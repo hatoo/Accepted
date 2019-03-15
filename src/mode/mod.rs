@@ -678,17 +678,19 @@ impl Mode for Insert {
                 buf.scroll_down();
             }
             Event::Key(Key::Backspace) => {
-                let parens = [('{', '}'), ('(', ')'), ('[', ']')];
-                buf.core.cursor_dec();
-                let c = buf.core.char_at_cursor();
-                buf.core.delete();
-                if buf.core.char_at_cursor().is_some()
-                    && buf.core.char_at_cursor()
-                        == parens.iter().find(|t| c == Some(t.0)).map(|t| t.1)
-                {
+                if buf.core.cursor() != (Cursor { col: 0, row: 0 }) {
+                    let parens = [('{', '}'), ('(', ')'), ('[', ']')];
+                    buf.core.cursor_dec();
+                    let c = buf.core.char_at_cursor();
                     buf.core.delete();
+                    if buf.core.char_at_cursor().is_some()
+                        && buf.core.char_at_cursor()
+                            == parens.iter().find(|t| c == Some(t.0)).map(|t| t.1)
+                    {
+                        buf.core.delete();
+                    }
+                    buf.show_cursor();
                 }
-                buf.show_cursor();
             }
             Event::Key(Key::Delete) => {
                 buf.core.delete();
