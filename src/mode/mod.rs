@@ -990,7 +990,7 @@ impl Mode for Prefix {
                 }
             }
             Event::Key(Key::Char('y')) => {
-                let result = clipboard::clipboard_copy(&buf.core.get_string());
+                let result = clipboard::clipboard_copy(&buf.core.get_string()).is_ok();
                 return Transition::Return(
                     Some(
                         if result {
@@ -1210,7 +1210,11 @@ impl Mode for Visual {
                 };
                 buf.core.set_cursor(range.l());
                 if is_clipboard {
-                    clipboard::clipboard_copy(&s);
+                    if clipboard::clipboard_copy(&s).is_ok() {
+                        return Transition::Return(Some("Yanked".into()), false);
+                    } else {
+                        return Transition::Return(Some("Yank failed".into()), false);
+                    }
                 } else {
                     buf.yank.insert_newline = self.line_mode;
                     buf.yank.content = s;

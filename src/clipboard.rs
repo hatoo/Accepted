@@ -2,8 +2,8 @@ use std::io::{Read, Write};
 use std::process;
 use std::process::Command;
 
-pub fn clipboard_copy(s: &str) -> bool {
-    if let Ok(mut p) = Command::new("pbcopy")
+pub fn clipboard_copy(s: &str) -> Result<(), failure::Error> {
+    let mut p = Command::new("pbcopy")
         .stdin(process::Stdio::piped())
         .spawn()
         .or_else(|_| {
@@ -29,18 +29,17 @@ pub fn clipboard_copy(s: &str) -> bool {
                 .arg("-i")
                 .stdin(process::Stdio::piped())
                 .spawn()
-        })
+        })?;
     {
-        if let Some(mut stdin) = p.stdin.take() {
-            write!(stdin, "{}", s).unwrap();
-            return true;
-        }
+        let mut stdin = p.stdin.take().unwrap();
+        write!(stdin, "{}", s)?;
     }
-    false
+    p.wait()?;
+    Ok(())
 }
 
 pub fn clipboard_paste() -> Option<String> {
-    if let Ok(mut p) = Command::new("pbpaste")
+    let p = Command::new("pbpaste")
         .stdout(process::Stdio::piped())
         .spawn()
         .or_else(|_| {
@@ -67,12 +66,9 @@ pub fn clipboard_paste() -> Option<String> {
                 .stdout(process::Stdio::piped())
                 .spawn()
         })
-    {
-        if let Some(mut stdout) = p.stdout.take() {
-            let mut buf = String::new();
-            stdout.read_to_string(&mut buf).ok()?;
-            return Some(buf);
-        }
-    }
-    None
+        .ok()?;
+    let mut stdout = p.stdout?;
+    let mut buf = String::new();
+    stdout.read_to_string(&mut buf).ok()?;
+    Some(buf)
 }
