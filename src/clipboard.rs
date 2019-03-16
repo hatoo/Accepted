@@ -31,7 +31,10 @@ pub fn clipboard_copy(s: &str) -> Result<(), failure::Error> {
                 .spawn()
         })?;
     {
-        let mut stdin = p.stdin.take().unwrap();
+        let mut stdin = p
+            .stdin
+            .take()
+            .ok_or_else(|| failure::err_msg("Get stdin"))?;
         write!(stdin, "{}", s)?;
     }
     p.wait()?;
@@ -66,7 +69,7 @@ pub fn clipboard_paste() -> Result<String, failure::Error> {
                 .stdout(process::Stdio::piped())
                 .spawn()
         })?;
-    let mut stdout = p.stdout.unwrap();
+    let mut stdout = p.stdout.ok_or_else(|| failure::err_msg("Get stdout"))?;
     let mut buf = String::new();
     stdout.read_to_string(&mut buf)?;
     Ok(buf)
