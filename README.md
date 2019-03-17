@@ -31,8 +31,14 @@ Currently Accepted supports Rust and C++.
 
 You need nightly Rust.
 
-```
+```bash
 $ cargo install accepted
+```
+
+If you want to install `HEAD` version, you can install from git to
+
+```bash
+$ cargo install -f --git=https://github.com/hatoo/Accepted
 ```
 
 ### For Rust users
