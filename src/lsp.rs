@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Read, Result, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::process;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
@@ -158,41 +158,43 @@ fn send_request<T: Write, R: languageserver_types::request::Request>(
     t: &mut T,
     id: u64,
     params: R::Params,
-) -> Result<()>
+) -> Result<(), failure::Error>
 where
     R::Params: serde::Serialize,
 {
-    if let serde_json::value::Value::Object(params) = serde_json::to_value(params).unwrap() {
+    if let serde_json::value::Value::Object(params) = serde_json::to_value(params)? {
         let req = jsonrpc_core::Call::MethodCall(jsonrpc_core::MethodCall {
             jsonrpc: Some(jsonrpc_core::Version::V2),
             method: R::METHOD.to_string(),
             params: jsonrpc_core::Params::Map(params),
             id: jsonrpc_core::Id::Num(id),
         });
-        let request = serde_json::to_string(&req).unwrap();
-        write!(t, "Content-Length: {}\r\n\r\n{}", request.len(), request)
-    } else {
+        let request = serde_json::to_string(&req)?;
+        write!(t, "Content-Length: {}\r\n\r\n{}", request.len(), request)?;
         Ok(())
+    } else {
+        Err(failure::err_msg("Invalid params"))
     }
 }
 
 fn send_notify<T: Write, R: languageserver_types::notification::Notification>(
     t: &mut T,
     params: R::Params,
-) -> Result<()>
+) -> Result<(), failure::Error>
 where
     R::Params: serde::Serialize,
 {
-    if let serde_json::value::Value::Object(params) = serde_json::to_value(params).unwrap() {
+    if let serde_json::value::Value::Object(params) = serde_json::to_value(params)? {
         let req = jsonrpc_core::Notification {
             jsonrpc: Some(jsonrpc_core::Version::V2),
             method: R::METHOD.to_string(),
             params: jsonrpc_core::Params::Map(params),
         };
-        let request = serde_json::to_string(&req).unwrap();
-        write!(t, "Content-Length: {}\r\n\r\n{}", request.len(), request)
-    } else {
+        let request = serde_json::to_string(&req)?;
+        write!(t, "Content-Length: {}\r\n\r\n{}", request.len(), request)?;
         Ok(())
+    } else {
+        Err(failure::err_msg("Invalid params"))
     }
 }
 
