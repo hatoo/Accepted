@@ -151,7 +151,7 @@ impl<'a> Buffer<'a> {
         self.lsp = self
             .config
             .get::<keys::LSP>(self.path())
-            .and_then(|c| LSPClient::start(c.command(), ext));
+            .and_then(|c| LSPClient::start(c.command(), ext).ok());
     }
 
     fn set_syntax(&mut self, extension: &str) {
