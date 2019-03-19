@@ -29,10 +29,6 @@ impl<'a> BufferMode<'a> {
         }
     }
 
-    pub fn buf(&self) -> &Buffer {
-        &self.buf
-    }
-
     pub fn event(&mut self, event: termion::event::Event) -> TabOperation {
         if self.is_recording {
             self.recording_macro.push(event.clone());

@@ -158,7 +158,7 @@ impl<'a> BufferTab<'a> {
         }
 
         for i in 0..self.buffers.len() {
-            let title = if let Some(path) = self.buffers[i].buf().path() {
+            let title = if let Some(path) = self.buffers[i].buf.path() {
                 path.file_name()
                     .map(|o| o.to_string_lossy().to_string())
                     .unwrap_or_default()
