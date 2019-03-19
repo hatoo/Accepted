@@ -40,7 +40,7 @@ fn with_buffer_mode_from<F: FnOnce(BufferMode)>(init: &str, func: F) {
 fn simple_test(init: &str, commands: &str, expected: &str) {
     with_buffer_mode_from(init, |mut state| {
         state.command_esc(commands);
-        assert_eq!(state.buf().core.get_string(), expected);
+        assert_eq!(state.buf.core.get_string(), expected);
     });
 }
 
