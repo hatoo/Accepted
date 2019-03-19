@@ -178,7 +178,7 @@ impl Mode for FuzzyOpen {
                 return super::Normal::default().into();
             }
             Event::Key(Key::Up) => {
-                if self.result.len() > 0 {
+                if !self.result.is_empty() {
                     self.index = std::cmp::min(self.index + 1, self.result.len() - 1);
                 }
             }
