@@ -26,6 +26,7 @@ use crate::core::CursorRange;
 use crate::core::Id;
 use crate::draw;
 use crate::indent;
+use crate::parenthesis;
 use crate::ropey_util::RopeExt;
 use crate::ropey_util::RopeSliceExt;
 use crate::text_object::{self, Action};
@@ -679,13 +680,15 @@ impl Mode for Insert {
             }
             Event::Key(Key::Backspace) => {
                 if buf.core.cursor() != (Cursor { col: 0, row: 0 }) {
-                    let parens = [('{', '}'), ('(', ')'), ('[', ']')];
                     buf.core.cursor_dec();
                     let c = buf.core.char_at_cursor();
                     buf.core.delete();
                     if buf.core.char_at_cursor().is_some()
                         && buf.core.char_at_cursor()
-                            == parens.iter().find(|t| c == Some(t.0)).map(|t| t.1)
+                            == parenthesis::PARENTHESIS_PAIRS
+                                .iter()
+                                .find(|t| c == Some(t.0))
+                                .map(|t| t.1)
                     {
                         buf.core.delete();
                     }
@@ -1493,8 +1496,7 @@ impl Mode for S {
                 let l = self.0.l();
                 let r = self.0.r();
 
-                let pairs = [('(', ')'), ('{', '}'), ('[', ']')];
-                let (cl, cr) = pairs
+                let (cl, cr) = parenthesis::PARENTHESIS_PAIRS
                     .iter()
                     .map(|(l, r)| (*l, *r))
                     .find(|&(l, r)| c == l || c == r)

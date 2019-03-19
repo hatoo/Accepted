@@ -10,6 +10,7 @@ use syntect::parsing::{ParseState, ScopeStack, ScopeStackOp};
 
 use crate::draw::CharStyle;
 use crate::draw::Color;
+use crate::parenthesis;
 use crate::ropey_util::RopeExt;
 use crate::syntax;
 
@@ -106,8 +107,7 @@ impl DrawState {
         iter.flat_map(move |(style, s)| {
             s.chars()
                 .map(|c| {
-                    let parens = [('{', '}'), ('(', ')'), ('[', ']')];
-                    for (k, (l, r)) in parens.iter().enumerate() {
+                    for (k, (l, r)) in parenthesis::PARENTHESIS_PAIRS.iter().enumerate() {
                         if c == *l {
                             let fg = Self::RAINBOW[parens_level[k] % Self::RAINBOW.len()];
                             parens_level[k] += 1;
@@ -139,10 +139,9 @@ impl DrawState {
         let iter: HighlightIterator =
             HighlightIterator::new(highlight_state, ops, line, highlighter);
 
-        let parens = [('{', '}'), ('(', ')'), ('[', ']')];
         for (_style, s) in iter {
             for c in s.chars() {
-                for (k, (l, r)) in parens.iter().enumerate() {
+                for (k, (l, r)) in parenthesis::PARENTHESIS_PAIRS.iter().enumerate() {
                     if c == *l {
                         parens_level[k] += 1;
                     }

@@ -9,6 +9,7 @@ use std::num::Wrapping;
 use ropey::{self, Rope, RopeSlice};
 
 use crate::indent;
+use crate::parenthesis;
 use crate::ropey_util::{is_line_end, RopeExt};
 
 use self::operation::{Operation, OperationArg};
@@ -255,7 +256,7 @@ impl Core {
     pub fn w(&mut self) {
         if self
             .char_at_cursor()
-            .map(|c| ['{', '(', '['].iter().any(|&p| p == c))
+            .map(|c| parenthesis::PARENTHESIS_LEFTS.iter().any(|&p| p == c))
             == Some(true)
         {
             self.cursor_inc();
@@ -269,7 +270,9 @@ impl Core {
         }
         while {
             self.char_at_cursor()
-                .map(|c| !c.is_alphanumeric() && !['{', '(', '['].iter().any(|&p| p == c))
+                .map(|c| {
+                    !c.is_alphanumeric() && !parenthesis::PARENTHESIS_LEFTS.iter().any(|&p| p == c)
+                })
                 .unwrap_or(true)
                 && self.cursor_inc()
         } {}

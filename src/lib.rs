@@ -13,7 +13,7 @@ mod indent;
 mod job_queue;
 mod lsp;
 mod mode;
-mod parenthesis;
+pub mod parenthesis;
 mod rmate;
 mod ropey_util;
 mod rustc;
