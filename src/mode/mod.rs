@@ -711,7 +711,7 @@ impl Mode for Insert {
                 }
                 return Transition::Nothing;
             }
-            Event::Unsupported(ref v) if v.as_slice() == &[27, 91, 90] => {
+            Event::Unsupported(ref v) if v.as_slice() == [27, 91, 90] => {
                 // Shift Tab
                 if self.completion_len() > 0 {
                     if let Some(index) = self.completion_index {
