@@ -1,24 +1,26 @@
 use std::sync::mpsc;
-use std::sync::{self, Arc, Mutex};
+use std::sync::{atomic::AtomicUsize, atomic::Ordering, Arc};
 use std::thread;
 
 pub struct JobQueue<S, T> {
-    jobs: Arc<Mutex<usize>>,
+    jobs: Arc<AtomicUsize>,
     s_tx: mpsc::Sender<S>,
     t_rx: mpsc::Receiver<T>,
 }
 
 impl<S: Send + 'static, T: Send + 'static> JobQueue<S, T> {
     pub fn new<F: FnMut(S) -> T + Send + 'static>(mut func: F) -> Self {
-        let jobs = Arc::new(Mutex::new(0));
+        let jobs = Arc::new(AtomicUsize::new(0));
         let (s_tx, s_rx) = mpsc::channel();
         let (t_tx, t_rx) = mpsc::channel();
 
         let j = jobs.clone();
         thread::spawn(move || {
             for s in s_rx {
-                t_tx.send(func(s)).unwrap();
-                *j.lock().unwrap() -= 1;
+                if t_tx.send(func(s)).is_err() {
+                    return;
+                }
+                j.fetch_sub(1, Ordering::Relaxed);
             }
         });
 
@@ -30,15 +32,11 @@ impl<S: Send + 'static, T: Send + 'static> JobQueue<S, T> {
     }
 
     pub fn send(&self, s: S) -> Result<(), mpsc::SendError<S>> {
-        {
-            *self.jobs.lock().unwrap() += 1;
-        }
+        self.jobs.fetch_add(1, Ordering::Relaxed);
         self.s_tx.send(s)
     }
 
-    pub fn is_running(
-        &self,
-    ) -> std::result::Result<bool, sync::PoisonError<std::sync::MutexGuard<'_, usize>>> {
-        self.jobs.lock().map(|x| *x != 0)
+    pub fn is_running(&self) -> bool {
+        self.jobs.load(Ordering::Relaxed) != 0
     }
 }

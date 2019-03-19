@@ -216,7 +216,7 @@ impl CompilerWorker for Unknown {
         self.job_queue.rx().recv().ok()
     }
     fn is_compiling(&self) -> bool {
-        self.job_queue.is_running().unwrap()
+        self.job_queue.is_running()
     }
 }
 
@@ -231,7 +231,7 @@ impl CompilerWorker for Cpp {
         self.job_queue.rx().recv().ok()
     }
     fn is_compiling(&self) -> bool {
-        self.job_queue.is_running().unwrap()
+        self.job_queue.is_running()
     }
 }
 
@@ -246,6 +246,6 @@ impl CompilerWorker for Rust {
         self.job_queue.rx().recv().ok()
     }
     fn is_compiling(&self) -> bool {
-        self.job_queue.is_running().unwrap()
+        self.job_queue.is_running()
     }
 }
