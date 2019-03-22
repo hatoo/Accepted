@@ -102,14 +102,27 @@ impl<'a> BufferTab<'a> {
     }
 
     pub fn event(&mut self, event: Event) -> bool {
-        if let Event::Mouse(MouseEvent::Press(MouseButton::Left, col, row)) = event {
+        if let Event::Mouse(MouseEvent::Press(button, col, row)) = event {
             let (width, height) = termion::terminal_size().unwrap();
             if row == height {
                 let tab_line = self.draw_tab_line(width as usize);
                 let col = col as usize - 1;
 
                 if let Some(i) = tab_line.tab[col] {
-                    self.index = i;
+                    match button {
+                        MouseButton::Left => {
+                            self.index = i;
+                        }
+                        MouseButton::Middle => {
+                            self.buffers.remove(i);
+                            if self.buffers.is_empty() {
+                                return true;
+                            } else {
+                                self.index = min(self.buffers.len() - 1, self.index);
+                            }
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
