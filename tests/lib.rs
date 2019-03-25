@@ -104,4 +104,8 @@ fn test_simples() {
     // 0, $
     simple_test("123 456 789", "ww0iabc ", "abc 123 456 789");
     simple_test("123 456 789", "$i abc", "123 456 789 abc");
+
+    // Auto indent
+    simple_test("123", "A\n", "123\n");
+    simple_test("123{", "A\n", "123{\n    ");
 }
