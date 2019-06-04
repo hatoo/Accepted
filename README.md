@@ -139,7 +139,7 @@ You can specify snippet files in configure
 # On *.rs files
 [file.rs]
 # Use a snippet in this path
-snippets=["~.config/acc/snippet.json"]
+snippets=["~/.config/acc/snippet.json"]
 ```
 
 ## Contribution
