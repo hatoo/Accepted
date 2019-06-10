@@ -5,3 +5,4 @@ script:
   - cargo build
   - cargo test
   - cargo bench
+  - cargo install --path .
