@@ -11,7 +11,6 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Instant;
 
-use aho_corasick::Automaton;
 use ropey::Rope;
 use shellexpand;
 use termion;
@@ -345,7 +344,7 @@ impl Mode for Normal {
                     let mut pos = buf.core.cursor();
 
                     let search = buf.search.iter().collect::<String>();
-                    let ac = aho_corasick::AcAutomaton::new(vec![search]);
+                    let ac = aho_corasick::AhoCorasick::new(vec![search]);
 
                     if let Some(p) = buf.core.next_cursor(pos) {
                         pos = p;
@@ -356,19 +355,19 @@ impl Mode for Normal {
                     let idx = buf.core.buffer().line_to_char(pos.row) + pos.col;
 
                     let pos_bytes = if let Some(Ok(m)) = ac
-                        .stream_find(iter_read::IterRead::new(
+                        .stream_find_iter(iter_read::IterRead::new(
                             buf.core.buffer().slice(idx..).bytes(),
                         ))
                         .next()
                     {
-                        Some(buf.core.buffer().char_to_byte(idx) + m.start)
+                        Some(buf.core.buffer().char_to_byte(idx) + m.start())
                     } else if let Some(Ok(m)) = ac
-                        .stream_find(iter_read::IterRead::new(
+                        .stream_find_iter(iter_read::IterRead::new(
                             buf.core.buffer().slice(..idx).bytes(),
                         ))
                         .next()
                     {
-                        Some(m.start)
+                        Some(m.start())
                     } else {
                         None
                     };
