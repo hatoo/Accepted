@@ -34,8 +34,8 @@ mod fuzzy;
 
 pub enum Transition {
     Nothing,
-    Trans(Box<Mode>),
-    RecordMacro(Box<Mode>),
+    Trans(Box<dyn Mode>),
+    RecordMacro(Box<dyn Mode>),
     DoMacro,
     // Message, is commit dot macro?
     Return(Option<String>, bool),

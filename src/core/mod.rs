@@ -86,9 +86,9 @@ impl CursorRange {
 pub struct Core {
     buffer: Rope,
     cursor: Cursor,
-    history: Vec<Vec<Box<Operation>>>,
-    history_tmp: Vec<Box<Operation>>,
-    redo: Vec<Vec<Box<Operation>>>,
+    history: Vec<Vec<Box<dyn Operation>>>,
+    history_tmp: Vec<Box<dyn Operation>>,
+    redo: Vec<Vec<Box<dyn Operation>>>,
     buffer_changed: Id,
     pub dirty_from: usize,
 }

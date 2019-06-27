@@ -4,7 +4,7 @@ use crate::mode::{Mode, Normal, Transition};
 
 pub struct BufferMode<'a> {
     pub buf: Buffer<'a>,
-    mode: Box<Mode>,
+    mode: Box<dyn Mode>,
     is_recording: bool,
     dot_macro: Vec<termion::event::Event>,
     recording_macro: Vec<termion::event::Event>,
