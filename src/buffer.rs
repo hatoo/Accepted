@@ -154,14 +154,29 @@ impl<'a> Buffer<'a> {
             .and_then(|c| LSPClient::start(c.command(), ext).ok());
     }
 
-    fn set_syntax(&mut self, extension: &str) {
-        self.syntax = self.syntax_parent.load_syntax_or_txt(extension);
+    fn reset_syntax(&mut self) {
+        let syntax_extension = self
+            .get_config::<keys::SyntaxExtension>()
+            .cloned()
+            .or_else(|| {
+                self.path().and_then(|p| {
+                    p.extension()
+                        .or_else(|| p.file_name())
+                        .unwrap_or_default()
+                        .to_str()
+                        .map(String::from)
+                })
+            })
+            .unwrap_or_default();
+        self.syntax = self.syntax_parent.load_syntax_or_txt(&syntax_extension);
         self.cache = DrawCache::new(&self.syntax);
     }
 
     pub fn set_language(&mut self) {
         self.compiler = self.get_config::<keys::Compiler>().map(Compiler::new);
         self.restart_lsp();
+        self.reset_snippet();
+        self.reset_syntax();
     }
 
     pub fn indent(&mut self) {
@@ -176,20 +191,8 @@ impl<'a> Buffer<'a> {
     pub fn open<S: Storage + 'static>(&mut self, mut storage: S) {
         self.core = storage.load();
         self.storage = Some(Box::new(storage));
-        let path = self.path().unwrap();
 
-        let syntax_extension = self
-            .get_config::<keys::SyntaxExtension>()
-            .cloned()
-            .or_else(|| {
-                path.extension()
-                    .or_else(|| path.file_name())
-                    .unwrap_or_default()
-                    .to_str()
-                    .map(String::from)
-            })
-            .unwrap_or_default();
-        self.set_syntax(&syntax_extension);
+        self.reset_syntax();
 
         self.row_offset = 0;
         self.last_save = self.core.buffer_changed();
