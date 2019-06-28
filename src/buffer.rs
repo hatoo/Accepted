@@ -183,23 +183,23 @@ impl<'a> Buffer<'a> {
         self.core.indent(self.indent_width());
     }
 
-    pub fn set_path(&mut self, path: PathBuf) {
-        self.storage = Some(Box::new(path));
+    fn set_storage<T: Storage + 'static>(&mut self, storage: T) {
+        self.storage = Some(Box::new(storage));
         self.set_language();
+    }
+
+    pub fn set_path(&mut self, path: PathBuf) {
+        self.set_storage(path);
     }
 
     pub fn open<S: Storage + 'static>(&mut self, mut storage: S) {
         self.core = storage.load();
-        self.storage = Some(Box::new(storage));
-
-        self.reset_syntax();
+        self.set_storage(storage);
 
         self.row_offset = 0;
         self.last_save = self.core.buffer_changed();
-        self.set_language();
         self.cache = DrawCache::new(&self.syntax);
         self.compile(false);
-        self.reset_snippet();
     }
 
     pub fn save(&mut self, is_optimize: bool) -> bool {
