@@ -102,6 +102,7 @@ impl Default for Core {
             history_tmp: Vec::new(),
             redo: Vec::new(),
             buffer_changed: Id(Wrapping(1)),
+            /// Lines after this are modified
             dirty_from: 0,
         }
     }
