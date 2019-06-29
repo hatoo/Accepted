@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::cmp::{max, min};
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use unicode_width::UnicodeWidthChar;
 
@@ -183,13 +183,9 @@ impl<'a> Buffer<'a> {
         self.core.indent(self.indent_width());
     }
 
-    fn set_storage<T: Storage + 'static>(&mut self, storage: T) {
+    pub fn set_storage<T: Storage + 'static>(&mut self, storage: T) {
         self.storage = Some(Box::new(storage));
         self.set_language();
-    }
-
-    pub fn set_path(&mut self, path: PathBuf) {
-        self.set_storage(path);
     }
 
     pub fn open<S: Storage + 'static>(&mut self, mut storage: S) {

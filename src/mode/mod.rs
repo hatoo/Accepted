@@ -907,7 +907,7 @@ impl Mode for Save {
             Event::Key(Key::Char(c)) => {
                 if c == '\n' {
                     let path: String = shellexpand::tilde(&self.path).into();
-                    buf.set_path(PathBuf::from(path.clone()));
+                    buf.set_storage(PathBuf::from(path.clone()));
                     let message = if buf.save(false) {
                         format!("Saved to {}", path)
                     } else {
