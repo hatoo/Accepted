@@ -72,5 +72,7 @@ pub fn clipboard_paste() -> Result<String, failure::Error> {
     let mut stdout = p.stdout.ok_or_else(|| failure::err_msg("Get stdout"))?;
     let mut buf = String::new();
     stdout.read_to_string(&mut buf)?;
+    // win32yank.exe emits CRLF but I don't want to.
+    buf = buf.replace('\r', "");
     Ok(buf)
 }
