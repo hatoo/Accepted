@@ -19,6 +19,7 @@ use termion::event::{Event, Key, MouseButton, MouseEvent};
 use crate::buffer::Buffer;
 use crate::buffer::Yank;
 use crate::clipboard;
+use crate::config::types::keys;
 use crate::core::Core;
 use crate::core::Cursor;
 use crate::core::CursorRange;
@@ -1021,34 +1022,57 @@ impl Mode for Prefix {
             }
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
-                if let Some(path) = buf.path().map(PathBuf::from) {
+                if let Some(path) = buf.path() {
+                    crate::env::set_env(path);
                     buf.format();
                     buf.save(is_optimize);
                     buf.wait_compile_message();
-                    if let Some(stem) = path.file_stem() {
-                        let mut prog = OsString::from("./");
-                        prog.push(stem);
-                        if let Ok(mut child) = process::Command::new(&prog)
-                            .stdout(process::Stdio::piped())
-                            .stderr(process::Stdio::piped())
-                            .stdin(process::Stdio::piped())
-                            .spawn()
+                    if let Some(test_command) = buf.get_config::<keys::TestCommand>() {
+                        if let Ok(prog) = shellexpand::full(&test_command.program.to_string_lossy())
                         {
-                            if let Ok(input) = clipboard::clipboard_paste() {
-                                if let Some(mut stdin) = child.stdin.take() {
-                                    let _ = write!(stdin, "{}", input);
-                                }
-                                if let Some(next_state) = ViewProcess::with_process(child) {
-                                    return next_state.into();
+                            if let Ok(args) = test_command
+                                .args
+                                .iter()
+                                .map(|s| {
+                                    shellexpand::full(s.to_string_lossy().as_ref())
+                                        .map(|s| OsString::from(s.as_ref()))
+                                })
+                                .collect::<Result<Vec<_>, _>>()
+                            {
+                                if let Ok(mut child) =
+                                    process::Command::new(OsString::from(prog.as_ref()))
+                                        .args(args.iter())
+                                        .stdout(process::Stdio::piped())
+                                        .stderr(process::Stdio::piped())
+                                        .stdin(process::Stdio::piped())
+                                        .spawn()
+                                {
+                                    if let Ok(input) = clipboard::clipboard_paste() {
+                                        if let Some(mut stdin) = child.stdin.take() {
+                                            let _ = write!(stdin, "{}", input);
+                                        }
+                                        if let Some(next_state) = ViewProcess::with_process(child) {
+                                            return next_state.into();
+                                        } else {
+                                            return Normal::with_message("Failed to test".into())
+                                                .into();
+                                        }
+                                    } else {
+                                        return Normal::with_message("Failed to paste".into())
+                                            .into();
+                                    }
                                 } else {
-                                    return Normal::with_message("Failed to test".into()).into();
+                                    return Normal::with_message(format!(
+                                        "Failed to run {:?}",
+                                        prog
+                                    ))
+                                    .into();
                                 }
                             } else {
-                                return Normal::with_message("Failed to paste".into()).into();
+                                return Normal::with_message("Failed to test".into()).into();
                             }
                         } else {
-                            return Normal::with_message(format!("Failed to run {:?}", prog))
-                                .into();
+                            return Normal::with_message("Failed to run".into()).into();
                         }
                     } else {
                         return Normal::with_message("Failed to run".into()).into();
