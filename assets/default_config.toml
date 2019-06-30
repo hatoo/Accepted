@@ -3,7 +3,7 @@ indent_width = 4
 ansi_color = false
 
 [file.rs]
-compiler = { command=["rustc", "$FILE_PATH", "-Z", "unstable-options", "--error-format=json"], type="rustc", optimize_option=["-O"] }
+compiler = { command=["rustc", "$FILE_PATH", "--error-format=json"], type="rustc", optimize_option=["-O"] }
 lsp = ["rls"]
 formatter = ["rustfmt"]
 test_command = ["./$FILE_STEM"]
