@@ -3,14 +3,14 @@ indent_width = 4
 ansi_color = false
 
 [file.rs]
-compiler = { command=["rustc", "$FilePath$", "-Z", "unstable-options", "--error-format=json"], type="rustc", optimize_option=["-O"] }
+compiler = { command=["rustc", "$FILE_PATH", "-Z", "unstable-options", "--error-format=json"], type="rustc", optimize_option=["-O"] }
 lsp = ["rls"]
 formatter = ["rustfmt"]
 
 [file.cpp]
 # Respect clang-format
 indent_width = 2
-compiler = { command=["clang", "$FilePath$", "-o", "$FileStem$"], type="gcc", optimize_option=["-O2"] }
+compiler = { command=["clang", "$FILE_PATH", "-o", "$FILE_STEM"], type="gcc", optimize_option=["-O2"] }
 lsp = ["clangd"]
 formatter = ["clang-format"]
 

@@ -12,7 +12,7 @@ use crate::core::CursorRange;
 use crate::core::Id;
 use crate::job_queue::JobQueue;
 use crate::rustc;
-use std::ffi::OsStr;
+use std::ffi::OsString;
 
 pub struct CompilerOutput {
     pub message: String,
@@ -38,32 +38,25 @@ impl<'a> Compiler<'a> {
     }
 
     pub fn compile(&self, path: PathBuf, compile_id: CompileId) {
+        crate::env::set_env(&path);
         if let Some((head, tail)) = self.config.command.split_first() {
-            let mut command = process::Command::new(head);
-            let file_path = path.as_os_str().to_str().unwrap_or_default();
+            if let Ok(head) = shellexpand::full(head) {
+                let mut command = process::Command::new(OsString::from(head.as_ref()));
+                let mut args = tail.to_vec();
 
-            let file_stem = path.file_stem().and_then(OsStr::to_str).unwrap_or_default();
+                if compile_id.is_optimize {
+                    args.extend_from_slice(self.config.optimize_option.as_slice());
+                }
 
-            if compile_id.is_optimize {
-                command.args(
-                    tail.iter()
-                        .map(|s| {
-                            s.replace("$FilePath$", file_path)
-                                .replace("$FileStem$", file_stem)
-                        })
-                        .chain(self.config.optimize_option.iter().map(|s| {
-                            s.replace("$FilePath$", file_path)
-                                .replace("$FileStem$", file_stem)
-                        })),
-                );
-            } else {
-                command.args(tail.iter().map(|s| {
-                    s.replace("$FilePath$", file_path)
-                        .replace("$FileStem$", file_stem)
-                }));
+                if let Ok(args) = args
+                    .iter()
+                    .map(shellexpand::full)
+                    .collect::<Result<Vec<_>, _>>()
+                {
+                    command.args(args.into_iter().map(|s| OsString::from(s.as_ref())));
+                    self.worker.compile(command, compile_id);
+                }
             }
-
-            self.worker.compile(command, compile_id);
         }
     }
 

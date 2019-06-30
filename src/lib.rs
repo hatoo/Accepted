@@ -8,6 +8,7 @@ mod core;
 mod cursor;
 pub mod draw;
 mod draw_cache;
+mod env;
 mod formatter;
 mod indent;
 mod job_queue;
