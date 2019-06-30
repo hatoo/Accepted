@@ -1022,63 +1022,52 @@ impl Mode for Prefix {
             }
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
-                if let Some(path) = buf.path() {
+                let result: Result<process::Child, &'static str> = (|| {
+                    let path = buf.path().ok_or("Save First")?;
                     crate::env::set_env(path);
                     buf.format();
                     buf.save(is_optimize);
                     buf.wait_compile_message();
-                    if let Some(test_command) = buf.get_config::<keys::TestCommand>() {
-                        if let Ok(prog) = shellexpand::full(&test_command.program.to_string_lossy())
-                        {
-                            if let Ok(args) = test_command
-                                .args
-                                .iter()
-                                .map(|s| {
-                                    shellexpand::full(s.to_string_lossy().as_ref())
-                                        .map(|s| OsString::from(s.as_ref()))
-                                })
-                                .collect::<Result<Vec<_>, _>>()
-                            {
-                                if let Ok(mut child) =
-                                    process::Command::new(OsString::from(prog.as_ref()))
-                                        .args(args.iter())
-                                        .stdout(process::Stdio::piped())
-                                        .stderr(process::Stdio::piped())
-                                        .stdin(process::Stdio::piped())
-                                        .spawn()
-                                {
-                                    if let Ok(input) = clipboard::clipboard_paste() {
-                                        if let Some(mut stdin) = child.stdin.take() {
-                                            let _ = write!(stdin, "{}", input);
-                                        }
-                                        if let Some(next_state) = ViewProcess::with_process(child) {
-                                            return next_state.into();
-                                        } else {
-                                            return Normal::with_message("Failed to test".into())
-                                                .into();
-                                        }
-                                    } else {
-                                        return Normal::with_message("Failed to paste".into())
-                                            .into();
-                                    }
-                                } else {
-                                    return Normal::with_message(format!(
-                                        "Failed to run {:?}",
-                                        prog
-                                    ))
-                                    .into();
-                                }
-                            } else {
-                                return Normal::with_message("Failed to test".into()).into();
-                            }
-                        } else {
-                            return Normal::with_message("Failed to run".into()).into();
-                        }
-                    } else {
-                        return Normal::with_message("Failed to run".into()).into();
+                    let test_command = buf
+                        .get_config::<keys::TestCommand>()
+                        .ok_or("test_command is undefined")?;
+                    let prog = test_command.program.to_string_lossy();
+                    let prog =
+                        shellexpand::full(&prog).map_err(|_| "Failed to expand test_command")?;
+                    let args = test_command
+                        .args
+                        .iter()
+                        .map(|s| {
+                            shellexpand::full(s.to_string_lossy().as_ref())
+                                .map(|s| OsString::from(s.as_ref()))
+                        })
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|_| "Failed to Expand test_command")?;
+                    let input = clipboard::clipboard_paste()
+                        .map_err(|_| "Failed to paste from clipboard")?;
+                    let mut child = process::Command::new(OsString::from(prog.as_ref()))
+                        .args(args.iter())
+                        .stdout(process::Stdio::piped())
+                        .stderr(process::Stdio::piped())
+                        .stdin(process::Stdio::piped())
+                        .spawn()
+                        .map_err(|_| "Failed to spawn")?;
+                    if let Some(mut stdin) = child.stdin.take() {
+                        let _ = write!(stdin, "{}", input);
                     }
-                } else {
-                    return Normal::with_message("Save first".into()).into();
+                    Ok(child)
+                })();
+                match result {
+                    Err(err) => {
+                        return Normal::with_message(err.to_string()).into();
+                    }
+                    Ok(child) => {
+                        if let Some(next_state) = ViewProcess::with_process(child) {
+                            return next_state.into();
+                        } else {
+                            return Normal::with_message("Failed to test".into()).into();
+                        }
+                    }
                 }
             }
             Event::Key(Key::Char('c')) => {
