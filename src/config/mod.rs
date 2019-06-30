@@ -30,6 +30,7 @@ struct LanguageConfigToml {
     formatter: Option<Vec<String>>,
     syntax: Option<String>,
     compiler: Option<CompilerConfig>,
+    test_command: Option<Vec<String>>,
 }
 
 pub struct LanguageConfig(typemap::TypeMap);
@@ -89,6 +90,12 @@ impl Into<LanguageConfig> for LanguageConfigToml {
         );
         language_config.insert_option::<keys::SyntaxExtension>(self.syntax);
         language_config.insert_option::<keys::Compiler>(self.compiler);
+        language_config.insert_option::<keys::TestCommand>(
+            self.test_command
+                .as_ref()
+                .map(Vec::as_slice)
+                .and_then(Command::new),
+        );
 
         language_config
     }

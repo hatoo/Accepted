@@ -90,4 +90,9 @@ pub mod keys {
     impl Key for Compiler {
         type Value = CompilerConfig;
     }
+
+    pub struct TestCommand;
+    impl Key for TestCommand {
+        type Value = Command;
+    }
 }

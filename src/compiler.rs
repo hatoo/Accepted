@@ -39,13 +39,13 @@ impl<'a> Compiler<'a> {
 
     pub fn compile(&self, path: PathBuf, compile_id: CompileId) {
         if let Some((head, tail)) = self.config.command.split_first() {
-            let mut commaned = process::Command::new(head);
+            let mut command = process::Command::new(head);
             let file_path = path.as_os_str().to_str().unwrap_or_default();
 
             let file_stem = path.file_stem().and_then(OsStr::to_str).unwrap_or_default();
 
             if compile_id.is_optimize {
-                commaned.args(
+                command.args(
                     tail.iter()
                         .map(|s| {
                             s.replace("$FilePath$", file_path)
@@ -57,13 +57,13 @@ impl<'a> Compiler<'a> {
                         })),
                 );
             } else {
-                commaned.args(tail.iter().map(|s| {
+                command.args(tail.iter().map(|s| {
                     s.replace("$FilePath$", file_path)
                         .replace("$FileStem$", file_stem)
                 }));
             }
 
-            self.worker.compile(commaned, compile_id);
+            self.worker.compile(command, compile_id);
         }
     }
 
