@@ -1098,8 +1098,9 @@ impl Mode for Prefix {
             .unwrap_or(draw::CursorState::Hide);
 
         let mut footer = view.view((height, 0), 1, width);
+        footer.puts("Prefix", draw::styles::FOOTER_HIGHLIGHT);
         footer.puts(
-            "Prefix ... [Esc: Return] [q: Quit] [s: Save] [a: save As ...] [<Space> Format]",
+            " ... [Esc: Return] [q: Quit] [s: Save] [a: save As ...] [<Space> Format]",
             draw::styles::FOOTER,
         );
 

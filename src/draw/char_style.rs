@@ -135,6 +135,19 @@ pub mod styles {
         },
         modification: CharModification::Default,
     };
+    pub const FOOTER_HIGHLIGHT: CharStyle = CharStyle {
+        fg: Color {
+            r: 215,
+            g: 32,
+            b: 32,
+        },
+        bg: Color {
+            r: 200,
+            g: 200,
+            b: 200,
+        },
+        modification: CharModification::Default,
+    };
     pub const SELECTED: CharStyle = CharStyle {
         fg: Color {
             r: 200,
