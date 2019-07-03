@@ -21,6 +21,17 @@ impl Command {
         res.args(self.args.iter());
         res
     }
+    pub fn summary(&self) -> String {
+        format!(
+            "{} {:?}",
+            self.program.to_string_lossy(),
+            self.args
+                .iter()
+                .map(|s| s.to_string_lossy())
+                .collect::<Vec<_>>()
+                .join(" ")
+        )
+    }
 }
 
 #[derive(Deserialize, Debug, Clone)]

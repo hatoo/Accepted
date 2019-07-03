@@ -127,6 +127,7 @@ struct ViewProcess {
     pub process: process::Child,
     pub start: Instant,
     pub end: Option<Instant>,
+    title: Option<String>,
 }
 
 impl Drop for ViewProcess {
@@ -141,7 +142,7 @@ struct Goto {
 }
 
 impl ViewProcess {
-    fn with_process(mut child: process::Child) -> Option<Self> {
+    fn with_process(mut child: process::Child, title: Option<String>) -> Option<Self> {
         let now = Instant::now();
         let stdout = child.stdout.take()?;
         let stderr = child.stderr.take()?;
@@ -184,6 +185,7 @@ impl ViewProcess {
             process: child,
             start: now,
             end: None,
+            title,
         })
     }
 }
@@ -1028,7 +1030,7 @@ impl Mode for Prefix {
             }
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
-                let result: Result<process::Child, &'static str> = (|| {
+                let result: Result<(process::Child, String), &'static str> = (|| {
                     let path = buf.path().ok_or("Save First")?;
                     crate::env::set_env(path);
                     buf.format();
@@ -1061,14 +1063,14 @@ impl Mode for Prefix {
                     if let Some(mut stdin) = child.stdin.take() {
                         let _ = write!(stdin, "{}", input);
                     }
-                    Ok(child)
+                    Ok((child, test_command.summary()))
                 })();
                 match result {
                     Err(err) => {
                         return Normal::with_message(err.to_string()).into();
                     }
-                    Ok(child) => {
-                        if let Some(next_state) = ViewProcess::with_process(child) {
+                    Ok((child, title)) => {
+                        if let Some(next_state) = ViewProcess::with_process(child, Some(title)) {
                             return next_state.into();
                         } else {
                             return Normal::with_message("Failed to test".into()).into();
@@ -1330,9 +1332,16 @@ impl Mode for ViewProcess {
         let width = view.width();
         {
             let mut view = view.view((0, 0), height - 1, width);
+            if let Some(title) = self.title.as_ref() {
+                view.puts(&title, draw::styles::HIGHLIGHT);
+                view.newline();
+            }
             for line in &self.buf[self.row_offset..] {
                 view.puts(line, draw::styles::DEFAULT);
                 view.newline();
+                if view.is_out() {
+                    break;
+                }
             }
             if let Some(end) = self.end {
                 view.puts(&format!("{:?}", end - self.start), draw::styles::HIGHLIGHT);
