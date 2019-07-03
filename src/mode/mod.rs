@@ -562,6 +562,10 @@ impl Mode for Normal {
                 };
                 footer.puts(msg, draw::styles::FOOTER);
             }
+            footer.puts(
+                &format!("{} bytes", buf.core.buffer().len_bytes()),
+                draw::styles::FOOTER,
+            );
         }
         self.frame = (std::num::Wrapping(self.frame) + std::num::Wrapping(1)).0;
 
