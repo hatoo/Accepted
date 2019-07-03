@@ -537,16 +537,18 @@ impl Mode for Normal {
         } else {
             footer.puts(
                 &format!(
-                    "[Normal] ({} {}) [{}] {}",
+                    "[Normal] ({} {}) [{}]",
                     buf.core.cursor().row + 1,
                     buf.core.cursor().col + 1,
                     buf.path()
                         .map(Path::to_string_lossy)
                         .unwrap_or_else(|| "*".into()),
-                    &self.message,
                 ),
                 draw::styles::FOOTER,
             );
+            if !self.message.is_empty() {
+                footer.puts(&format!(" {}", &self.message,), draw::styles::FOOTER);
+            }
 
             if buf.is_compiling() {
                 let animation = [
@@ -563,7 +565,7 @@ impl Mode for Normal {
                 footer.puts(msg, draw::styles::FOOTER);
             }
             footer.puts(
-                &format!("{} bytes", buf.core.buffer().len_bytes()),
+                &format!(" {} bytes", buf.core.buffer().len_bytes()),
                 draw::styles::FOOTER,
             );
         }
