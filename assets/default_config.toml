@@ -1,14 +1,22 @@
+# Configure to defaults
 [file_default]
 indent_width = 4
+# Set true if you are running in legacy terminal which has no true color
 ansi_color = false
 
+# Configure for *.rs files
 [file.rs]
+# Setting compiler and its type.
 compiler = { command=["rustc", "$FILE_PATH", "--error-format=json"], type="rustc", optimize_option=["-O"] }
+# Setting LSP server command
 lsp = ["rls"]
+# Setting formatter command
 formatter = ["rustfmt"]
+# Command for testing
 test_command = ["./$FILE_STEM"]
 
 [file.cpp]
+# Configure for *.cpp files
 # Respect clang-format
 indent_width = 2
 compiler = { command=["clang", "$FILE_PATH", "-o", "$FILE_STEM"], type="gcc", optimize_option=["-O2"] }

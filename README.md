@@ -114,19 +114,25 @@ ansi_color = false
 # Configure for *.rs files
 [file.rs]
 # Setting compiler and its type.
-compiler = { command=["rustc", "$FilePath$", "-Z", "unstable-options", "--error-format=json"], type="rustc", optimize_option=["-O"] }
+compiler = { command=["rustc", "$FILE_PATH", "--error-format=json"], type="rustc", optimize_option=["-O"] }
 # Setting LSP server command
 lsp = ["rls"]
 # Setting formatter command
 formatter = ["rustfmt"]
+# Command for testing
+test_command = ["./$FILE_STEM"]
 
 [file.cpp]
 # Configure for *.cpp files
 # Respect clang-format
 indent_width = 2
-compiler = { command=["clang", "$FilePath$", "-o", "$FileStem$"], type="gcc", optimize_option=["-O2"] }
+compiler = { command=["clang", "$FILE_PATH", "-o", "$FILE_STEM"], type="gcc", optimize_option=["-O2"] }
 lsp = ["clangd"]
 formatter = ["clang-format"]
+test_command = ["./$FILE_STEM"]
+
+[file.rb]
+indent_width = 2
 ```
 
 ### Snippet Support
