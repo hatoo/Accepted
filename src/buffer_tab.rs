@@ -170,49 +170,60 @@ impl<'a> BufferTab<'a> {
             footer.puts(" ", draw::styles::DEFAULT, None);
         }
 
-        for i in 0..self.buffers.len() {
-            let title = if let Some(path) = self.buffers[i].buf.path() {
+        let get_title = |path: Option<&std::path::Path>| {
+            if let Some(path) = path {
                 path.file_name()
                     .map(|o| o.to_string_lossy().to_string())
                     .unwrap_or_default()
             } else {
                 "*".to_string()
-            };
+            }
+        };
 
-            let mut msg = String::new();
-            let mut w = 0;
-            let mut is_long = false;
+        if self.buffers.len() == 1 {
+            footer.puts(
+                &format!(" {} {} ", 1, get_title(self.buffers[0].buf.path())),
+                draw::styles::TAB_BAR,
+                Some(0),
+            );
+        } else {
+            for i in 0..self.buffers.len() {
+                let title = get_title(self.buffers[i].buf.path());
+                let mut msg = String::new();
+                let mut w = 0;
+                let mut is_long = false;
 
-            for c in title.chars() {
-                let c_w = c.width().unwrap_or(0);
-                if w + c_w <= TITLE_LEN {
-                    msg.push(c);
-                    w += c_w;
-                } else {
-                    is_long = true;
+                for c in title.chars() {
+                    let c_w = c.width().unwrap_or(0);
+                    if w + c_w <= TITLE_LEN {
+                        msg.push(c);
+                        w += c_w;
+                    } else {
+                        is_long = true;
+                    }
                 }
-            }
 
-            for _ in w..TITLE_LEN {
-                msg.push(' ');
-            }
+                for _ in w..TITLE_LEN {
+                    msg.push(' ');
+                }
 
-            if is_long {
-                msg.push('…');
-            }
+                if is_long {
+                    msg.push('…');
+                }
 
-            if self.index == i {
-                footer.puts(
-                    &format!(" {} {}", i + 1, msg),
-                    draw::styles::TAB_BAR,
-                    Some(i),
-                );
-            } else {
-                footer.puts(
-                    &format!(" {} {}", i + 1, msg),
-                    draw::styles::DEFAULT,
-                    Some(i),
-                );
+                if self.index == i {
+                    footer.puts(
+                        &format!(" {} {}", i + 1, msg),
+                        draw::styles::TAB_BAR,
+                        Some(i),
+                    );
+                } else {
+                    footer.puts(
+                        &format!(" {} {}", i + 1, msg),
+                        draw::styles::DEFAULT,
+                        Some(i),
+                    );
+                }
             }
         }
 
