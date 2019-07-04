@@ -35,6 +35,14 @@ impl Default for SyntaxParent {
             )
             .unwrap(),
         );
+        builder.add(
+            SyntaxDefinition::load_from_str(
+                include_str!("../assets/AWK.sublime-syntax"),
+                false,
+                None,
+            )
+            .unwrap(),
+        );
         let syntax_set = builder.build();
         Self {
             syntax_set,
