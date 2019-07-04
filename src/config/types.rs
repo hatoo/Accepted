@@ -21,16 +21,20 @@ impl Command {
         res.args(self.args.iter());
         res
     }
-    pub fn summary(&self) -> String {
-        format!(
-            "{} {:?}",
-            self.program.to_string_lossy(),
-            self.args
-                .iter()
-                .map(|s| s.to_string_lossy())
-                .collect::<Vec<_>>()
-                .join(" ")
-        )
+    pub fn summary<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+    ) -> Result<String, shellexpand::LookupError<std::env::VarError>> {
+        crate::env::set_env(path);
+        let prog =
+            shellexpand::full(self.program.to_string_lossy().as_ref()).map(|s| s.into_owned())?;
+        let args = self
+            .args
+            .iter()
+            .map(|s| shellexpand::full(s.to_string_lossy().as_ref()).map(|s| s.into_owned()))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(format!("{} {}", prog, args.join(" ")))
     }
 }
 

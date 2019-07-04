@@ -1030,7 +1030,7 @@ impl Mode for Prefix {
             }
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
-                let result: Result<(process::Child, String), &'static str> = (|| {
+                let result: Result<(process::Child, Option<String>), &'static str> = (|| {
                     let path = buf.path().ok_or("Save First")?;
                     crate::env::set_env(path);
                     buf.format();
@@ -1063,14 +1063,15 @@ impl Mode for Prefix {
                     if let Some(mut stdin) = child.stdin.take() {
                         let _ = write!(stdin, "{}", input);
                     }
-                    Ok((child, test_command.summary()))
-                })();
+                    Ok((child, buf.path().and_then(|p| test_command.summary(p).ok())))
+                })(
+                );
                 match result {
                     Err(err) => {
                         return Normal::with_message(err.to_string()).into();
                     }
                     Ok((child, title)) => {
-                        if let Some(next_state) = ViewProcess::with_process(child, Some(title)) {
+                        if let Some(next_state) = ViewProcess::with_process(child, title) {
                             return next_state.into();
                         } else {
                             return Normal::with_message("Failed to test".into()).into();
