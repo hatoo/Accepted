@@ -1,19 +1,18 @@
-use std::ffi::OsString;
 use std::process;
 
 use serde_derive::Deserialize;
 
 #[derive(Debug)]
 pub struct Command {
-    pub program: OsString,
-    pub args: Vec<OsString>,
+    pub program: String,
+    pub args: Vec<String>,
 }
 
 impl Command {
     pub fn new(args: &[String]) -> Option<Self> {
         args.split_first().map(|(fst, rest)| Self {
-            program: OsString::from(fst),
-            args: rest.iter().map(OsString::from).collect(),
+            program: fst.clone(),
+            args: rest.iter().cloned().collect(),
         })
     }
     pub fn command(&self) -> process::Command {
@@ -26,12 +25,11 @@ impl Command {
         path: P,
     ) -> Result<String, shellexpand::LookupError<std::env::VarError>> {
         crate::env::set_env(path);
-        let prog =
-            shellexpand::full(self.program.to_string_lossy().as_ref()).map(|s| s.into_owned())?;
+        let prog = shellexpand::full(&self.program)?;
         let args = self
             .args
             .iter()
-            .map(|s| shellexpand::full(s.to_string_lossy().as_ref()).map(|s| s.into_owned()))
+            .map(shellexpand::full)
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(format!("{} {}", prog, args.join(" ")))

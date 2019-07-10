@@ -1,7 +1,6 @@
 use std;
 use std::borrow::Cow;
 use std::cmp::{max, min};
-use std::ffi::OsString;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
@@ -1052,21 +1051,18 @@ impl Mode for Prefix {
                     let test_command = buf
                         .get_config::<keys::TestCommand>()
                         .ok_or("test_command is undefined")?;
-                    let prog = test_command.program.to_string_lossy();
+                    let prog = &test_command.program;
                     let prog =
-                        shellexpand::full(&prog).map_err(|_| "Failed to expand test_command")?;
+                        shellexpand::full(prog).map_err(|_| "Failed to expand test_command")?;
                     let args = test_command
                         .args
                         .iter()
-                        .map(|s| {
-                            shellexpand::full(s.to_string_lossy().as_ref())
-                                .map(|s| OsString::from(s.as_ref()))
-                        })
+                        .map(|s| shellexpand::full(s).map(|s| s.into_owned()))
                         .collect::<Result<Vec<_>, _>>()
                         .map_err(|_| "Failed to Expand test_command")?;
                     let input = clipboard::clipboard_paste()
                         .map_err(|_| "Failed to paste from clipboard")?;
-                    let mut child = process::Command::new(OsString::from(prog.as_ref()))
+                    let mut child = process::Command::new(prog.into_owned())
                         .args(args.iter())
                         .stdout(process::Stdio::piped())
                         .stderr(process::Stdio::piped())
