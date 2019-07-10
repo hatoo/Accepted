@@ -2,7 +2,7 @@ use std::process;
 
 use serde_derive::Deserialize;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Command {
     pub program: String,
     pub args: Vec<String>,

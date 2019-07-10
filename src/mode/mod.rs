@@ -1043,14 +1043,35 @@ impl Mode for Prefix {
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
                 let result: Result<(process::Child, Option<String>), &'static str> = (|| {
-                    let path = buf.path().ok_or("Save First")?;
-                    crate::env::set_env(path);
                     buf.format();
                     buf.save(is_optimize);
                     buf.wait_compile_message();
+                    let path = buf.path().ok_or("Save First")?;
+                    crate::env::set_env(path);
                     let test_command = buf
                         .get_config::<keys::TestCommand>()
-                        .ok_or("test_command is undefined")?;
+                        .ok_or("test_command is undefined")
+                        .map(|c| c.clone())
+                        .or_else(|e| {
+                            // Detect shebang
+                            let first_line = buf.core.buffer().line(0).to_string();
+                            if first_line.starts_with("#!") {
+                                let mut v = first_line
+                                    .trim_start_matches("#!")
+                                    .split_whitespace()
+                                    .map(|s| shellexpand::full(s).map(|s| s.into_owned()))
+                                    .collect::<Result<Vec<_>, _>>()
+                                    .map_err(|_| "Failed to expand shebang")?;
+                                v.push(path.to_string_lossy().into_owned());
+
+                                Ok(crate::config::types::Command {
+                                    program: v[0].clone(),
+                                    args: v[1..].into_iter().cloned().collect(),
+                                })
+                            } else {
+                                Err(e)
+                            }
+                        })?;
                     let prog = &test_command.program;
                     let prog =
                         shellexpand::full(prog).map_err(|_| "Failed to expand test_command")?;
