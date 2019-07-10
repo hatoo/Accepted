@@ -493,7 +493,20 @@ impl Mode for Normal {
                 buf.draw(term.view((0, 0), height, width));
 
                 if let Some(c) = term.pos(cursor) {
-                    buf.core.set_cursor(c);
+                    if buf.core.cursor() == c {
+                        // Double click!
+                        buf.core.b();
+                        let cursor = buf.core.cursor();
+                        buf.core.e();
+
+                        return Visual {
+                            cursor,
+                            line_mode: false,
+                        }
+                        .into();
+                    } else {
+                        buf.core.set_cursor(c);
+                    }
                 }
             }
             Event::Mouse(MouseEvent::Hold(_, _)) => {
