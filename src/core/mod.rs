@@ -151,12 +151,12 @@ impl Core {
     }
 
     pub fn before_cursor(&self) -> ropey::RopeSlice {
-        let idx = self.buffer.line_to_char(self.cursor.row)+self.cursor.col;
+        let idx = self.buffer.line_to_char(self.cursor.row) + self.cursor.col;
         self.buffer.slice(..idx)
     }
 
     pub fn after_cursor(&self) -> ropey::RopeSlice {
-        let idx = self.buffer.line_to_char(self.cursor.row)+self.cursor.col;
+        let idx = self.buffer.line_to_char(self.cursor.row) + self.cursor.col;
         self.buffer.slice(idx..)
     }
 

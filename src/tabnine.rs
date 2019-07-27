@@ -1,10 +1,10 @@
+use crate::mode::Completion;
 use languageserver_types::{CompletionItemKind, Documentation};
 use serde_derive::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader, Write};
 use std::process;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
-use crate::mode::Completion;
 
 pub struct TabNineClient {
     proc: process::Child,
@@ -30,9 +30,7 @@ impl TabNineClient {
             for args in args_receiver {
                 let req = Request {
                     version: "1.0.0".to_string(),
-                    request: AutoComplete {
-                        autocomplete: args
-                    }
+                    request: AutoComplete { autocomplete: args },
                 };
                 if let Ok(json) = serde_json::to_string(&req) {
                     let json = json.replace('\n', "");
@@ -62,19 +60,26 @@ impl TabNineClient {
     }
 
     pub fn poll(&self) -> Option<Vec<Completion>> {
-        self.results_receiver.try_recv().map(|res| {
-            res.results.into_iter().map(|mut entry| {
-                Completion {
-                    keyword: entry.new_prefix.clone(),
-                    doc: entry.documentation.take().map(|d| {
-                        match d {
-                            Documentation::String(s) => s,
-                            Documentation::MarkupContent(m) => m.value
-                        }
-                    }).unwrap_or_else(|| "TabNine".to_string())
-                }
-            }).collect::<Vec<_>>()
-        }).ok()
+        let mut ret = None;
+        while let Ok(res) = self.results_receiver.try_recv() {
+            ret = Some(
+                res.results
+                    .into_iter()
+                    .map(|mut entry| Completion {
+                        keyword: entry.new_prefix.clone(),
+                        doc: entry
+                            .documentation
+                            .take()
+                            .map(|d| match d {
+                                Documentation::String(s) => s,
+                                Documentation::MarkupContent(m) => m.value,
+                            })
+                            .unwrap_or_else(|| "TabNine".to_string()),
+                    })
+                    .collect::<Vec<_>>(),
+            );
+        }
+        ret
     }
 
     pub fn request_completion(&self, buf: &crate::Buffer) {
@@ -105,7 +110,6 @@ struct Request {
     version: String,
     request: AutoComplete,
 }
-
 
 #[derive(Serialize, Deserialize)]
 struct AutoComplete {
