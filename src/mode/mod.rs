@@ -63,6 +63,7 @@ pub struct Normal {
     frame: usize,
 }
 
+#[derive(Debug)]
 pub struct Completion {
     pub keyword: String,
     pub doc: String,
@@ -635,6 +636,12 @@ impl Insert {
             }
         }
 
+        if let Some(tabnine) = buf.tabnine.as_ref() {
+            if let Some(mut completion) = tabnine.poll() {
+                self.completions.append(&mut completion);
+            }
+        }
+
         if self.completion_len() == 0 {
             self.completion_index = None;
         } else if let Some(index) = self.completion_index {
@@ -659,6 +666,10 @@ impl Insert {
             if let Some(lsp) = buf.lsp.as_ref() {
                 // LSP
                 lsp.request_completion(buf.core.get_string(), buf.core.cursor());
+            }
+            if let Some(tabnine) = buf.tabnine.as_ref() {
+                // TabNine
+                tabnine.request_completion(buf);
             }
         }
         // snippet

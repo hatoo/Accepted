@@ -23,6 +23,7 @@ use crate::lsp::LSPClient;
 use crate::ropey_util::RopeExt;
 use crate::storage::Storage;
 use crate::syntax;
+use crate::tabnine::TabNineClient;
 
 pub struct Yank {
     pub insert_newline: bool,
@@ -71,6 +72,7 @@ pub struct Buffer<'a> {
     pub yank: Yank,
     last_save: Id,
     pub lsp: Option<LSPClient>,
+    pub tabnine: Option<TabNineClient>,
     compiler: Option<Compiler<'a>>,
     row_offset: usize,
     last_compiler_result: Option<CompileResult>,
@@ -98,6 +100,7 @@ impl<'a> Buffer<'a> {
             yank: Yank::default(),
             last_save: Id::default(),
             lsp: None,
+            tabnine: TabNineClient::new().ok(),
             compiler: config.get::<keys::Compiler>(None).map(Compiler::new),
             row_offset: 0,
             last_compiler_result: None,
