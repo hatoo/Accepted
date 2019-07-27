@@ -707,6 +707,9 @@ impl Mode for Insert {
         if let Some(lsp) = buf.lsp.as_ref() {
             lsp.poll();
         }
+        if let Some(tabnine) = buf.tabnine.as_ref() {
+            tabnine.poll();
+        }
         self.build_completion(buf);
     }
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
