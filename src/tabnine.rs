@@ -26,7 +26,7 @@ impl TabNineClient {
         let (args_sender, args_receiver) = mpsc::channel::<AutocompleteArgs>();
         let (results_sender, results_receiver) = mpsc::channel::<AutocompleteResponse>();
 
-        std::thread::spawn(move || {
+        std::thread::spawn(move || -> std::io::Result<()> {
             for args in args_receiver {
                 let req = Request {
                     version: "1.0.0".to_string(),
@@ -34,9 +34,10 @@ impl TabNineClient {
                 };
                 if let Ok(json) = serde_json::to_string(&req) {
                     let json = json.replace('\n', "");
-                    writeln!(stdin, "{}", json);
+                    writeln!(stdin, "{}", json)?;
                 }
             }
+            Ok(())
         });
 
         std::thread::spawn(move || {
@@ -95,7 +96,7 @@ impl TabNineClient {
             max_num_results: None,
         };
 
-        self.args_sender.send(req);
+        let _ = self.args_sender.send(req);
     }
 }
 
@@ -117,7 +118,7 @@ struct AutoComplete {
     autocomplete: AutocompleteArgs,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct AutocompleteArgs {
     before: String,
     after: String,
