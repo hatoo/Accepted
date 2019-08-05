@@ -11,12 +11,17 @@ use serde;
 use serde_json;
 
 use crate::core::Cursor;
-use crate::mode::Completion;
+
+#[derive(Debug)]
+pub struct LSPCompletion {
+    pub keyword: String,
+    pub doc: String,
+}
 
 pub struct LSPClient {
     process: process::Child,
     completion_req: Sender<(String, Cursor)>,
-    completion_recv: Receiver<Vec<Completion>>,
+    completion_recv: Receiver<Vec<LSPCompletion>>,
 }
 
 impl Drop for LSPClient {
@@ -154,7 +159,7 @@ impl LSPClient {
         let _ = self.completion_req.send((src, cursor));
     }
 
-    pub fn poll(&self) -> Option<Vec<Completion>> {
+    pub fn poll(&self) -> Option<Vec<LSPCompletion>> {
         let mut res = None;
         while let Ok(completion) = self.completion_recv.try_recv() {
             res = Some(completion);
@@ -207,11 +212,11 @@ where
     }
 }
 
-fn extract_completion(completion: languageserver_types::CompletionResponse) -> Vec<Completion> {
+fn extract_completion(completion: languageserver_types::CompletionResponse) -> Vec<LSPCompletion> {
     match completion {
         languageserver_types::CompletionResponse::Array(array) => array
             .into_iter()
-            .map(|item| Completion {
+            .map(|item| LSPCompletion {
                 keyword: item.label,
                 doc: item.detail.unwrap_or_default(),
             })
@@ -219,7 +224,7 @@ fn extract_completion(completion: languageserver_types::CompletionResponse) -> V
         languageserver_types::CompletionResponse::List(list) => list
             .items
             .into_iter()
-            .map(|item| Completion {
+            .map(|item| LSPCompletion {
                 keyword: item.label,
                 doc: item.detail.unwrap_or_default(),
             })

@@ -25,6 +25,7 @@ use crate::core::CursorRange;
 use crate::core::Id;
 use crate::draw;
 use crate::indent;
+use crate::lsp::LSPCompletion;
 use crate::parenthesis;
 use crate::ropey_util::RopeExt;
 use crate::ropey_util::RopeSliceExt;
@@ -63,18 +64,12 @@ pub struct Normal {
     frame: usize,
 }
 
-#[derive(Debug)]
-pub struct Completion {
-    pub keyword: String,
-    pub doc: String,
-}
-
 struct Prefix;
 
 struct Insert {
     completion_index: Option<usize>,
     buf_update: Id,
-    completions: Vec<Completion>,
+    completions: Vec<LSPCompletion>,
     tabnine_completions: Vec<crate::tabnine::TabNineCompletion>,
     snippet_completions: Vec<String>,
 }
