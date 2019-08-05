@@ -100,7 +100,7 @@ impl<'a> Buffer<'a> {
             yank: Yank::default(),
             last_save: Id::default(),
             lsp: None,
-            tabnine: TabNineClient::new().ok(),
+            tabnine: None,
             compiler: config.get::<keys::Compiler>(None).map(Compiler::new),
             row_offset: 0,
             last_compiler_result: None,
@@ -155,6 +155,11 @@ impl<'a> Buffer<'a> {
             .config
             .get::<keys::LSP>(self.path())
             .and_then(|c| LSPClient::start(c.command(), ext).ok());
+
+        self.tabnine = self
+            .config
+            .get::<keys::TabNineCommand>(self.path())
+            .and_then(|c| TabNineClient::new(c.command()).ok());
     }
 
     fn reset_syntax(&mut self) {

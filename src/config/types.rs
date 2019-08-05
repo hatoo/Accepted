@@ -108,4 +108,9 @@ pub mod keys {
     impl Key for TestCommand {
         type Value = Command;
     }
+
+    pub struct TabNineCommand;
+    impl Key for TabNineCommand {
+        type Value = Command;
+    }
 }

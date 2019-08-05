@@ -13,8 +13,8 @@ pub struct TabNineClient {
 }
 
 impl TabNineClient {
-    pub fn new() -> Result<Self, failure::Error> {
-        let mut proc = process::Command::new("TabNine")
+    pub fn new(mut command: process::Command) -> Result<Self, failure::Error> {
+        let mut proc = command
             .stdin(process::Stdio::piped())
             .stderr(process::Stdio::piped())
             .stdout(process::Stdio::piped())
