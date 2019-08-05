@@ -154,7 +154,6 @@ impl<'a> Buffer<'a> {
         self.lsp = self
             .get_config::<keys::LSP>()
             .and_then(|c| LSPClient::start(c.command(), ext).ok());
-
         self.tabnine = self
             .get_config::<keys::TabNineCommand>()
             .and_then(|c| TabNineClient::new(c.command()).ok());

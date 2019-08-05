@@ -75,7 +75,7 @@ struct Insert {
     completion_index: Option<usize>,
     buf_update: Id,
     completions: Vec<Completion>,
-    tabnine_completions: Vec<Completion>,
+    tabnine_completions: Vec<crate::tabnine::TabNineCompletion>,
     snippet_completions: Vec<String>,
 }
 
@@ -588,6 +588,14 @@ impl Mode for Normal {
         }
         self.frame = (std::num::Wrapping(self.frame) + std::num::Wrapping(1)).0;
 
+        if buf.lsp.is_some() {
+            footer.puts(" [LSP]", draw::styles::FOOTER);
+        }
+
+        if buf.tabnine.is_some() {
+            footer.puts(" [TabNine]", draw::styles::FOOTER);
+        }
+
         cursor
     }
 }
@@ -636,6 +644,35 @@ impl Insert {
                     [index - self.completions.len() - self.tabnine_completions.len()]]
                     .clone(),
             )
+        }
+    }
+
+    fn remove_old_prefix(&self, core: &mut Core) {
+        if let Some(index) = self.completion_index {
+            if index < self.completions.len() {
+                Self::remove_token(core);
+            } else if index < self.completions.len() + self.tabnine_completions.len() {
+                let len = self.tabnine_completions[index - self.completions.len()]
+                    .old_prefix
+                    .chars()
+                    .count();
+
+                while core.cursor_dec() {
+                    if core.char_at_cursor() == Some(' ') {
+                        core.delete();
+                    } else {
+                        core.cursor_inc();
+                        break;
+                    }
+                }
+
+                for _ in 0..len {
+                    core.cursor_dec();
+                    core.delete();
+                }
+            } else {
+                Self::remove_token(core);
+            }
         }
     }
 
@@ -775,7 +812,7 @@ impl Mode for Insert {
             Event::Key(Key::Char('\n')) => {
                 if self.completion_index.is_some() {
                     let body = &self.get_completion(buf).unwrap();
-                    Self::remove_token(&mut buf.core);
+                    self.remove_old_prefix(&mut buf.core);
                     for c in body.chars() {
                         buf.core.insert(c);
                     }

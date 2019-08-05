@@ -1,4 +1,3 @@
-use crate::mode::Completion;
 use languageserver_types::{CompletionItemKind, Documentation};
 use serde_derive::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader, Write};
@@ -10,6 +9,12 @@ pub struct TabNineClient {
     proc: process::Child,
     args_sender: Sender<AutocompleteArgs>,
     results_receiver: Receiver<AutocompleteResponse>,
+}
+
+pub struct TabNineCompletion {
+    pub keyword: String,
+    pub doc: String,
+    pub old_prefix: String,
 }
 
 impl TabNineClient {
@@ -60,13 +65,14 @@ impl TabNineClient {
         })
     }
 
-    pub fn poll(&self) -> Option<Vec<Completion>> {
+    pub fn poll(&self) -> Option<Vec<TabNineCompletion>> {
         let mut ret = None;
         while let Ok(res) = self.results_receiver.try_recv() {
+            let old_prefix = res.old_prefix.clone();
             ret = Some(
                 res.results
                     .into_iter()
-                    .map(|mut entry| Completion {
+                    .map(|mut entry| TabNineCompletion {
                         keyword: entry.new_prefix.clone(),
                         doc: entry
                             .documentation
@@ -76,6 +82,7 @@ impl TabNineClient {
                                 Documentation::MarkupContent(m) => m.value,
                             })
                             .unwrap_or_else(|| "TabNine".to_string()),
+                        old_prefix: old_prefix.clone(),
                     })
                     .collect::<Vec<_>>(),
             );
