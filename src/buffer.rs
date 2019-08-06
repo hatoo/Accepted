@@ -111,7 +111,7 @@ impl<'a> Buffer<'a> {
             last_compiler_compiled: CompileId::default(),
             show_cursor_on_draw: ShowCursor::None,
         };
-        res.restart_lsp();
+        res.restart_completer();
         res.reset_snippet();
         res
     }
@@ -145,7 +145,7 @@ impl<'a> Buffer<'a> {
         self.get_config::<keys::IndentWidth>().cloned().unwrap_or(4)
     }
 
-    pub fn restart_lsp(&mut self) {
+    pub fn restart_completer(&mut self) {
         let ext = self
             .extension()
             .unwrap_or_default()
@@ -179,7 +179,7 @@ impl<'a> Buffer<'a> {
 
     pub fn set_language(&mut self) {
         self.compiler = self.get_config::<keys::Compiler>().map(Compiler::new);
-        self.restart_lsp();
+        self.restart_completer();
         self.reset_snippet();
         self.reset_syntax();
     }

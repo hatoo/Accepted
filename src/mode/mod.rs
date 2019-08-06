@@ -1099,7 +1099,7 @@ impl Mode for Prefix {
                 );
             }
             Event::Key(Key::Char('l')) => {
-                buf.restart_lsp();
+                buf.restart_completer();
                 return Transition::Return(
                     Some(
                         if buf.lsp.is_some() {
