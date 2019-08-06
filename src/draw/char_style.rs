@@ -148,6 +148,19 @@ pub mod styles {
         },
         modification: CharModification::Default,
     };
+    pub const FOOTER_BLUE: CharStyle = CharStyle {
+        fg: Color {
+            r: 0x41,
+            g: 0x69,
+            b: 0xe1,
+        },
+        bg: Color {
+            r: 200,
+            g: 200,
+            b: 200,
+        },
+        modification: CharModification::Default,
+    };
     pub const SELECTED: CharStyle = CharStyle {
         fg: Color {
             r: 200,

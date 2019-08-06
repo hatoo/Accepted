@@ -563,9 +563,7 @@ impl Mode for Normal {
             }
 
             if buf.is_compiling() {
-                let animation = [
-                    '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏',
-                ];
+                let animation = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
                 let a = animation[self.frame % animation.len()];
                 footer.puts(&format!(" {}Compiling ...", a), draw::styles::FOOTER);
             } else if let Some(success) = buf.last_compile_success() {
@@ -584,11 +582,11 @@ impl Mode for Normal {
         self.frame = (std::num::Wrapping(self.frame) + std::num::Wrapping(1)).0;
 
         if buf.lsp.is_some() {
-            footer.puts(" [LSP]", draw::styles::FOOTER);
+            footer.puts(" [LSP]", draw::styles::FOOTER_BLUE);
         }
 
         if buf.tabnine.is_some() {
-            footer.puts(" [TabNine]", draw::styles::FOOTER);
+            footer.puts(" [TabNine]", draw::styles::FOOTER_BLUE);
         }
 
         cursor
