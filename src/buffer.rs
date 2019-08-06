@@ -23,6 +23,7 @@ use crate::lsp::LSPClient;
 use crate::ropey_util::RopeExt;
 use crate::storage::Storage;
 use crate::syntax;
+use crate::tabnine::TabNineClient;
 
 pub struct Yank {
     pub insert_newline: bool,
@@ -71,6 +72,7 @@ pub struct Buffer<'a> {
     pub yank: Yank,
     last_save: Id,
     pub lsp: Option<LSPClient>,
+    pub tabnine: Option<TabNineClient>,
     compiler: Option<Compiler<'a>>,
     row_offset: usize,
     last_compiler_result: Option<CompileResult>,
@@ -98,6 +100,7 @@ impl<'a> Buffer<'a> {
             yank: Yank::default(),
             last_save: Id::default(),
             lsp: None,
+            tabnine: None,
             compiler: config.get::<keys::Compiler>(None).map(Compiler::new),
             row_offset: 0,
             last_compiler_result: None,
@@ -108,7 +111,7 @@ impl<'a> Buffer<'a> {
             last_compiler_compiled: CompileId::default(),
             show_cursor_on_draw: ShowCursor::None,
         };
-        res.restart_lsp();
+        res.restart_completer();
         res.reset_snippet();
         res
     }
@@ -142,16 +145,18 @@ impl<'a> Buffer<'a> {
         self.get_config::<keys::IndentWidth>().cloned().unwrap_or(4)
     }
 
-    pub fn restart_lsp(&mut self) {
+    pub fn restart_completer(&mut self) {
         let ext = self
             .extension()
             .unwrap_or_default()
             .to_string_lossy()
             .into_owned();
         self.lsp = self
-            .config
-            .get::<keys::LSP>(self.path())
+            .get_config::<keys::LSP>()
             .and_then(|c| LSPClient::start(c.command(), ext).ok());
+        self.tabnine = self
+            .get_config::<keys::TabNineCommand>()
+            .and_then(|c| TabNineClient::new(c.command()).ok());
     }
 
     fn reset_syntax(&mut self) {
@@ -174,7 +179,7 @@ impl<'a> Buffer<'a> {
 
     pub fn set_language(&mut self) {
         self.compiler = self.get_config::<keys::Compiler>().map(Compiler::new);
-        self.restart_lsp();
+        self.restart_completer();
         self.reset_snippet();
         self.reset_syntax();
     }

@@ -3,6 +3,7 @@
 indent_width = 4
 # Set true if you are running in legacy terminal which has no true color
 ansi_color = false
+tabnine_command = ["TabNine"]
 
 # Configure for *.rs files
 [file.rs]

@@ -25,6 +25,7 @@ use crate::core::CursorRange;
 use crate::core::Id;
 use crate::draw;
 use crate::indent;
+use crate::lsp::LSPCompletion;
 use crate::parenthesis;
 use crate::ropey_util::RopeExt;
 use crate::ropey_util::RopeSliceExt;
@@ -63,17 +64,13 @@ pub struct Normal {
     frame: usize,
 }
 
-pub struct Completion {
-    pub keyword: String,
-    pub doc: String,
-}
-
 struct Prefix;
 
 struct Insert {
     completion_index: Option<usize>,
     buf_update: Id,
-    completions: Vec<Completion>,
+    completions: Vec<LSPCompletion>,
+    tabnine_completions: Vec<crate::tabnine::TabNineCompletion>,
     snippet_completions: Vec<String>,
 }
 
@@ -83,6 +80,7 @@ impl Default for Insert {
             completion_index: None,
             completions: Vec::new(),
             snippet_completions: Vec::new(),
+            tabnine_completions: Vec::new(),
             buf_update: Id::default(),
         }
     }
@@ -565,9 +563,7 @@ impl Mode for Normal {
             }
 
             if buf.is_compiling() {
-                let animation = [
-                    '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏',
-                ];
+                let animation = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
                 let a = animation[self.frame % animation.len()];
                 footer.puts(&format!(" {}Compiling ...", a), draw::styles::FOOTER);
             } else if let Some(success) = buf.last_compile_success() {
@@ -584,6 +580,14 @@ impl Mode for Normal {
             );
         }
         self.frame = (std::num::Wrapping(self.frame) + std::num::Wrapping(1)).0;
+
+        if buf.lsp.is_some() {
+            footer.puts(" [LSP]", draw::styles::FOOTER_BLUE);
+        }
+
+        if buf.tabnine.is_some() {
+            footer.puts(" [TabNine]", draw::styles::FOOTER_BLUE);
+        }
 
         cursor
     }
@@ -614,15 +618,54 @@ impl Insert {
     }
 
     fn completion_len(&self) -> usize {
-        self.completions.len() + self.snippet_completions.len()
+        self.completions.len() + self.tabnine_completions.len() + self.snippet_completions.len()
     }
 
     fn get_completion(&self, buf: &Buffer) -> Option<String> {
         let index = self.completion_index?;
         if index < self.completions.len() {
             Some(self.completions[index].keyword.clone())
+        } else if index < self.completions.len() + self.tabnine_completions.len() {
+            Some(
+                self.tabnine_completions[index - self.completions.len()]
+                    .keyword
+                    .clone(),
+            )
         } else {
-            Some(buf.snippet[&self.snippet_completions[index - self.completions.len()]].clone())
+            Some(
+                buf.snippet[&self.snippet_completions
+                    [index - self.completions.len() - self.tabnine_completions.len()]]
+                    .clone(),
+            )
+        }
+    }
+
+    fn remove_old_prefix(&self, core: &mut Core) {
+        if let Some(index) = self.completion_index {
+            if index < self.completions.len() {
+                Self::remove_token(core);
+            } else if index < self.completions.len() + self.tabnine_completions.len() {
+                let len = self.tabnine_completions[index - self.completions.len()]
+                    .old_prefix
+                    .chars()
+                    .count();
+
+                while core.cursor_dec() {
+                    if core.char_at_cursor() == Some(' ') {
+                        core.delete();
+                    } else {
+                        core.cursor_inc();
+                        break;
+                    }
+                }
+
+                for _ in 0..len {
+                    core.cursor_dec();
+                    core.delete();
+                }
+            } else {
+                Self::remove_token(core);
+            }
         }
     }
 
@@ -632,6 +675,12 @@ impl Insert {
                 let token = Self::token(&buf.core);
                 completions.retain(|s| s.keyword != token);
                 self.completions = completions;
+            }
+        }
+
+        if let Some(tabnine) = buf.tabnine.as_ref() {
+            if let Some(completion) = tabnine.poll() {
+                self.tabnine_completions = completion;
             }
         }
 
@@ -660,6 +709,10 @@ impl Insert {
                 // LSP
                 lsp.request_completion(buf.core.get_string(), buf.core.cursor());
             }
+            if let Some(tabnine) = buf.tabnine.as_ref() {
+                // TabNine
+                tabnine.request_completion(buf);
+            }
         }
         // snippet
         let prefix = Self::token(&buf.core);
@@ -683,6 +736,9 @@ impl Mode for Insert {
         // Flush completion
         if let Some(lsp) = buf.lsp.as_ref() {
             lsp.poll();
+        }
+        if let Some(tabnine) = buf.tabnine.as_ref() {
+            tabnine.poll();
         }
         self.build_completion(buf);
     }
@@ -749,7 +805,7 @@ impl Mode for Insert {
             Event::Key(Key::Char('\n')) => {
                 if self.completion_index.is_some() {
                     let body = &self.get_completion(buf).unwrap();
-                    Self::remove_token(&mut buf.core);
+                    self.remove_old_prefix(&mut buf.core);
                     for c in body.chars() {
                         buf.core.insert(c);
                     }
@@ -834,8 +890,22 @@ impl Mode for Insert {
                         for c in c.doc.chars() {
                             view.put_inline(c, draw::styles::SELECTED, None);
                         }
-                    } else {
+                    } else if i < self.completions.len() + self.tabnine_completions.len() {
                         let i = i - self.completions.len();
+                        let c = &self.tabnine_completions[i];
+                        for c in c.keyword.chars() {
+                            if is_selected {
+                                view.put_inline(c, draw::styles::HIGHLIGHT, None);
+                            } else {
+                                view.put_inline(c, draw::styles::UI, None);
+                            }
+                        }
+                        view.put_inline(' ', draw::styles::DEFAULT, None);
+                        for c in c.doc.chars() {
+                            view.put_inline(c, draw::styles::SELECTED, None);
+                        }
+                    } else {
+                        let i = i - self.completions.len() - self.tabnine_completions.len();
                         for c in self.snippet_completions[i].chars() {
                             if is_selected {
                                 view.put_inline(c, draw::styles::HIGHLIGHT, None);
@@ -843,6 +913,8 @@ impl Mode for Insert {
                                 view.put_inline(c, draw::styles::UI, None);
                             }
                         }
+                        view.put_inline(' ', draw::styles::DEFAULT, None);
+                        view.puts("snippet", draw::styles::SELECTED);
                     }
                     view.newline();
                 }
@@ -1027,7 +1099,7 @@ impl Mode for Prefix {
                 );
             }
             Event::Key(Key::Char('l')) => {
-                buf.restart_lsp();
+                buf.restart_completer();
                 return Transition::Return(
                     Some(
                         if buf.lsp.is_some() {
