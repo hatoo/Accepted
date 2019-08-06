@@ -6,7 +6,7 @@ use std::thread;
 
 use jsonrpc_core;
 use jsonrpc_core::Output;
-use languageserver_types;
+use lsp_types;
 use serde;
 use serde_json;
 
@@ -44,12 +44,12 @@ impl LSPClient {
             .stderr(process::Stdio::piped())
             .spawn()?;
 
-        let init = languageserver_types::InitializeParams {
+        let init = lsp_types::InitializeParams {
             process_id: Some(u64::from(process::id())),
             root_path: Some("./".to_string()),
             root_uri: None,
             initialization_options: None,
-            capabilities: languageserver_types::ClientCapabilities::default(),
+            capabilities: lsp_types::ClientCapabilities::default(),
             trace: None,
             workspace_folders: None,
         };
@@ -64,7 +64,7 @@ impl LSPClient {
                 .ok_or_else(|| failure::err_msg("Take stdout"))?,
         );
 
-        send_request::<_, languageserver_types::request::Initialize>(&mut stdin, ID_INIT, init)?;
+        send_request::<_, lsp_types::request::Initialize>(&mut stdin, ID_INIT, init)?;
 
         let (init_tx, init_rx) = channel::<()>();
         let (tx, rx) = channel();
@@ -74,36 +74,34 @@ impl LSPClient {
             let _ = || -> Result<(), failure::Error> {
                 // Wait initialize
                 init_rx.recv()?;
-                let file_url = languageserver_types::Url::parse(&format!(
-                    "file://localhost/main.{}",
-                    extension
-                ))?;
+                let file_url =
+                    lsp_types::Url::parse(&format!("file://localhost/main.{}", extension))?;
 
                 while let Ok((src, cursor)) = c_rx.recv() {
-                    let open = languageserver_types::DidOpenTextDocumentParams {
-                        text_document: languageserver_types::TextDocumentItem {
+                    let open = lsp_types::DidOpenTextDocumentParams {
+                        text_document: lsp_types::TextDocumentItem {
                             uri: file_url.clone(),
                             language_id: extension.clone(),
                             version: 0,
                             text: src,
                         },
                     };
-                    send_notify::<_, languageserver_types::notification::DidOpenTextDocument>(
+                    send_notify::<_, lsp_types::notification::DidOpenTextDocument>(
                         &mut stdin, open,
                     )?;
-                    let completion = languageserver_types::CompletionParams {
-                        text_document: languageserver_types::TextDocumentIdentifier {
-                            uri: file_url.clone(),
-                        },
-                        position: languageserver_types::Position {
-                            line: cursor.row as u64,
-                            character: cursor.col as u64,
+                    let completion = lsp_types::CompletionParams {
+                        text_document_position: lsp_types::TextDocumentPositionParams {
+                            text_document: lsp_types::TextDocumentIdentifier {
+                                uri: file_url.clone(),
+                            },
+                            position: lsp_types::Position {
+                                line: cursor.row as u64,
+                                character: cursor.col as u64,
+                            },
                         },
                         context: None,
                     };
-                    send_request::<_, languageserver_types::request::Completion>(
-                        &mut stdin, 1, completion,
-                    )?;
+                    send_request::<_, lsp_types::request::Completion>(&mut stdin, 1, completion)?;
                 }
                 Ok(())
             }();
@@ -136,9 +134,9 @@ impl LSPClient {
                         if suc.id == jsonrpc_core::id::Id::Num(ID_INIT) {
                             init_tx.send(())?;
                         } else if suc.id == jsonrpc_core::id::Id::Num(ID_COMPLETION) {
-                            let completion = serde_json::from_value::<
-                                languageserver_types::CompletionResponse,
-                            >(suc.result)?;
+                            let completion = serde_json::from_value::<lsp_types::CompletionResponse>(
+                                suc.result,
+                            )?;
 
                             let completion = extract_completion(completion);
                             tx.send(completion)?;
@@ -168,7 +166,7 @@ impl LSPClient {
     }
 }
 
-fn send_request<T: Write, R: languageserver_types::request::Request>(
+fn send_request<T: Write, R: lsp_types::request::Request>(
     t: &mut T,
     id: u64,
     params: R::Params,
@@ -191,7 +189,7 @@ where
     }
 }
 
-fn send_notify<T: Write, R: languageserver_types::notification::Notification>(
+fn send_notify<T: Write, R: lsp_types::notification::Notification>(
     t: &mut T,
     params: R::Params,
 ) -> Result<(), failure::Error>
@@ -212,16 +210,16 @@ where
     }
 }
 
-fn extract_completion(completion: languageserver_types::CompletionResponse) -> Vec<LSPCompletion> {
+fn extract_completion(completion: lsp_types::CompletionResponse) -> Vec<LSPCompletion> {
     match completion {
-        languageserver_types::CompletionResponse::Array(array) => array
+        lsp_types::CompletionResponse::Array(array) => array
             .into_iter()
             .map(|item| LSPCompletion {
                 keyword: item.label,
                 doc: item.detail.unwrap_or_default(),
             })
             .collect(),
-        languageserver_types::CompletionResponse::List(list) => list
+        lsp_types::CompletionResponse::List(list) => list
             .items
             .into_iter()
             .map(|item| LSPCompletion {
