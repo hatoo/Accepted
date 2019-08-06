@@ -1,4 +1,4 @@
-use languageserver_types::{CompletionItemKind, Documentation};
+use lsp_types::{CompletionItemKind, Documentation};
 use serde_derive::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader, Write};
 use std::process;
