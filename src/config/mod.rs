@@ -31,7 +31,7 @@ struct LanguageConfigToml {
     syntax: Option<String>,
     compiler: Option<CompilerConfig>,
     test_command: Option<Vec<String>>,
-    tabnine_command: Option<Vec<String>>,
+    tabnine: Option<Vec<String>>,
 }
 
 pub struct LanguageConfig(typemap::TypeMap);
@@ -99,7 +99,7 @@ impl Into<LanguageConfig> for LanguageConfigToml {
         );
 
         language_config.insert_option::<keys::TabNineCommand>(
-            self.tabnine_command
+            self.tabnine
                 .as_ref()
                 .map(Vec::as_slice)
                 .and_then(Command::new),
