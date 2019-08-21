@@ -1046,7 +1046,9 @@ impl Mode for Prefix {
                 return Transition::Return(None, false);
             }
             Event::Key(Key::Char(' ')) => {
-                buf.format();
+                if let Err(msg) = buf.format() {
+                    return Transition::Return(Some(msg.into_owned()), false);
+                }
                 return Transition::Return(None, false);
             }
             Event::Key(Key::Char('q')) => {
@@ -1057,7 +1059,7 @@ impl Mode for Prefix {
             }
             Event::Key(Key::Char('s')) => {
                 if let Some(path) = buf.path().map(|p| p.to_string_lossy().into_owned()) {
-                    buf.format();
+                    let _ = buf.format();
                     let message = if buf.save(false) {
                         format!("Saved to {}", path)
                     } else {
@@ -1115,7 +1117,7 @@ impl Mode for Prefix {
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
                 let result: Result<(process::Child, Option<String>), &'static str> = (|| {
-                    buf.format();
+                    let _ = buf.format();
                     buf.save(is_optimize);
                     buf.wait_compile_message();
                     let path = buf.path().ok_or("Save First")?;

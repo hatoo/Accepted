@@ -1,3 +1,4 @@
+use std::fmt;
 use std::process;
 
 use serde_derive::Deserialize;
@@ -33,6 +34,16 @@ impl Command {
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(format!("{} {}", prog, args.join(" ")))
+    }
+}
+
+impl fmt::Display for Command {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", &self.program)?;
+        for a in &self.args {
+            write!(f, " {}", a)?;
+        }
+        Ok(())
     }
 }
 

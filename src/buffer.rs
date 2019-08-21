@@ -261,7 +261,7 @@ impl<'a> Buffer<'a> {
         self.row_offset = min(self.row_offset + 3, self.core.buffer().len_lines() - 1);
     }
 
-    pub fn format(&mut self) {
+    pub fn format(&mut self) -> Result<(), Cow<'static, str>> {
         let src = self.core.get_string();
         let formatter = self.config.get::<keys::Formatter>(self.path());
 
@@ -270,7 +270,12 @@ impl<'a> Buffer<'a> {
                 if formatted != self.core.get_string() {
                     self.core.set_string(formatted, false);
                 }
+                Ok(())
+            } else {
+                Err(Cow::Owned(format!("Failed to run {}", formatter)))
             }
+        } else {
+            Err(Cow::Borrowed("formatter is not defined"))
         }
     }
 
