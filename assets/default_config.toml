@@ -27,3 +27,6 @@ test_command = ["./$FILE_STEM"]
 
 [file.rb]
 indent_width = 2
+
+[file.go]
+formatter = ["gofmt"]
