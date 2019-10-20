@@ -11,7 +11,7 @@ dependencies = [
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "fuzzy-matcher 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "iter-read 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 13.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jsonrpc-core 14.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "languageserver-types 0.54.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lsp-types 0.59.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -434,7 +434,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "jsonrpc-core"
-version = "13.0.0"
+version = "14.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "futures 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1249,7 +1249,7 @@ dependencies = [
 "checksum idna 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "38f09e0f0b1fb55fdee1f17470ad800da77af5186a1a76c026b679358b7e844e"
 "checksum iter-read 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fd21fe25e1055a2f43330a99add09151857f73fcf3cee59d0b1f802c096fe2be"
 "checksum itoa 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)" = "501266b7edd0174f8530248f87f99c88fbe60ca4ef3dd486835b8d8d53136f7f"
-"checksum jsonrpc-core 13.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "34d379861584fe4e3678f6ae9ee60b41726df2989578c1dc0f90190dfc92dbe0"
+"checksum jsonrpc-core 14.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "9b392c9e8e43a12e6b21160903f473b1066e57fe18477394a93a1efd25654003"
 "checksum languageserver-types 0.54.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c511f9ff7488a97fe86ca0f3a020e2515ea0e684fc0048ce9821a9e2f851071a"
 "checksum lazy_static 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "bc5729f27f159ddd61f4df6228e827e86643d4d3e7c32183cb30a1c08f604a14"
 "checksum lazycell 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b294d6fa9ee409a054354afc4352b0b9ef7ca222c69b8812cbea9e7d2bf3783f"
