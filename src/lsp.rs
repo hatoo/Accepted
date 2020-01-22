@@ -46,12 +46,13 @@ impl LSPClient {
 
         let init = lsp_types::InitializeParams {
             process_id: Some(u64::from(process::id())),
-            root_path: Some("./".to_string()),
-            root_uri: None,
+            root_path: None,
+            root_uri: Some(lsp_types::Url::parse("file://localhost/").unwrap()),
             initialization_options: None,
             capabilities: lsp_types::ClientCapabilities::default(),
             trace: None,
             workspace_folders: None,
+            client_info: None,
         };
 
         let mut stdin: process::ChildStdin = lsp
@@ -99,6 +100,8 @@ impl LSPClient {
                                 character: cursor.col as u64,
                             },
                         },
+                        work_done_progress_params: Default::default(),
+                        partial_result_params: Default::default(),
                         context: None,
                     };
                     send_request::<_, lsp_types::request::Completion>(&mut stdin, 1, completion)?;
