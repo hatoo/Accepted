@@ -13,7 +13,7 @@ dependencies = [
  "iter-read 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 14.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "languageserver-types 0.54.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "lsp-types 0.61.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lsp-types 0.70.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rbtag 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -109,6 +109,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "base64"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "bincode"
@@ -498,9 +503,10 @@ dependencies = [
 
 [[package]]
 name = "lsp-types"
-version = "0.61.0"
+version = "0.70.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
+ "base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.41 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1188,6 +1194,7 @@ dependencies = [
 "checksum backtrace 0.3.40 (registry+https://github.com/rust-lang/crates.io-index)" = "924c76597f0d9ca25d762c25a4d369d51267536465dc5064bdf0eb073ed477ea"
 "checksum backtrace-sys 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)" = "5d6575f128516de27e3ce99689419835fce9643a9b215a14d2b5b685be018491"
 "checksum base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0b25d992356d2eb0ed82172f5248873db5560c4721f564b13cb5193bda5e668e"
+"checksum base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b41b7ea54a0c9d92199de89e20e58d49f02f8e699814ef3fdf266f6f748d15c7"
 "checksum bincode 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b8ab639324e3ee8774d296864fbc0dbbb256cf1a41c490b94cba90c082915f92"
 "checksum bindgen 0.50.1 (registry+https://github.com/rust-lang/crates.io-index)" = "cb0e5a5f74b2bafe0b39379f616b5975e08bcaca4e779c078d5c31324147e9ba"
 "checksum bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
@@ -1234,7 +1241,7 @@ dependencies = [
 "checksum line-wrap 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "f30344350a2a51da54c1d53be93fade8a237e545dbcc4bdbe635413f2117cab9"
 "checksum linked-hash-map 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "ae91b68aebc4ddb91978b11a1b02ddd8602a05ec19002801c5666000e05e0f83"
 "checksum log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)" = "14b6052be84e6b71ab17edffc2eeabf5c2c3ae1fdb464aae35ac50c67a44e1f7"
-"checksum lsp-types 0.61.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fa3268fbe8beb2795c2fb327bf44f4f3d24f5fe9ebc18d7e2980afd444d72bcf"
+"checksum lsp-types 0.70.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ef197b24cb3f12fc3984667a505691fec9d683204ddff56f12b2d1940e09a988"
 "checksum matches 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "7ffc5c5338469d4d3ea17d269fa8ea3512ad247247c30bd2df69e68309ed0a08"
 "checksum maybe-uninit 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 "checksum memchr 2.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "88579771288728879b57485cc7d6b07d648c9f0141eb955f8ab7f9d45394468e"
