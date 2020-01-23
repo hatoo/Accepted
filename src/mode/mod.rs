@@ -33,13 +33,18 @@ use crate::text_object::{self, Action};
 
 mod fuzzy;
 
+pub struct TransitionReturn {
+    pub message: Option<String>,
+    pub is_commit_dot_macro: bool,
+}
+
 pub enum Transition {
     Nothing,
     Trans(Box<dyn Mode>),
     RecordMacro(Box<dyn Mode>),
     DoMacro,
     // Message, is commit dot macro?
-    Return(Option<String>, bool),
+    Return(TransitionReturn),
     Exit,
     CreateNewTab,
     // 1-indexed
@@ -746,7 +751,10 @@ impl Mode for Insert {
         match event {
             Event::Key(Key::Esc) => {
                 buf.core.commit();
-                return Transition::Return(None, true);
+                return Transition::Return(TransitionReturn {
+                    message: None,
+                    is_commit_dot_macro: true,
+                });
             }
             Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
                 buf.scroll_up();
@@ -930,11 +938,17 @@ impl Mode for R {
         let core = &mut buf.core;
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::Return(None, false);
+                return Transition::Return(TransitionReturn {
+                    message: None,
+                    is_commit_dot_macro: false,
+                });
             }
             Event::Key(Key::Char(c)) => {
                 core.replace(c);
-                return Transition::Return(None, true);
+                return Transition::Return(TransitionReturn {
+                    message: None,
+                    is_commit_dot_macro: true,
+                });
             }
             _ => {}
         }
@@ -954,14 +968,20 @@ impl Mode for Search {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::Return(None, false);
+                return Transition::Return(TransitionReturn {
+                    message: None,
+                    is_commit_dot_macro: false,
+                });
             }
             Event::Key(Key::Backspace) => {
                 buf.search.pop();
             }
             Event::Key(Key::Char(c)) => {
                 if c == '\n' {
-                    return Transition::Return(None, false);
+                    return Transition::Return(TransitionReturn {
+                        message: None,
+                        is_commit_dot_macro: false,
+                    });
                 }
                 buf.search.push(c);
             }
@@ -992,7 +1012,10 @@ impl Mode for Save {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::Return(None, false);
+                return Transition::Return(TransitionReturn {
+                    message: None,
+                    is_commit_dot_macro: false,
+                });
             }
             Event::Key(Key::Backspace) => {
                 self.path.pop();
@@ -1043,13 +1066,22 @@ impl Mode for Prefix {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::Return(None, false);
+                return Transition::Return(TransitionReturn {
+                    message: None,
+                    is_commit_dot_macro: false,
+                });
             }
             Event::Key(Key::Char(' ')) => {
                 if let Err(msg) = buf.format() {
-                    return Transition::Return(Some(msg.into_owned()), false);
+                    return Transition::Return(TransitionReturn {
+                        message: Some(msg.into_owned()),
+                        is_commit_dot_macro: false,
+                    });
                 }
-                return Transition::Return(None, false);
+                return Transition::Return(TransitionReturn {
+                    message: None,
+                    is_commit_dot_macro: false,
+                });
             }
             Event::Key(Key::Char('q')) => {
                 return Transition::Exit;
@@ -1065,7 +1097,10 @@ impl Mode for Prefix {
                     } else {
                         format!("Failed to save {}", path)
                     };
-                    return Transition::Return(Some(message), false);
+                    return Transition::Return(TransitionReturn {
+                        message: Some(message),
+                        is_commit_dot_macro: false,
+                    });
                 } else {
                     return Save {
                         path: String::new(),
@@ -1088,8 +1123,8 @@ impl Mode for Prefix {
             }
             Event::Key(Key::Char('y')) => {
                 let result = clipboard::clipboard_copy(&buf.core.get_string()).is_ok();
-                return Transition::Return(
-                    Some(
+                return Transition::Return(TransitionReturn {
+                    message: Some(
                         if result {
                             "Copied"
                         } else {
@@ -1097,13 +1132,13 @@ impl Mode for Prefix {
                         }
                         .into(),
                     ),
-                    false,
-                );
+                    is_commit_dot_macro: false,
+                });
             }
             Event::Key(Key::Char('l')) => {
                 buf.restart_completer();
-                return Transition::Return(
-                    Some(
+                return Transition::Return(TransitionReturn {
+                    message: Some(
                         if buf.lsp.is_some() {
                             "LSP Restarted"
                         } else {
@@ -1111,8 +1146,8 @@ impl Mode for Prefix {
                         }
                         .into(),
                     ),
-                    false,
-                );
+                    is_commit_dot_macro: false,
+                });
             }
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
@@ -1241,7 +1276,10 @@ impl Mode for Visual {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::Return(None, false);
+                return Transition::Return(TransitionReturn {
+                    message: None,
+                    is_commit_dot_macro: false,
+                });
             }
             Event::Key(Key::Char('h')) => {
                 buf.core.cursor_left();
@@ -1307,7 +1345,10 @@ impl Mode for Visual {
                 return if to_insert {
                     Insert::default().into()
                 } else {
-                    Transition::Return(Some("Deleted".into()), true)
+                    Transition::Return(TransitionReturn {
+                        message: Some("Deleted".into()),
+                        is_commit_dot_macro: true,
+                    })
                 };
             }
             Event::Key(Key::Char('p')) | Event::Key(Key::Ctrl('p')) => {
@@ -1327,7 +1368,10 @@ impl Mode for Visual {
                 }
                 buf.core.commit();
                 buf.show_cursor();
-                return Transition::Return(None, true);
+                return Transition::Return(TransitionReturn {
+                    message: None,
+                    is_commit_dot_macro: true,
+                });
             }
             Event::Key(Key::Char('y')) | Event::Key(Key::Ctrl('y')) => {
                 let is_clipboard = event == Event::Key(Key::Ctrl('y'));
@@ -1340,15 +1384,24 @@ impl Mode for Visual {
                 buf.core.set_cursor(range.l());
                 if is_clipboard {
                     if clipboard::clipboard_copy(&s).is_ok() {
-                        return Transition::Return(Some("Yanked".into()), false);
+                        return Transition::Return(TransitionReturn {
+                            message: Some("Yanked".into()),
+                            is_commit_dot_macro: false,
+                        });
                     } else {
-                        return Transition::Return(Some("Yank failed".into()), false);
+                        return Transition::Return(TransitionReturn {
+                            message: Some("Yank failed".into()),
+                            is_commit_dot_macro: false,
+                        });
                     }
                 } else {
                     buf.yank.insert_newline = self.line_mode;
                     buf.yank.content = s;
                 }
-                return Transition::Return(Some("Yanked".into()), false);
+                return Transition::Return(TransitionReturn {
+                    message: Some("Yanked".into()),
+                    is_commit_dot_macro: false,
+                });
             }
             Event::Key(Key::Char('S')) => {
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
@@ -1463,7 +1516,10 @@ impl Mode for ViewProcess {
 impl Mode for TextObjectOperation {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         if event == Event::Key(Key::Esc) {
-            return Transition::Return(None, false);
+            return Transition::Return(TransitionReturn {
+                message: None,
+                is_commit_dot_macro: false,
+            });
         }
         if let Event::Key(Key::Char(c)) = event {
             if c == self.parser.action.to_char() {
@@ -1487,10 +1543,16 @@ impl Mode for TextObjectOperation {
                         );
                         buf.core.delete_range(range);
                         buf.core.commit();
-                        return Transition::Return(None, true);
+                        return Transition::Return(TransitionReturn {
+                            message: None,
+                            is_commit_dot_macro: true,
+                        });
                     }
                     Action::Yank => {
-                        return Transition::Return(None, false);
+                        return Transition::Return(TransitionReturn {
+                            message: None,
+                            is_commit_dot_macro: false,
+                        });
                     }
                     Action::Change => {
                         let pos = buf.core.cursor();
@@ -1511,7 +1573,10 @@ impl Mode for TextObjectOperation {
             if c == 'j' || c == 'k' {
                 let range = if c == 'j' {
                     if buf.core.cursor().row == buf.core.buffer().len_lines() - 1 {
-                        return Transition::Return(None, false);
+                        return Transition::Return(TransitionReturn {
+                            message: None,
+                            is_commit_dot_macro: false,
+                        });
                     }
                     let next_line = buf.core.buffer().l(buf.core.cursor().row + 1).len_chars();
                     CursorRange(
@@ -1526,7 +1591,10 @@ impl Mode for TextObjectOperation {
                     )
                 } else {
                     if buf.core.cursor().row == 0 {
-                        return Transition::Return(None, false);
+                        return Transition::Return(TransitionReturn {
+                            message: None,
+                            is_commit_dot_macro: false,
+                        });
                     }
                     CursorRange(
                         Cursor {
@@ -1549,10 +1617,16 @@ impl Mode for TextObjectOperation {
                     Action::Delete => {
                         buf.core.delete_range(range);
                         buf.core.commit();
-                        return Transition::Return(None, true);
+                        return Transition::Return(TransitionReturn {
+                            message: None,
+                            is_commit_dot_macro: true,
+                        });
                     }
                     Action::Yank => {
-                        return Transition::Return(None, false);
+                        return Transition::Return(TransitionReturn {
+                            message: None,
+                            is_commit_dot_macro: false,
+                        });
                     }
                     Action::Change => {
                         buf.core.delete_range(range);
@@ -1574,7 +1648,10 @@ impl Mode for TextObjectOperation {
                         Action::Delete => {
                             buf.core.delete_range(range);
                             buf.core.commit();
-                            return Transition::Return(None, true);
+                            return Transition::Return(TransitionReturn {
+                                message: None,
+                                is_commit_dot_macro: true,
+                            });
                         }
                         Action::Change => {
                             buf.core.delete_range(range);
@@ -1582,11 +1659,17 @@ impl Mode for TextObjectOperation {
                             return Insert::default().into();
                         }
                         Action::Yank => {
-                            return Transition::Return(None, false);
+                            return Transition::Return(TransitionReturn {
+                                message: None,
+                                is_commit_dot_macro: false,
+                            });
                         }
                     }
                 } else {
-                    return Transition::Return(None, true);
+                    return Transition::Return(TransitionReturn {
+                        message: None,
+                        is_commit_dot_macro: true,
+                    });
                 }
             }
         }
@@ -1623,7 +1706,10 @@ impl Mode for S {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::Return(None, false);
+                return Transition::Return(TransitionReturn {
+                    message: None,
+                    is_commit_dot_macro: false,
+                });
             }
             Event::Key(Key::Char(c)) if !c.is_control() => {
                 let l = self.0.l();
@@ -1642,7 +1728,10 @@ impl Mode for S {
                 buf.core.insert(cl);
                 buf.core.commit();
 
-                return Transition::Return(None, false);
+                return Transition::Return(TransitionReturn {
+                    message: None,
+                    is_commit_dot_macro: false,
+                });
             }
             _ => {}
         }
@@ -1663,7 +1752,10 @@ impl Mode for Find {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::Return(None, false);
+                return Transition::Return(TransitionReturn {
+                    message: None,
+                    is_commit_dot_macro: false,
+                });
             }
             Event::Key(Key::Char(c)) if !c.is_control() => {
                 let cursor = buf.core.cursor();
@@ -1682,7 +1774,10 @@ impl Mode for Find {
                         break;
                     }
                 }
-                return Transition::Return(None, false);
+                return Transition::Return(TransitionReturn {
+                    message: None,
+                    is_commit_dot_macro: false,
+                });
             }
             _ => {}
         }
@@ -1711,7 +1806,10 @@ impl Mode for Goto {
     fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
         match event {
             Event::Key(Key::Esc) => {
-                return Transition::Return(None, false);
+                return Transition::Return(TransitionReturn {
+                    message: None,
+                    is_commit_dot_macro: false,
+                });
             }
             Event::Key(Key::Backspace) => {
                 self.row.pop();
@@ -1726,9 +1824,15 @@ impl Mode for Goto {
 
                         buf.core.set_cursor(Cursor { row, col: 0 });
                         buf.show_cursor();
-                        return Transition::Return(None, false);
+                        return Transition::Return(TransitionReturn {
+                            message: None,
+                            is_commit_dot_macro: false,
+                        });
                     } else {
-                        return Transition::Return(Some("[Goto] Parse failed".into()), false);
+                        return Transition::Return(TransitionReturn {
+                            message: Some("[Goto] Parse failed".into()),
+                            is_commit_dot_macro: false,
+                        });
                     }
                 } else {
                     self.row.push(c);
