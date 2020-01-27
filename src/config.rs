@@ -13,7 +13,7 @@ use crate::config::types::CompilerConfig;
 mod snippet;
 pub mod types;
 
-const DEFAULT_CONFIG: &str = include_str!("../../assets/default_config.toml");
+const DEFAULT_CONFIG: &str = include_str!("../assets/default_config.toml");
 
 #[derive(Deserialize, Debug)]
 struct ConfigToml {
