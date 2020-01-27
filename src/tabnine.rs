@@ -1,3 +1,4 @@
+use crate::core::CoreBuffer;
 use lsp_types::{CompletionItemKind, Documentation};
 use serde_derive::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader, Write};
@@ -90,7 +91,7 @@ impl TabNineClient {
         ret
     }
 
-    pub fn request_completion(&self, buf: &crate::Buffer) {
+    pub fn request_completion<B: CoreBuffer>(&self, buf: &crate::Buffer<B>) {
         let before = buf.core.before_cursor().to_string();
         let after = buf.core.after_cursor().to_string();
 

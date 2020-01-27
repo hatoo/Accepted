@@ -4,7 +4,7 @@ pub mod buffer_tab;
 mod clipboard;
 mod compiler;
 pub mod config;
-mod core;
+pub mod core;
 mod cursor;
 pub mod draw;
 mod draw_cache;

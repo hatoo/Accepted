@@ -12,6 +12,7 @@ use crate::compiler::Compiler;
 use crate::config;
 use crate::config::types::keys;
 use crate::core::Core;
+use crate::core::CoreBuffer;
 use crate::core::Cursor;
 use crate::core::CursorRange;
 use crate::core::Id;
@@ -61,9 +62,9 @@ enum ShowCursor {
     ShowMiddle,
 }
 
-pub struct Buffer<'a> {
-    storage: Option<Box<dyn Storage>>,
-    pub core: Core,
+pub struct Buffer<'a, B: CoreBuffer> {
+    storage: Option<Box<dyn Storage<B>>>,
+    pub core: Core<B>,
     pub search: Vec<char>,
     syntax_parent: &'a syntax::SyntaxParent,
     config: &'a config::ConfigWithDefault,
@@ -83,7 +84,7 @@ pub struct Buffer<'a> {
     show_cursor_on_draw: ShowCursor,
 }
 
-impl<'a> Buffer<'a> {
+impl<'a, B: CoreBuffer> Buffer<'a, B> {
     pub fn new(
         syntax_parent: &'a syntax::SyntaxParent,
         config: &'a config::ConfigWithDefault,
@@ -124,7 +125,7 @@ impl<'a> Buffer<'a> {
         self.path().and_then(Path::extension)
     }
 
-    pub fn storage(&self) -> Option<&dyn Storage> {
+    pub fn storage(&self) -> Option<&dyn Storage<B>> {
         self.storage.as_ref().map(AsRef::as_ref)
     }
 
@@ -188,12 +189,12 @@ impl<'a> Buffer<'a> {
         self.core.indent(self.indent_width());
     }
 
-    pub fn set_storage<T: Storage + 'static>(&mut self, storage: T) {
+    pub fn set_storage<T: Storage<B> + 'static>(&mut self, storage: T) {
         self.storage = Some(Box::new(storage));
         self.set_language();
     }
 
-    pub fn open<S: Storage + 'static>(&mut self, mut storage: S) {
+    pub fn open<S: Storage<B> + 'static>(&mut self, mut storage: S) {
         self.core = storage.load();
         self.set_storage(storage);
 

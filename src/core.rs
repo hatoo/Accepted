@@ -14,7 +14,10 @@ use crate::ropey_util::{is_line_end, RopeExt};
 
 use self::operation::{Operation, OperationArg};
 
+pub mod buffer;
 pub mod operation;
+
+pub use buffer::CoreBuffer;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Id(Wrapping<usize>);
@@ -83,7 +86,7 @@ impl CursorRange {
 }
 
 #[derive(Debug)]
-pub struct Core {
+pub struct Core<B: buffer::CoreBuffer> {
     buffer: Rope,
     cursor: Cursor,
     history: Vec<Vec<Box<dyn Operation>>>,
@@ -91,9 +94,10 @@ pub struct Core {
     redo: Vec<Vec<Box<dyn Operation>>>,
     buffer_changed: Id,
     pub dirty_from: usize,
+    phantom: std::marker::PhantomData<B>,
 }
 
-impl Default for Core {
+impl<B: buffer::CoreBuffer> Default for Core<B> {
     fn default() -> Self {
         Self {
             buffer: Rope::default(),
@@ -104,11 +108,12 @@ impl Default for Core {
             buffer_changed: Id(Wrapping(1)),
             /// Lines after this are modified
             dirty_from: 0,
+            phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl Core {
+impl<B: buffer::CoreBuffer> Core<B> {
     pub fn from_reader<T: Read>(reader: T) -> io::Result<Self> {
         Ok(Self {
             buffer: Rope::from_reader(reader)?,
@@ -118,6 +123,7 @@ impl Core {
             redo: Vec::new(),
             buffer_changed: Id(Wrapping(1)),
             dirty_from: 0,
+            phantom: std::marker::PhantomData,
         })
     }
 

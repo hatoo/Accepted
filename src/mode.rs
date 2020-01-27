@@ -20,6 +20,7 @@ use crate::buffer::Yank;
 use crate::clipboard;
 use crate::config::types::keys;
 use crate::core::Core;
+use crate::core::CoreBuffer;
 use crate::core::Cursor;
 use crate::core::CursorRange;
 use crate::core::Id;
@@ -38,10 +39,10 @@ pub struct TransitionReturn {
     pub is_commit_dot_macro: bool,
 }
 
-pub enum Transition {
+pub enum Transition<B: CoreBuffer> {
     Nothing,
-    Trans(Box<dyn Mode>),
-    RecordMacro(Box<dyn Mode>),
+    Trans(Box<dyn Mode<B>>),
+    RecordMacro(Box<dyn Mode<B>>),
     DoMacro,
     // Message, is commit dot macro?
     Return(TransitionReturn),
@@ -52,16 +53,16 @@ pub enum Transition {
     StartRmate,
 }
 
-impl<T: Mode + 'static> From<T> for Transition {
-    fn from(mode: T) -> Transition {
-        Transition::Trans(Box::new(mode))
+pub trait Mode<B: CoreBuffer> {
+    fn init(&mut self, _buf: &mut Buffer<B>) {}
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B>;
+    fn draw(&mut self, buf: &mut Buffer<B>, view: draw::TermView) -> draw::CursorState;
+    fn into_transition(self) -> Transition<B>
+    where
+        Self: Sized + 'static,
+    {
+        Transition::Trans(Box::new(self))
     }
-}
-
-pub trait Mode {
-    fn init(&mut self, _buf: &mut Buffer) {}
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition;
-    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState;
 }
 
 pub struct Normal {
@@ -207,8 +208,8 @@ impl Normal {
     }
 }
 
-impl Mode for Normal {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for Normal {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Char('.')) => {
                 return Transition::DoMacro;
@@ -317,10 +318,10 @@ impl Mode for Normal {
                 buf.show_cursor();
             }
             Event::Key(Key::Char('f')) => {
-                return Find { to_right: true }.into();
+                return Find { to_right: true }.into_transition();
             }
             Event::Key(Key::Char('F')) => {
-                return Find { to_right: false }.into();
+                return Find { to_right: false }.into_transition();
             }
             Event::Key(Key::Char('0')) => {
                 buf.core.set_cursor(Cursor {
@@ -428,20 +429,20 @@ impl Mode for Normal {
                 buf.core.commit();
                 buf.show_cursor();
             }
-            Event::Key(Key::Char('/')) => return Search.into(),
+            Event::Key(Key::Char('/')) => return Search.into_transition(),
             Event::Key(Key::Char('v')) => {
                 return Visual {
                     cursor: buf.core.cursor(),
                     line_mode: false,
                 }
-                .into();
+                .into_transition();
             }
             Event::Key(Key::Char('V')) => {
                 return Visual {
                     cursor: buf.core.cursor(),
                     line_mode: true,
                 }
-                .into();
+                .into_transition();
             }
             Event::Key(Key::Char('p')) => {
                 if buf.yank.insert_newline {
@@ -474,12 +475,12 @@ impl Mode for Normal {
                     }
                     buf.core.commit();
                 } else {
-                    self.message = "Failed to paste from clipboard".into();
+                    self.message = "Failed to paste from clipboard".to_string();
                 }
                 buf.show_cursor();
             }
             Event::Key(Key::Char(' ')) => {
-                return Prefix.into();
+                return Prefix.into_transition();
             }
             Event::Key(Key::Char('z')) => {
                 buf.show_cursor_middle();
@@ -505,7 +506,7 @@ impl Mode for Normal {
                             cursor,
                             line_mode: false,
                         }
-                        .into();
+                        .into_transition();
                     } else {
                         buf.core.set_cursor(c);
                     }
@@ -516,7 +517,7 @@ impl Mode for Normal {
                     cursor: buf.core.cursor(),
                     line_mode: false,
                 }
-                .into();
+                .into_transition();
             }
             Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
                 buf.scroll_up();
@@ -540,7 +541,7 @@ impl Mode for Normal {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
         let cursor = buf
@@ -599,7 +600,7 @@ impl Mode for Normal {
 }
 
 impl Insert {
-    fn token(core: &Core) -> String {
+    fn token<B: CoreBuffer>(core: &Core<B>) -> String {
         let line = core.current_line();
         let mut i = core.cursor().col;
 
@@ -610,7 +611,7 @@ impl Insert {
         String::from(line.slice(i..core.cursor().col))
     }
 
-    fn remove_token(core: &mut Core) {
+    fn remove_token<B: CoreBuffer>(core: &mut Core<B>) {
         let mut i = core.cursor().col;
         while i > 0 && {
             let c = core.current_line().char(i - 1);
@@ -626,7 +627,7 @@ impl Insert {
         self.completions.len() + self.tabnine_completions.len() + self.snippet_completions.len()
     }
 
-    fn get_completion(&self, buf: &Buffer) -> Option<String> {
+    fn get_completion<B: CoreBuffer>(&self, buf: &Buffer<B>) -> Option<String> {
         let index = self.completion_index?;
         if index < self.completions.len() {
             Some(self.completions[index].keyword.clone())
@@ -645,7 +646,7 @@ impl Insert {
         }
     }
 
-    fn remove_old_prefix(&self, core: &mut Core) {
+    fn remove_old_prefix<B: CoreBuffer>(&self, core: &mut Core<B>) {
         if let Some(index) = self.completion_index {
             if index < self.completions.len() {
                 Self::remove_token(core);
@@ -674,7 +675,7 @@ impl Insert {
         }
     }
 
-    fn poll(&mut self, buf: &Buffer) {
+    fn poll<B: CoreBuffer>(&mut self, buf: &Buffer<B>) {
         if let Some(lsp) = buf.lsp.as_ref() {
             if let Some(mut completions) = lsp.poll() {
                 let token = Self::token(&buf.core);
@@ -696,7 +697,7 @@ impl Insert {
         }
     }
 
-    fn build_completion(&mut self, buf: &mut Buffer) {
+    fn build_completion<B: CoreBuffer>(&mut self, buf: &mut Buffer<B>) {
         if self.buf_update == buf.core.buffer_changed() {
             return;
         }
@@ -736,8 +737,8 @@ impl Insert {
     }
 }
 
-impl Mode for Insert {
-    fn init(&mut self, buf: &mut Buffer) {
+impl<B: CoreBuffer> Mode<B> for Insert {
+    fn init(&mut self, buf: &mut Buffer<B>) {
         // Flush completion
         if let Some(lsp) = buf.lsp.as_ref() {
             lsp.poll();
@@ -747,7 +748,7 @@ impl Mode for Insert {
         }
         self.build_completion(buf);
     }
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 buf.core.commit();
@@ -865,7 +866,7 @@ impl Mode for Insert {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         self.poll(buf);
         let height = view.height();
         let width = view.width();
@@ -933,8 +934,8 @@ impl Mode for Insert {
     }
 }
 
-impl Mode for R {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for R {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         let core = &mut buf.core;
         match event {
             Event::Key(Key::Esc) => {
@@ -955,7 +956,7 @@ impl Mode for R {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
         buf.draw(view.view((0, 0), height, width))
@@ -964,8 +965,8 @@ impl Mode for R {
     }
 }
 
-impl Mode for Search {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for Search {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -990,7 +991,7 @@ impl Mode for Search {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height() - 1;
         let width = view.width();
         let cursor = buf
@@ -1008,8 +1009,8 @@ impl Mode for Search {
     }
 }
 
-impl Mode for Save {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for Save {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1022,14 +1023,14 @@ impl Mode for Save {
             }
             Event::Key(Key::Char(c)) => {
                 if c == '\n' {
-                    let path: String = shellexpand::tilde(&self.path).into();
+                    let path: String = shellexpand::tilde(&self.path).to_string();
                     buf.set_storage(PathBuf::from(path.clone()));
                     let message = if buf.save(false) {
                         format!("Saved to {}", path)
                     } else {
                         format!("Failed to save {}", path)
                     };
-                    return Normal::with_message(message).into();
+                    return Normal::with_message(message).into_transition();
                 }
                 self.path.push(c);
             }
@@ -1038,7 +1039,7 @@ impl Mode for Save {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         if view.height() < 2 {
             return draw::CursorState::Hide;
         }
@@ -1062,8 +1063,8 @@ impl Mode for Save {
     }
 }
 
-impl Mode for Prefix {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for Prefix {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1087,7 +1088,7 @@ impl Mode for Prefix {
                 return Transition::Exit;
             }
             Event::Key(Key::Char('g')) => {
-                return Goto::default().into();
+                return Goto::default().into_transition();
             }
             Event::Key(Key::Char('s')) => {
                 if let Some(path) = buf.path().map(|p| p.to_string_lossy().into_owned()) {
@@ -1105,20 +1106,20 @@ impl Mode for Prefix {
                     return Save {
                         path: String::new(),
                     }
-                    .into();
+                    .into_transition();
                 }
             }
             Event::Key(Key::Char('a')) => {
                 if let Some(path) = buf.path() {
                     return Save {
-                        path: path.to_string_lossy().into(),
+                        path: path.to_string_lossy().to_string(),
                     }
-                    .into();
+                    .into_transition();
                 } else {
                     return Save {
                         path: String::new(),
                     }
-                    .into();
+                    .into_transition();
                 }
             }
             Event::Key(Key::Char('y')) => {
@@ -1130,7 +1131,7 @@ impl Mode for Prefix {
                         } else {
                             "Failed to copy to clipboard"
                         }
-                        .into(),
+                        .to_string(),
                     ),
                     is_commit_dot_macro: false,
                 });
@@ -1144,7 +1145,7 @@ impl Mode for Prefix {
                         } else {
                             "Failed to restart LSP"
                         }
-                        .into(),
+                        .to_string(),
                     ),
                     is_commit_dot_macro: false,
                 });
@@ -1207,13 +1208,14 @@ impl Mode for Prefix {
                 );
                 match result {
                     Err(err) => {
-                        return Normal::with_message(err.to_string()).into();
+                        return Normal::with_message(err.to_string()).into_transition();
                     }
                     Ok((child, title)) => {
                         if let Some(next_state) = ViewProcess::with_process(child, title) {
-                            return next_state.into();
+                            return next_state.into_transition();
                         } else {
-                            return Normal::with_message("Failed to test".into()).into();
+                            return Normal::with_message("Failed to test".to_string())
+                                .into_transition();
                         }
                     }
                 }
@@ -1230,14 +1232,14 @@ impl Mode for Prefix {
                 return Transition::StartRmate;
             }
             Event::Key(Key::Char('f')) => {
-                return fuzzy::FuzzyOpen::default().into();
+                return fuzzy::FuzzyOpen::default().into_transition();
             }
             _ => {}
         }
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height() - 1;
         let width = view.width();
         let cursor = buf
@@ -1272,8 +1274,8 @@ impl Visual {
     }
 }
 
-impl Mode for Visual {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for Visual {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1343,10 +1345,10 @@ impl Mode for Visual {
 
                 buf.show_cursor();
                 return if to_insert {
-                    Insert::default().into()
+                    Insert::default().into_transition()
                 } else {
                     Transition::Return(TransitionReturn {
-                        message: Some("Deleted".into()),
+                        message: Some("Deleted".to_string()),
                         is_commit_dot_macro: true,
                     })
                 };
@@ -1385,12 +1387,12 @@ impl Mode for Visual {
                 if is_clipboard {
                     if clipboard::clipboard_copy(&s).is_ok() {
                         return Transition::Return(TransitionReturn {
-                            message: Some("Yanked".into()),
+                            message: Some("Yanked".to_string()),
                             is_commit_dot_macro: false,
                         });
                     } else {
                         return Transition::Return(TransitionReturn {
-                            message: Some("Yank failed".into()),
+                            message: Some("Yank failed".to_string()),
                             is_commit_dot_macro: false,
                         });
                     }
@@ -1399,13 +1401,13 @@ impl Mode for Visual {
                     buf.yank.content = s;
                 }
                 return Transition::Return(TransitionReturn {
-                    message: Some("Yanked".into()),
+                    message: Some("Yanked".to_string()),
                     is_commit_dot_macro: false,
                 });
             }
             Event::Key(Key::Char('S')) => {
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
-                return S(range).into();
+                return S(range).into_transition();
             }
             Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
                 let col = x as usize - 1;
@@ -1420,7 +1422,7 @@ impl Mode for Visual {
                 if let Some(c) = term.pos(cursor) {
                     buf.core.set_cursor(c);
                 }
-                return Normal::default().into();
+                return Normal::default().into_transition();
             }
             Event::Mouse(MouseEvent::Hold(x, y)) => {
                 let col = x as usize - 1;
@@ -1441,7 +1443,7 @@ impl Mode for Visual {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
         let range = self.get_range(buf.core.cursor(), buf.core.buffer());
@@ -1451,10 +1453,10 @@ impl Mode for Visual {
     }
 }
 
-impl Mode for ViewProcess {
-    fn event(&mut self, _buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for ViewProcess {
+    fn event(&mut self, _buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
-            Event::Key(Key::Esc) => Normal::default().into(),
+            Event::Key(Key::Esc) => Normal::default().into_transition(),
             Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
                 if self.row_offset <= 3 {
                     self.row_offset = 0;
@@ -1471,7 +1473,7 @@ impl Mode for ViewProcess {
         }
     }
 
-    fn draw(&mut self, _buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, _buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         if self.end.is_none() {
             if let Ok(Some(_)) = self.process.try_wait() {
                 self.end = Some(Instant::now());
@@ -1513,8 +1515,8 @@ impl Mode for ViewProcess {
     }
 }
 
-impl Mode for TextObjectOperation {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         if event == Event::Key(Key::Esc) {
             return Transition::Return(TransitionReturn {
                 message: None,
@@ -1565,7 +1567,7 @@ impl Mode for TextObjectOperation {
                         }
                         buf.core.commit();
                         buf.indent();
-                        return Insert::default().into();
+                        return Insert::default().into_transition();
                     }
                 }
             }
@@ -1633,7 +1635,7 @@ impl Mode for TextObjectOperation {
                         buf.core.insert_newline_here();
                         buf.core.commit();
                         buf.indent();
-                        return Insert::default().into();
+                        return Insert::default().into_transition();
                     }
                 }
             }
@@ -1656,7 +1658,7 @@ impl Mode for TextObjectOperation {
                         Action::Change => {
                             buf.core.delete_range(range);
                             buf.core.commit();
-                            return Insert::default().into();
+                            return Insert::default().into_transition();
                         }
                         Action::Yank => {
                             return Transition::Return(TransitionReturn {
@@ -1676,7 +1678,7 @@ impl Mode for TextObjectOperation {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height() - 1;
         let width = view.width();
         let cursor = buf
@@ -1702,8 +1704,8 @@ impl Mode for TextObjectOperation {
     }
 }
 
-impl Mode for S {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for S {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1738,7 +1740,7 @@ impl Mode for S {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
         let range = self.0;
@@ -1748,8 +1750,8 @@ impl Mode for S {
     }
 }
 
-impl Mode for Find {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for Find {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1783,7 +1785,7 @@ impl Mode for Find {
         }
         Transition::Nothing
     }
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
         let cursor = buf
@@ -1802,8 +1804,8 @@ impl Mode for Find {
     }
 }
 
-impl Mode for Goto {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for Goto {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1830,7 +1832,7 @@ impl Mode for Goto {
                         });
                     } else {
                         return Transition::Return(TransitionReturn {
-                            message: Some("[Goto] Parse failed".into()),
+                            message: Some("[Goto] Parse failed".to_string()),
                             is_commit_dot_macro: false,
                         });
                     }
@@ -1843,7 +1845,7 @@ impl Mode for Goto {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height() - 1;
         let width = view.width();
         let cursor = buf

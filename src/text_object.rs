@@ -1,3 +1,4 @@
+use crate::core::CoreBuffer;
 use crate::core::{Core, Cursor, CursorRange};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -39,12 +40,12 @@ pub enum Prefix {
     Find { inclusive: bool },
 }
 
-pub trait TextObject {
+pub trait TextObject<B: CoreBuffer> {
     fn get_range(
         &self,
         action: Action,
         prefix: TextObjectPrefix,
-        core: &Core,
+        core: &Core<B>,
     ) -> Option<CursorRange>;
 }
 
@@ -54,8 +55,13 @@ struct Quote(char);
 
 struct Parens(char, char);
 
-impl TextObject for Quote {
-    fn get_range(&self, _: Action, prefix: TextObjectPrefix, core: &Core) -> Option<CursorRange> {
+impl<B: CoreBuffer> TextObject<B> for Quote {
+    fn get_range(
+        &self,
+        _: Action,
+        prefix: TextObjectPrefix,
+        core: &Core<B>,
+    ) -> Option<CursorRange> {
         match prefix {
             TextObjectPrefix::A | TextObjectPrefix::Inner => {
                 let mut l = Cursor { row: 0, col: 0 };
@@ -93,8 +99,13 @@ impl TextObject for Quote {
     }
 }
 
-impl TextObject for Parens {
-    fn get_range(&self, _: Action, prefix: TextObjectPrefix, core: &Core) -> Option<CursorRange> {
+impl<B: CoreBuffer> TextObject<B> for Parens {
+    fn get_range(
+        &self,
+        _: Action,
+        prefix: TextObjectPrefix,
+        core: &Core<B>,
+    ) -> Option<CursorRange> {
         match prefix {
             TextObjectPrefix::A | TextObjectPrefix::Inner => {
                 let mut stack = Vec::new();
@@ -129,12 +140,12 @@ impl TextObject for Parens {
     }
 }
 
-impl TextObject for Word {
+impl<B: CoreBuffer> TextObject<B> for Word {
     fn get_range(
         &self,
         action: Action,
         prefix: TextObjectPrefix,
-        core: &Core,
+        core: &Core<B>,
     ) -> Option<CursorRange> {
         Some(match prefix {
             TextObjectPrefix::None => {
@@ -201,7 +212,7 @@ impl TextObjectParser {
 }
 
 impl TextObjectParser {
-    pub fn parse(&mut self, c: char, core: &Core) -> Option<Option<CursorRange>> {
+    pub fn parse<B: CoreBuffer>(&mut self, c: char, core: &Core<B>) -> Option<Option<CursorRange>> {
         if let Prefix::TextObjectPrefix(_) = self.prefix {
             match c {
                 'a' => {
