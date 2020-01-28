@@ -7,7 +7,7 @@ use crate::core::{Cursor, CursorRange};
 use crate::ropey_util::{is_line_end, RopeExt};
 
 pub struct OperationArg<'a, B: CoreBuffer> {
-    pub buffer: &'a mut B,
+    pub core_buffer: &'a mut B,
     pub cursor: &'a mut Cursor,
 }
 
@@ -82,30 +82,26 @@ impl Set {
 
 impl<B: CoreBuffer> Operation<B> for Insert {
     fn perform(&mut self, arg: OperationArg<B>) -> Option<usize> {
-        /*
-        let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
-        arg.buffer.insert_char(i, self.c);
-        let mut cursor = self.cursor;
-        if self.c == '\n' {
-            cursor.row += 1;
-            cursor.col = 0;
+        arg.core_buffer.insert_char(self.cursor, self.c);
+        *arg.cursor = if self.c == '\n' {
+            Cursor {
+                row: self.cursor.row + 1,
+                col: 0,
+            }
         } else {
-            cursor.col += 1;
-        }
-        *arg.cursor = cursor;
+            Cursor {
+                row: self.cursor.row,
+                col: self.cursor.col + 1,
+            }
+        };
         Some(self.cursor.row)
-        */
-        unimplemented!()
     }
 
     fn undo(&mut self, arg: OperationArg<B>) -> Option<usize> {
-        /*
-        let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
-        arg.buffer.remove(i..=i);
+        arg.core_buffer
+            .delete_range(CursorRange(self.cursor, self.cursor));
         *arg.cursor = self.cursor;
         Some(self.cursor.row)
-        */
-        unimplemented!()
     }
 }
 
@@ -248,5 +244,36 @@ impl<B: CoreBuffer> Operation<B> for Set {
         Some(0)
         */
         unimplemented!()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Insert;
+    use crate::core::buffer::RopeyCoreBuffer;
+    use crate::core::Cursor;
+    use crate::core::{Core, CoreBuffer};
+
+    #[test]
+    fn test_operation_insert() {
+        let mut core = Core::<RopeyCoreBuffer>::from_reader("".as_bytes()).unwrap();
+
+        core.perform(Insert {
+            cursor: Cursor { row: 0, col: 0 },
+            c: 'A',
+        });
+        assert_eq!(core.get_string(), "A".to_string());
+        assert_eq!(core.cursor, Cursor { row: 0, col: 1 });
+        core.commit();
+        core.undo();
+        assert_eq!(core.get_string(), "".to_string());
+
+        core.perform(Insert {
+            cursor: Cursor { row: 0, col: 0 },
+            c: '\n',
+        });
+        assert_eq!(core.cursor, Cursor { row: 1, col: 0 });
+        assert_eq!(core.get_string(), "\n".to_string());
+        assert_eq!(core.core_buffer.len_lines(), 2);
     }
 }

@@ -4,6 +4,7 @@ use std::io;
 
 use super::CoreBuffer;
 use super::Cursor;
+use super::CursorRange;
 
 #[derive(Default)]
 pub struct RopeyCoreBuffer(Rope);
@@ -17,10 +18,6 @@ impl CoreBuffer for RopeyCoreBuffer {
         self.0.len_lines()
     }
 
-    fn line<'a>(&'a self, line_idx: usize) -> Box<dyn ExactSizeIterator<Item = char> + 'a> {
-        Box::new(self.0.l(line_idx).chars())
-    }
-
     fn char_at(&self, cursor: Cursor) -> Option<char> {
         if cursor.row < self.0.len_lines() {
             let line = self.0.l(cursor.row);
@@ -32,5 +29,23 @@ impl CoreBuffer for RopeyCoreBuffer {
         } else {
             None
         }
+    }
+
+    fn insert_char(&mut self, cursor: Cursor, c: char) {
+        let i = self.0.line_to_char(cursor.row) + cursor.col;
+        self.0.insert_char(i, c);
+    }
+
+    fn delete_range(&mut self, cursor_range: CursorRange) {
+        let from = self.0.line_to_char(cursor_range.l().row) + cursor_range.l().col;
+        let to = self.0.line_to_char(cursor_range.r().row) + cursor_range.r().col;
+
+        self.0.remove(from..=to);
+    }
+}
+
+impl ToString for RopeyCoreBuffer {
+    fn to_string(&self) -> String {
+        String::from(&self.0)
     }
 }

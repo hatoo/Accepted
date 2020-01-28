@@ -6,15 +6,13 @@ use ropey::Rope;
 
 mod ropey_core_buffer;
 
+use crate::core::CursorRange;
 pub use ropey_core_buffer::RopeyCoreBuffer;
 
-pub trait CoreBuffer: Default {
+pub trait CoreBuffer: Default + ToString {
     fn from_reader<T: io::Read>(reader: T) -> io::Result<Self>;
     fn len_lines(&self) -> usize;
-    fn line<'a>(&'a self, line_idx: usize) -> Box<dyn ExactSizeIterator<Item = char> + 'a>;
     fn char_at(&self, cursor: Cursor) -> Option<char>;
-}
-
-pub trait Line {
-    fn len(&self) -> usize;
+    fn insert_char(&mut self, cursor: Cursor, c: char);
+    fn delete_range(&mut self, cursor_range: CursorRange);
 }

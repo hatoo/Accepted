@@ -405,7 +405,7 @@ impl<B: buffer::CoreBuffer> Core<B> {
     }
 
     pub fn get_string(&self) -> String {
-        String::from(&self.buffer)
+        self.core_buffer.to_string()
     }
 
     pub fn set_string(&mut self, s: String, clear_history: bool) {
@@ -442,7 +442,7 @@ impl<B: buffer::CoreBuffer> Core<B> {
 
     fn arg(&mut self) -> OperationArg<B> {
         OperationArg {
-            buffer: &mut self.core_buffer,
+            core_buffer: &mut self.core_buffer,
             cursor: &mut self.cursor,
         }
     }
