@@ -28,7 +28,7 @@ fn with_buffer_mode<F: FnOnce(BufferMode<RopeyCoreBuffer>)>(func: F) {
     func(state)
 }
 
-fn with_buffer_mode_from<F: FnOnce(BufferMode<RopeyCoreBuffer>)>(init: &str, func: F) {
+fn with_buffer_mode_from<T, F: FnOnce(BufferMode<RopeyCoreBuffer>) -> T>(init: &str, func: F) -> T {
     let syntax_parent = accepted::syntax::SyntaxParent::default();
     let config = config::ConfigWithDefault::default();
     let mut buf = Buffer::new(&syntax_parent, &config);
@@ -37,18 +37,18 @@ fn with_buffer_mode_from<F: FnOnce(BufferMode<RopeyCoreBuffer>)>(init: &str, fun
     func(state)
 }
 
-fn simple_test(init: &str, commands: &str, expected: &str) {
+fn simple_run(init: &str, commands: &str) -> String {
     with_buffer_mode_from(init, |mut state| {
         state.command_esc(commands);
-        dbg!(init, commands);
-        assert_eq!(state.buf.core.get_string(), expected);
-    });
+        state.buf.core.get_string()
+    })
 }
 
 #[test]
 fn test_simples() {
-    /*
     // Insertions
+    assert_eq!(simple_run("123", "iHello World"), "Hello World123");
+    /*
     simple_test("123", "iHello World", "Hello World123");
     simple_test("123", "llllllIHello World", "Hello World123");
     simple_test("123", "aHello World", "1Hello World23");
