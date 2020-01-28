@@ -184,7 +184,10 @@ impl Default for Cpp {
                             message: caps["msg"].into(),
                             line,
                             level: caps["level"].into(),
-                            span: CursorRange(Cursor { row: line, col }, Cursor { row: line, col }),
+                            span: CursorRange::new(
+                                Cursor { row: line, col },
+                                Cursor { row: line, col },
+                            ),
                         };
 
                         messages.push(out);

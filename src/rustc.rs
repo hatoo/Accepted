@@ -24,7 +24,7 @@ pub fn parse_rustc_json(json: &str) -> Option<CompilerOutput> {
         end.col -= 1;
     }
 
-    let span = CursorRange(start, end);
+    let span = CursorRange::new(start, end);
 
     Some(CompilerOutput {
         message: d.message,

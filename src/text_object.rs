@@ -76,12 +76,12 @@ impl<B: CoreBuffer> TextObject<B> for Quote {
                                 let l = core.next_cursor(l)?;
                                 let r = core.prev_cursor(t)?;
                                 return if l <= r {
-                                    Some(CursorRange(l, r))
+                                    Some(CursorRange::new(l, r))
                                 } else {
                                     None
                                 };
                             } else {
-                                return Some(CursorRange(l, t));
+                                return Some(CursorRange::new(l, t));
                             }
                         }
                         l = t;
@@ -120,9 +120,13 @@ impl<B: CoreBuffer> TextObject<B> for Parens {
                                 if prefix == TextObjectPrefix::Inner {
                                     let l = core.next_cursor(l)?;
                                     let r = core.prev_cursor(t)?;
-                                    return if l < r { Some(CursorRange(l, r)) } else { None };
+                                    return if l < r {
+                                        Some(CursorRange::new(l, r))
+                                    } else {
+                                        None
+                                    };
                                 } else {
-                                    return Some(CursorRange(l, t));
+                                    return Some(CursorRange::new(l, t));
                                 }
                             }
                         }
@@ -160,7 +164,7 @@ impl<B: CoreBuffer> TextObject<B> for Word {
                         i += 1;
                     }
                 }
-                CursorRange(l, Cursor { row: l.row, col: i })
+                CursorRange::new(l, Cursor { row: l.row, col: i })
             }
             TextObjectPrefix::A | TextObjectPrefix::Inner => {
                 let pos = core.cursor();
@@ -182,7 +186,7 @@ impl<B: CoreBuffer> TextObject<B> for Word {
                     }
                 }
 
-                CursorRange(
+                CursorRange::new(
                     Cursor {
                         row: pos.row,
                         col: l,
@@ -256,7 +260,7 @@ impl TextObjectParser {
                 }
 
                 if r >= l {
-                    Some(Some(CursorRange(l, r)))
+                    Some(Some(CursorRange::new(l, r)))
                 } else {
                     Some(None)
                 }

@@ -183,41 +183,17 @@ impl<B: CoreBuffer> Operation<B> for Delete {
 
 impl<B: CoreBuffer> Operation<B> for DeleteRange {
     fn perform(&mut self, arg: OperationArg<B>) -> Option<usize> {
-        /*
-        let l = arg.buffer.line_to_char(self.range.l().row) + self.range.l().col;
-        let mut r = arg.buffer.line_to_char(self.range.r().row) + self.range.r().col;
-
-        if r < arg.buffer.len_chars() {
-            if self.range.r().col == arg.buffer.l(self.range.r().row).len_chars() {
-                while r < arg.buffer.len_chars() && arg.buffer.char(r) == '\r' {
-                    r += 1;
-                }
-
-                if r < arg.buffer.len_chars() && is_line_end(arg.buffer.char(r)) {
-                    r += 1;
-                }
-            } else {
-                r += 1;
-            }
-        }
-
-        self.orig = Some(String::from(arg.buffer.slice(l..r)));
-        arg.buffer.remove(l..r);
+        self.orig = Some(arg.core_buffer.get_range(self.range));
+        arg.core_buffer.delete_range(self.range);
         *arg.cursor = self.range.l();
         Some(self.range.l().row)
-        */
-        unimplemented!()
     }
 
     fn undo(&mut self, arg: OperationArg<B>) -> Option<usize> {
-        /*
-        let l = arg.buffer.line_to_char(self.range.l().row) + self.range.l().col;
-
-        arg.buffer.insert(l, self.orig.as_ref().unwrap().as_str());
+        arg.core_buffer
+            .insert(self.range.l(), self.orig.as_ref().unwrap().as_str());
         *arg.cursor = self.range.l();
         Some(self.range.l().row)
-        */
-        unimplemented!()
     }
 }
 
@@ -251,8 +227,10 @@ impl<B: CoreBuffer> Operation<B> for Set {
 mod test {
     use super::Insert;
     use crate::core::buffer::RopeyCoreBuffer;
-    use crate::core::Cursor;
+    use crate::core::operation::DeleteRange;
     use crate::core::{Core, CoreBuffer};
+    use crate::core::{Cursor, CursorRange};
+    use crate::text_object::Action::Delete;
 
     #[test]
     fn test_operation_insert() {
@@ -275,5 +253,47 @@ mod test {
         assert_eq!(core.cursor, Cursor { row: 1, col: 0 });
         assert_eq!(core.get_string(), "\n".to_string());
         assert_eq!(core.core_buffer.len_lines(), 2);
+    }
+
+    #[test]
+    fn test_operation_delete_range() {
+        let mut core = Core::<RopeyCoreBuffer>::from_reader("12345678".as_bytes()).unwrap();
+
+        core.perform(DeleteRange::new(CursorRange(
+            Cursor { row: 0, col: 1 },
+            Cursor { row: 0, col: 2 },
+        )));
+        assert_eq!(core.get_string(), "145678".to_string());
+        assert_eq!(core.cursor(), Cursor { row: 0, col: 1 });
+        core.commit();
+        core.undo();
+        assert_eq!(core.get_string(), "12345678");
+        assert_eq!(core.cursor(), Cursor { row: 0, col: 1 });
+
+        let mut core = Core::<RopeyCoreBuffer>::from_reader("123\n".as_bytes()).unwrap();
+
+        core.perform(DeleteRange::new(CursorRange(
+            Cursor { row: 0, col: 0 },
+            Cursor { row: 0, col: 3 },
+        )));
+        assert_eq!(core.get_string(), "".to_string());
+        assert_eq!(core.cursor(), Cursor { row: 0, col: 0 });
+        core.commit();
+        core.undo();
+        assert_eq!(core.get_string(), "123\n");
+        assert_eq!(core.cursor(), Cursor { row: 0, col: 0 });
+
+        let mut core = Core::<RopeyCoreBuffer>::from_reader("123\n456".as_bytes()).unwrap();
+
+        core.perform(DeleteRange::new(CursorRange(
+            Cursor { row: 0, col: 3 },
+            Cursor { row: 0, col: 3 },
+        )));
+        assert_eq!(core.get_string(), "123456".to_string());
+        assert_eq!(core.cursor(), Cursor { row: 0, col: 3 });
+        core.commit();
+        core.undo();
+        assert_eq!(core.get_string(), "123\n456");
+        assert_eq!(core.cursor(), Cursor { row: 0, col: 3 });
     }
 }

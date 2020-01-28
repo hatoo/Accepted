@@ -53,9 +53,13 @@ impl Ord for Cursor {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct CursorRange(pub Cursor, pub Cursor);
+pub struct CursorRange(Cursor, Cursor);
 
 impl CursorRange {
+    pub fn new(l: Cursor, r: Cursor) -> Self {
+        CursorRange(l, r)
+    }
+
     pub fn l(&self) -> Cursor {
         min(self.0, self.1)
     }

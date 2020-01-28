@@ -36,6 +36,18 @@ impl CoreBuffer for RopeyCoreBuffer {
         self.0.insert_char(i, c);
     }
 
+    fn insert(&mut self, cursor: Cursor, s: &str) {
+        let i = self.0.line_to_char(cursor.row) + cursor.col;
+        self.0.insert(i, s);
+    }
+
+    fn get_range(&self, cursor_range: CursorRange) -> String {
+        let from = self.0.line_to_char(cursor_range.l().row) + cursor_range.l().col;
+        let to = self.0.line_to_char(cursor_range.r().row) + cursor_range.r().col;
+
+        self.0.slice(from..=to).to_string()
+    }
+
     fn delete_range(&mut self, cursor_range: CursorRange) {
         let from = self.0.line_to_char(cursor_range.l().row) + cursor_range.l().col;
         let to = self.0.line_to_char(cursor_range.r().row) + cursor_range.r().col;

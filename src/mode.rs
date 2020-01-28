@@ -1259,9 +1259,9 @@ impl Visual {
             l.col = 0;
             r.col = buf.l(r.row).len_chars();
 
-            CursorRange(l, r)
+            CursorRange::new(l, r)
         } else {
-            CursorRange(self.cursor, to)
+            CursorRange::new(self.cursor, to)
         }
     }
 }
@@ -1525,7 +1525,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                 match self.parser.action {
                     // dd
                     Action::Delete => {
-                        let range = CursorRange(
+                        let range = CursorRange::new(
                             Cursor {
                                 row: buf.core.cursor().row,
                                 col: 0,
@@ -1573,7 +1573,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                         });
                     }
                     let next_line = buf.core.buffer().l(buf.core.cursor().row + 1).len_chars();
-                    CursorRange(
+                    CursorRange::new(
                         Cursor {
                             row: buf.core.cursor().row,
                             col: 0,
@@ -1590,7 +1590,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                             is_commit_dot_macro: false,
                         });
                     }
-                    CursorRange(
+                    CursorRange::new(
                         Cursor {
                             row: buf.core.cursor().row - 1,
                             col: 0,
