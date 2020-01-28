@@ -1,19 +1,19 @@
 use std::cmp::min;
 use std::fmt::Debug;
 
-use ropey::Rope;
+use crate::core::CoreBuffer;
 
 use crate::core::{Cursor, CursorRange};
 use crate::ropey_util::{is_line_end, RopeExt};
 
-pub struct OperationArg<'a> {
-    pub buffer: &'a mut Rope,
+pub struct OperationArg<'a, B: CoreBuffer> {
+    pub buffer: &'a mut B,
     pub cursor: &'a mut Cursor,
 }
 
-pub trait Operation: Debug {
-    fn perform(&mut self, arg: OperationArg) -> Option<usize>;
-    fn undo(&mut self, arg: OperationArg) -> Option<usize>;
+pub trait Operation<B: CoreBuffer>: Debug {
+    fn perform(&mut self, arg: OperationArg<B>) -> Option<usize>;
+    fn undo(&mut self, arg: OperationArg<B>) -> Option<usize>;
 }
 
 #[derive(Debug)]
@@ -80,8 +80,9 @@ impl Set {
     }
 }
 
-impl Operation for Insert {
-    fn perform(&mut self, arg: OperationArg) -> Option<usize> {
+impl<B: CoreBuffer> Operation<B> for Insert {
+    fn perform(&mut self, arg: OperationArg<B>) -> Option<usize> {
+        /*
         let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
         arg.buffer.insert_char(i, self.c);
         let mut cursor = self.cursor;
@@ -93,18 +94,24 @@ impl Operation for Insert {
         }
         *arg.cursor = cursor;
         Some(self.cursor.row)
+        */
+        unimplemented!()
     }
 
-    fn undo(&mut self, arg: OperationArg) -> Option<usize> {
+    fn undo(&mut self, arg: OperationArg<B>) -> Option<usize> {
+        /*
         let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
         arg.buffer.remove(i..=i);
         *arg.cursor = self.cursor;
         Some(self.cursor.row)
+        */
+        unimplemented!()
     }
 }
 
-impl Operation for Replace {
-    fn perform(&mut self, arg: OperationArg) -> Option<usize> {
+impl<B: CoreBuffer> Operation<B> for Replace {
+    fn perform(&mut self, arg: OperationArg<B>) -> Option<usize> {
+        /*
         let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
         if self.cursor.col < arg.buffer.l(self.cursor.row).len_chars() {
             self.orig = Some(arg.buffer.l(self.cursor.row).char(self.cursor.col));
@@ -113,9 +120,12 @@ impl Operation for Replace {
         arg.buffer.insert_char(i, self.c);
         *arg.cursor = self.cursor;
         Some(self.cursor.row)
+        */
+        unimplemented!()
     }
 
-    fn undo(&mut self, arg: OperationArg) -> Option<usize> {
+    fn undo(&mut self, arg: OperationArg<B>) -> Option<usize> {
+        /*
         let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
         arg.buffer.remove(i..=i);
         if let Some(orig) = self.orig {
@@ -123,11 +133,14 @@ impl Operation for Replace {
         }
         *arg.cursor = self.cursor;
         Some(self.cursor.row)
+        */
+        unimplemented!()
     }
 }
 
-impl Operation for Delete {
-    fn perform(&mut self, arg: OperationArg) -> Option<usize> {
+impl<B: CoreBuffer> Operation<B> for Delete {
+    fn perform(&mut self, arg: OperationArg<B>) -> Option<usize> {
+        /*
         let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
 
         if self.cursor.col < arg.buffer.l(self.cursor.row).len_chars() {
@@ -148,9 +161,12 @@ impl Operation for Delete {
         } else {
             None
         }
+        */
+        unimplemented!()
     }
 
-    fn undo(&mut self, arg: OperationArg) -> Option<usize> {
+    fn undo(&mut self, arg: OperationArg<B>) -> Option<usize> {
+        /*
         if !self.done {
             return None;
         }
@@ -164,11 +180,14 @@ impl Operation for Delete {
         }
         *arg.cursor = self.cursor;
         Some(self.cursor.row)
+        */
+        unimplemented!()
     }
 }
 
-impl Operation for DeleteRange {
-    fn perform(&mut self, arg: OperationArg) -> Option<usize> {
+impl<B: CoreBuffer> Operation<B> for DeleteRange {
+    fn perform(&mut self, arg: OperationArg<B>) -> Option<usize> {
+        /*
         let l = arg.buffer.line_to_char(self.range.l().row) + self.range.l().col;
         let mut r = arg.buffer.line_to_char(self.range.r().row) + self.range.r().col;
 
@@ -190,19 +209,25 @@ impl Operation for DeleteRange {
         arg.buffer.remove(l..r);
         *arg.cursor = self.range.l();
         Some(self.range.l().row)
+        */
+        unimplemented!()
     }
 
-    fn undo(&mut self, arg: OperationArg) -> Option<usize> {
+    fn undo(&mut self, arg: OperationArg<B>) -> Option<usize> {
+        /*
         let l = arg.buffer.line_to_char(self.range.l().row) + self.range.l().col;
 
         arg.buffer.insert(l, self.orig.as_ref().unwrap().as_str());
         *arg.cursor = self.range.l();
         Some(self.range.l().row)
+        */
+        unimplemented!()
     }
 }
 
-impl Operation for Set {
-    fn perform(&mut self, arg: OperationArg) -> Option<usize> {
+impl<B: CoreBuffer> Operation<B> for Set {
+    fn perform(&mut self, arg: OperationArg<B>) -> Option<usize> {
+        /*
         if self.from.is_none() {
             self.from = Some(String::from(arg.buffer.slice(..)));
         }
@@ -211,12 +236,17 @@ impl Operation for Set {
         arg.cursor.row = min(arg.buffer.len_lines() - 1, arg.cursor.row);
         arg.cursor.col = min(arg.buffer.l(arg.cursor.row).len_chars(), arg.cursor.col);
         Some(0)
+        */
+        unimplemented!()
     }
 
-    fn undo(&mut self, arg: OperationArg) -> Option<usize> {
+    fn undo(&mut self, arg: OperationArg<B>) -> Option<usize> {
+        /*
         *arg.buffer = Rope::from(self.from.as_ref().unwrap().as_str());
         arg.cursor.row = min(arg.buffer.len_lines() - 1, arg.cursor.row);
         arg.cursor.col = min(arg.buffer.l(arg.cursor.row).len_chars(), arg.cursor.col);
         Some(0)
+        */
+        unimplemented!()
     }
 }

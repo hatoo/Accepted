@@ -90,9 +90,9 @@ pub struct Core<B: buffer::CoreBuffer> {
     buffer: Rope,
     core_buffer: B,
     cursor: Cursor,
-    history: Vec<Vec<Box<dyn Operation>>>,
-    history_tmp: Vec<Box<dyn Operation>>,
-    redo: Vec<Vec<Box<dyn Operation>>>,
+    history: Vec<Vec<Box<dyn Operation<B>>>>,
+    history_tmp: Vec<Box<dyn Operation<B>>>,
+    redo: Vec<Vec<Box<dyn Operation<B>>>>,
     buffer_changed: Id,
     pub dirty_from: usize,
 }
@@ -440,14 +440,14 @@ impl<B: buffer::CoreBuffer> Core<B> {
         self.cursor = cursor;
     }
 
-    fn arg(&mut self) -> OperationArg {
+    fn arg(&mut self) -> OperationArg<B> {
         OperationArg {
-            buffer: &mut self.buffer,
+            buffer: &mut self.core_buffer,
             cursor: &mut self.cursor,
         }
     }
 
-    fn perform<T: Operation + 'static>(&mut self, mut op: T) {
+    fn perform<T: Operation<B> + 'static>(&mut self, mut op: T) {
         if let Some(l) = op.perform(self.arg()) {
             self.dirty_from = min(self.dirty_from, l);
         }
