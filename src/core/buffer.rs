@@ -12,6 +12,7 @@ pub use ropey_core_buffer::RopeyCoreBuffer;
 pub trait CoreBuffer: Default + ToString {
     fn from_reader<T: io::Read>(reader: T) -> io::Result<Self>;
     fn len_lines(&self) -> usize;
+    fn len_line(&self, idx_line: usize) -> usize;
     fn char_at(&self, cursor: Cursor) -> Option<char>;
     fn insert_char(&mut self, cursor: Cursor, c: char) {
         self.insert(cursor, c.to_string().as_str());

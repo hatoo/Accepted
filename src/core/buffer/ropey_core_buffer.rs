@@ -18,6 +18,10 @@ impl CoreBuffer for RopeyCoreBuffer {
         self.0.len_lines()
     }
 
+    fn len_line(&self, idx_line: usize) -> usize {
+        self.0.l(idx_line).len_chars()
+    }
+
     fn char_at(&self, cursor: Cursor) -> Option<char> {
         if cursor.row < self.0.len_lines() {
             let line = self.0.l(cursor.row);

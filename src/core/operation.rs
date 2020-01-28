@@ -17,7 +17,7 @@ pub trait Operation<B: CoreBuffer>: Debug {
 }
 
 #[derive(Debug)]
-pub struct Insert {
+pub struct InsertChar {
     pub cursor: Cursor,
     pub c: char,
 }
@@ -80,7 +80,7 @@ impl Set {
     }
 }
 
-impl<B: CoreBuffer> Operation<B> for Insert {
+impl<B: CoreBuffer> Operation<B> for InsertChar {
     fn perform(&mut self, arg: OperationArg<B>) -> Option<usize> {
         arg.core_buffer.insert_char(self.cursor, self.c);
         *arg.cursor = if self.c == '\n' {
@@ -199,44 +199,44 @@ impl<B: CoreBuffer> Operation<B> for DeleteRange {
 
 impl<B: CoreBuffer> Operation<B> for Set {
     fn perform(&mut self, arg: OperationArg<B>) -> Option<usize> {
-        /*
-        if self.from.is_none() {
-            self.from = Some(String::from(arg.buffer.slice(..)));
-        }
+        self.from = Some(arg.core_buffer.to_string());
+        *arg.core_buffer = B::from_reader(self.to.as_bytes()).unwrap();
 
-        *arg.buffer = Rope::from(self.to.as_str());
-        arg.cursor.row = min(arg.buffer.len_lines() - 1, arg.cursor.row);
-        arg.cursor.col = min(arg.buffer.l(arg.cursor.row).len_chars(), arg.cursor.col);
+        let end = Cursor {
+            row: arg.core_buffer.len_lines() - 1,
+            col: arg.core_buffer.len_line(arg.core_buffer.len_lines() - 1),
+        };
+
+        *arg.cursor = std::cmp::min(arg.cursor.clone(), end);
         Some(0)
-        */
-        unimplemented!()
     }
 
     fn undo(&mut self, arg: OperationArg<B>) -> Option<usize> {
-        /*
-        *arg.buffer = Rope::from(self.from.as_ref().unwrap().as_str());
-        arg.cursor.row = min(arg.buffer.len_lines() - 1, arg.cursor.row);
-        arg.cursor.col = min(arg.buffer.l(arg.cursor.row).len_chars(), arg.cursor.col);
+        *arg.core_buffer = B::from_reader(self.from.as_ref().unwrap().as_bytes()).unwrap();
+        let end = Cursor {
+            row: arg.core_buffer.len_lines() - 1,
+            col: arg.core_buffer.len_line(arg.core_buffer.len_lines() - 1),
+        };
+
+        *arg.cursor = std::cmp::min(arg.cursor.clone(), end);
         Some(0)
-        */
-        unimplemented!()
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::Insert;
+    use super::InsertChar;
     use crate::core::buffer::RopeyCoreBuffer;
-    use crate::core::operation::DeleteRange;
+    use crate::core::operation::{DeleteRange, Set};
     use crate::core::{Core, CoreBuffer};
     use crate::core::{Cursor, CursorRange};
     use crate::text_object::Action::Delete;
 
     #[test]
-    fn test_operation_insert() {
+    fn test_operation_insert_char() {
         let mut core = Core::<RopeyCoreBuffer>::from_reader("".as_bytes()).unwrap();
 
-        core.perform(Insert {
+        core.perform(InsertChar {
             cursor: Cursor { row: 0, col: 0 },
             c: 'A',
         });
@@ -246,7 +246,7 @@ mod test {
         core.undo();
         assert_eq!(core.get_string(), "".to_string());
 
-        core.perform(Insert {
+        core.perform(InsertChar {
             cursor: Cursor { row: 0, col: 0 },
             c: '\n',
         });
@@ -295,5 +295,21 @@ mod test {
         core.undo();
         assert_eq!(core.get_string(), "123\n456");
         assert_eq!(core.cursor(), Cursor { row: 0, col: 3 });
+    }
+
+    #[test]
+    fn test_operation_set() {
+        let mut core = Core::<RopeyCoreBuffer>::from_reader("123456".as_bytes()).unwrap();
+
+        core.cursor_mut().col = 4;
+        core.perform(Set::new("abc".to_string()));
+
+        assert_eq!(core.get_string(), "abc".to_string());
+        assert_eq!(core.cursor(), Cursor { col: 3, row: 0 });
+
+        core.commit();
+        core.undo();
+
+        assert_eq!(core.get_string(), "123456".to_string());
     }
 }

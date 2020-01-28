@@ -340,7 +340,7 @@ impl<B: buffer::CoreBuffer> Core<B> {
     }
 
     pub fn insert(&mut self, c: char) {
-        let op = operation::Insert {
+        let op = operation::InsertChar {
             cursor: self.cursor,
             c,
         };
@@ -349,7 +349,7 @@ impl<B: buffer::CoreBuffer> Core<B> {
 
     // o
     pub fn insert_newline(&mut self) {
-        let op = operation::Insert {
+        let op = operation::InsertChar {
             cursor: Cursor {
                 row: self.cursor.row,
                 col: self.buffer.l(self.cursor.row).len_chars(),
@@ -361,7 +361,7 @@ impl<B: buffer::CoreBuffer> Core<B> {
 
     // O
     pub fn insert_newline_here(&mut self) {
-        let op = operation::Insert {
+        let op = operation::InsertChar {
             cursor: Cursor {
                 row: self.cursor.row,
                 col: 0,
