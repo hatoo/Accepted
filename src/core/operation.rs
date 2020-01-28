@@ -40,23 +40,6 @@ impl Replace {
 }
 
 #[derive(Debug)]
-pub struct Delete {
-    pub cursor: Cursor,
-    pub orig: Option<char>,
-    pub done: bool,
-}
-
-impl Delete {
-    pub fn new(cursor: Cursor) -> Self {
-        Self {
-            cursor,
-            orig: None,
-            done: false,
-        }
-    }
-}
-
-#[derive(Debug)]
 pub struct DeleteRange {
     pub range: CursorRange,
     orig: Option<String>,
@@ -126,53 +109,6 @@ impl<B: CoreBuffer> Operation<B> for Replace {
         arg.buffer.remove(i..=i);
         if let Some(orig) = self.orig {
             arg.buffer.insert_char(i, orig);
-        }
-        *arg.cursor = self.cursor;
-        Some(self.cursor.row)
-        */
-        unimplemented!()
-    }
-}
-
-impl<B: CoreBuffer> Operation<B> for Delete {
-    fn perform(&mut self, arg: OperationArg<B>) -> Option<usize> {
-        /*
-        let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
-
-        if self.cursor.col < arg.buffer.l(self.cursor.row).len_chars() {
-            self.orig = Some(arg.buffer.char(i));
-            arg.buffer.remove(i..=i);
-            self.done = true;
-        } else if self.cursor.row + 1 < arg.buffer.len_lines() {
-            while i < arg.buffer.len_chars() && is_line_end(arg.buffer.char(i)) {
-                arg.buffer.remove(i..=i);
-            }
-            self.done = true;
-        } else {
-            self.done = false;
-        }
-        *arg.cursor = self.cursor;
-        if self.done {
-            Some(self.cursor.row)
-        } else {
-            None
-        }
-        */
-        unimplemented!()
-    }
-
-    fn undo(&mut self, arg: OperationArg<B>) -> Option<usize> {
-        /*
-        if !self.done {
-            return None;
-        }
-
-        let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
-
-        if let Some(orig) = self.orig {
-            arg.buffer.insert_char(i, orig);
-        } else {
-            arg.buffer.insert_char(i, '\n');
         }
         *arg.cursor = self.cursor;
         Some(self.cursor.row)

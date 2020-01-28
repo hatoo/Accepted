@@ -378,7 +378,7 @@ impl<B: buffer::CoreBuffer> Core<B> {
     }
 
     pub fn delete(&mut self) {
-        let op = operation::Delete::new(self.cursor);
+        let op = operation::DeleteRange::new(CursorRange::new(self.cursor, self.cursor));
         self.perform(op);
     }
 
