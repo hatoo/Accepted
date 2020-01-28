@@ -373,8 +373,14 @@ impl<B: buffer::CoreBuffer> Core<B> {
     }
 
     pub fn replace(&mut self, c: char) {
-        let op = operation::Replace::new(self.cursor, c);
-        self.perform(op);
+        self.perform(operation::DeleteRange::new(CursorRange::new(
+            self.cursor,
+            self.cursor,
+        )));
+        self.perform(operation::InsertChar {
+            cursor: self.cursor,
+            c,
+        });
     }
 
     pub fn delete(&mut self) {

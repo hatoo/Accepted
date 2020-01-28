@@ -23,23 +23,6 @@ pub struct InsertChar {
 }
 
 #[derive(Debug)]
-pub struct Replace {
-    pub cursor: Cursor,
-    pub c: char,
-    pub orig: Option<char>,
-}
-
-impl Replace {
-    pub fn new(cursor: Cursor, c: char) -> Self {
-        Self {
-            cursor,
-            c,
-            orig: None,
-        }
-    }
-}
-
-#[derive(Debug)]
 pub struct DeleteRange {
     pub range: CursorRange,
     orig: Option<String>,
@@ -85,35 +68,6 @@ impl<B: CoreBuffer> Operation<B> for InsertChar {
             .delete_range(CursorRange(self.cursor, self.cursor));
         *arg.cursor = self.cursor;
         Some(self.cursor.row)
-    }
-}
-
-impl<B: CoreBuffer> Operation<B> for Replace {
-    fn perform(&mut self, arg: OperationArg<B>) -> Option<usize> {
-        /*
-        let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
-        if self.cursor.col < arg.buffer.l(self.cursor.row).len_chars() {
-            self.orig = Some(arg.buffer.l(self.cursor.row).char(self.cursor.col));
-            arg.buffer.remove(i..=i);
-        }
-        arg.buffer.insert_char(i, self.c);
-        *arg.cursor = self.cursor;
-        Some(self.cursor.row)
-        */
-        unimplemented!()
-    }
-
-    fn undo(&mut self, arg: OperationArg<B>) -> Option<usize> {
-        /*
-        let i = arg.buffer.line_to_char(self.cursor.row) + self.cursor.col;
-        arg.buffer.remove(i..=i);
-        if let Some(orig) = self.orig {
-            arg.buffer.insert_char(i, orig);
-        }
-        *arg.cursor = self.cursor;
-        Some(self.cursor.row)
-        */
-        unimplemented!()
     }
 }
 
