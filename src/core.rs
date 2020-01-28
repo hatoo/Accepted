@@ -88,19 +88,20 @@ impl CursorRange {
 #[derive(Debug)]
 pub struct Core<B: buffer::CoreBuffer> {
     buffer: Rope,
+    core_buffer: B,
     cursor: Cursor,
     history: Vec<Vec<Box<dyn Operation>>>,
     history_tmp: Vec<Box<dyn Operation>>,
     redo: Vec<Vec<Box<dyn Operation>>>,
     buffer_changed: Id,
     pub dirty_from: usize,
-    phantom: std::marker::PhantomData<B>,
 }
 
 impl<B: buffer::CoreBuffer> Default for Core<B> {
     fn default() -> Self {
         Self {
             buffer: Rope::default(),
+            core_buffer: B::default(),
             cursor: Cursor { row: 0, col: 0 },
             history: Vec::new(),
             history_tmp: Vec::new(),
@@ -108,7 +109,6 @@ impl<B: buffer::CoreBuffer> Default for Core<B> {
             buffer_changed: Id(Wrapping(1)),
             /// Lines after this are modified
             dirty_from: 0,
-            phantom: std::marker::PhantomData,
         }
     }
 }
@@ -116,14 +116,14 @@ impl<B: buffer::CoreBuffer> Default for Core<B> {
 impl<B: buffer::CoreBuffer> Core<B> {
     pub fn from_reader<T: Read>(reader: T) -> io::Result<Self> {
         Ok(Self {
-            buffer: Rope::from_reader(reader)?,
+            buffer: Rope::default(),
+            core_buffer: B::from_reader(reader)?,
             cursor: Cursor { row: 0, col: 0 },
             history: Vec::new(),
             history_tmp: Vec::new(),
             redo: Vec::new(),
             buffer_changed: Id(Wrapping(1)),
             dirty_from: 0,
-            phantom: std::marker::PhantomData,
         })
     }
 
@@ -136,16 +136,7 @@ impl<B: buffer::CoreBuffer> Core<B> {
     }
 
     pub fn char_at(&self, cursor: Cursor) -> Option<char> {
-        if cursor.row < self.buffer.len_lines() {
-            let line = self.buffer.l(cursor.row);
-            if cursor.col < line.len_chars() {
-                Some(line.char(cursor.col))
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+        self.core_buffer.char_at(cursor)
     }
 
     pub fn current_line(&self) -> ropey::RopeSlice {
@@ -437,6 +428,10 @@ impl<B: buffer::CoreBuffer> Core<B> {
 
     pub fn cursor(&self) -> Cursor {
         self.cursor
+    }
+
+    pub fn cursor_mut(&mut self) -> &mut Cursor {
+        &mut self.cursor
     }
 
     pub fn set_cursor(&mut self, cursor: Cursor) {

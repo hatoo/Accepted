@@ -1,13 +1,13 @@
 use termion::event::{Event, Key};
 
-use accepted::{config, Buffer, BufferMode};
+use accepted::{config, core::buffer::RopeyCoreBuffer, core::CoreBuffer, Buffer, BufferMode};
 
 trait BufferModeExt {
     fn command(&mut self, command: &str);
     fn command_esc(&mut self, command: &str);
 }
 
-impl<'a> BufferModeExt for BufferMode<'a> {
+impl<'a, B: CoreBuffer> BufferModeExt for BufferMode<'a, B> {
     fn command(&mut self, command: &str) {
         for c in command.chars() {
             self.event(Event::Key(Key::Char(c)));
@@ -20,7 +20,7 @@ impl<'a> BufferModeExt for BufferMode<'a> {
 }
 
 #[allow(dead_code)]
-fn with_buffer_mode<F: FnOnce(BufferMode)>(func: F) {
+fn with_buffer_mode<F: FnOnce(BufferMode<RopeyCoreBuffer>)>(func: F) {
     let syntax_parent = accepted::syntax::SyntaxParent::default();
     let config = config::ConfigWithDefault::default();
     let buf = Buffer::new(&syntax_parent, &config);
@@ -28,7 +28,7 @@ fn with_buffer_mode<F: FnOnce(BufferMode)>(func: F) {
     func(state)
 }
 
-fn with_buffer_mode_from<F: FnOnce(BufferMode)>(init: &str, func: F) {
+fn with_buffer_mode_from<F: FnOnce(BufferMode<RopeyCoreBuffer>)>(init: &str, func: F) {
     let syntax_parent = accepted::syntax::SyntaxParent::default();
     let config = config::ConfigWithDefault::default();
     let mut buf = Buffer::new(&syntax_parent, &config);
@@ -40,6 +40,7 @@ fn with_buffer_mode_from<F: FnOnce(BufferMode)>(init: &str, func: F) {
 fn simple_test(init: &str, commands: &str, expected: &str) {
     with_buffer_mode_from(init, |mut state| {
         state.command_esc(commands);
+        dbg!(init, commands);
         assert_eq!(state.buf.core.get_string(), expected);
     });
 }

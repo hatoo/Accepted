@@ -227,23 +227,15 @@ impl<B: CoreBuffer> Mode<B> for Normal {
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('I')) => {
-                let mut i = 0;
-                {
-                    let line = buf.core.current_line();
-                    while i < line.len_chars() && line.char(i) == ' ' {
-                        i += 1;
-                    }
+                buf.core.cursor_mut().col = 0;
+                while buf.core.char_at_cursor() == Some(' ') {
+                    buf.core.cursor_right();
                 }
-                let mut c = buf.core.cursor();
-                c.col = i;
-                buf.core.set_cursor(c);
                 buf.show_cursor();
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('S')) => {
-                let mut c = buf.core.cursor();
-                c.col = 0;
-                buf.core.set_cursor(c);
+                buf.core.cursor_mut().col = 0;
                 for _ in 0..buf.core.current_line().len_chars() {
                     buf.core.delete()
                 }
