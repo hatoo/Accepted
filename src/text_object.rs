@@ -1,5 +1,6 @@
 use crate::core::CoreBuffer;
 use crate::core::{Core, Cursor, CursorRange};
+use std::ops::Bound;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Action {
@@ -46,7 +47,7 @@ pub trait TextObject<B: CoreBuffer> {
         action: Action,
         prefix: TextObjectPrefix,
         core: &Core<B>,
-    ) -> Option<CursorRange>;
+    ) -> (Bound<Cursor>, Bound<Cursor>);
 }
 
 struct Word;
@@ -61,7 +62,8 @@ impl<B: CoreBuffer> TextObject<B> for Quote {
         _: Action,
         prefix: TextObjectPrefix,
         core: &Core<B>,
-    ) -> Option<CursorRange> {
+    ) -> (Bound<Cursor>, Bound<Cursor>) {
+        /*
         match prefix {
             TextObjectPrefix::A | TextObjectPrefix::Inner => {
                 let mut l = Cursor { row: 0, col: 0 };
@@ -96,6 +98,8 @@ impl<B: CoreBuffer> TextObject<B> for Quote {
             }
             _ => None,
         }
+        */
+        unimplemented!()
     }
 }
 
@@ -105,7 +109,8 @@ impl<B: CoreBuffer> TextObject<B> for Parens {
         _: Action,
         prefix: TextObjectPrefix,
         core: &Core<B>,
-    ) -> Option<CursorRange> {
+    ) -> (Bound<Cursor>, Bound<Cursor>) {
+        /*
         match prefix {
             TextObjectPrefix::A | TextObjectPrefix::Inner => {
                 let mut stack = Vec::new();
@@ -141,6 +146,8 @@ impl<B: CoreBuffer> TextObject<B> for Parens {
             }
             _ => None,
         }
+        */
+        unimplemented!()
     }
 }
 
@@ -150,7 +157,8 @@ impl<B: CoreBuffer> TextObject<B> for Word {
         action: Action,
         prefix: TextObjectPrefix,
         core: &Core<B>,
-    ) -> Option<CursorRange> {
+    ) -> (Bound<Cursor>, Bound<Cursor>) {
+        /*
         Some(match prefix {
             TextObjectPrefix::None => {
                 let l = core.cursor();
@@ -198,6 +206,8 @@ impl<B: CoreBuffer> TextObject<B> for Word {
                 )
             }
         })
+        */
+        unimplemented!()
     }
 }
 
@@ -216,7 +226,11 @@ impl TextObjectParser {
 }
 
 impl TextObjectParser {
-    pub fn parse<B: CoreBuffer>(&mut self, c: char, core: &Core<B>) -> Option<Option<CursorRange>> {
+    pub fn parse<B: CoreBuffer>(
+        &mut self,
+        c: char,
+        core: &Core<B>,
+    ) -> Option<(Bound<Cursor>, Bound<Cursor>)> {
         if let Prefix::TextObjectPrefix(_) = self.prefix {
             match c {
                 'a' => {
@@ -242,27 +256,19 @@ impl TextObjectParser {
                 let find = c;
                 let l = core.cursor();
                 let mut r = l;
-                let line = core.current_line();
-                while r.col < line.len_chars() && line.char(r.col) != find {
+                while r.col < core.len_line(r.row) && core.char_at(r) != Some(find) {
                     r.col += 1;
                 }
 
-                if r.col == line.len_chars() {
-                    return Some(None);
+                if r.col == core.len_line(r.row) {
+                    // Nothing
+                    return Some((Bound::Included(l), Bound::Excluded(l)));
                 }
 
-                if !inclusive {
-                    if let Some(prev) = core.prev_cursor(r) {
-                        r = prev;
-                    } else {
-                        return Some(None);
-                    }
-                }
-
-                if r >= l {
-                    Some(Some(CursorRange::new(l, r)))
+                if inclusive {
+                    Some((Bound::Included(l), Bound::Included(r)))
                 } else {
-                    Some(None)
+                    Some((Bound::Included(l), Bound::Excluded(r)))
                 }
             }
             Prefix::TextObjectPrefix(text_object_prefix) => match c {
