@@ -121,9 +121,7 @@ fn test_simples() {
     assert_eq!(simple_run("123 456 789", "ww0iabc "), "abc 123 456 789");
     assert_eq!(simple_run("123 456 789", "$i abc"), "123 456 789 abc");
 
-    /*
     // Auto indent
-    simple_test("123", "A\n", "123\n");
-    simple_test("123{", "A\n", "123{\n    ");
-    */
+    assert_eq!(simple_run("123", "A\n"), "123\n");
+    assert_eq!(simple_run("123{", "A\n"), "123{\n    ");
 }

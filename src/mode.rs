@@ -866,10 +866,16 @@ impl<B: CoreBuffer> Mode<B> for Insert {
                 } else {
                     let indent_width = buf.indent_width();
                     buf.core.insert('\n');
-                    let indent = indent::next_indent_level(
-                        &Cow::from(buf.core.buffer().l(buf.core.cursor().row - 1)),
-                        indent_width,
+                    let line = buf.core.get_string_range(
+                        Cursor {
+                            row: buf.core.cursor().row - 1,
+                            col: 0,
+                        }..Cursor {
+                            row: buf.core.cursor().row - 1,
+                            col: buf.core.len_line(buf.core.cursor().row - 1),
+                        },
                     );
+                    let indent = indent::next_indent_level(line.as_str(), indent_width);
                     for _ in 0..indent_width * indent {
                         buf.core.insert(' ');
                     }
