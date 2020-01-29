@@ -157,7 +157,8 @@ impl<B: buffer::CoreBuffer> Core<B> {
     }
 
     pub fn current_line(&self) -> ropey::RopeSlice {
-        self.buffer.l(self.cursor.row)
+        // self.buffer.l(self.cursor.row)
+        unimplemented!()
     }
 
     pub fn current_line_after_cursor(&self) -> ropey::RopeSlice {

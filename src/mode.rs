@@ -1812,13 +1812,17 @@ impl<B: CoreBuffer> Mode<B> for Find {
             Event::Key(Key::Char(c)) if !c.is_control() => {
                 let cursor = buf.core.cursor();
                 let range: Box<dyn Iterator<Item = usize>> = if self.to_right {
-                    Box::new(cursor.col + 1..buf.core.current_line().len_chars())
+                    Box::new(cursor.col + 1..buf.core.len_current_line())
                 } else {
                     Box::new((0..cursor.col).rev())
                 };
 
                 for i in range {
-                    if buf.core.current_line().char(i) == c {
+                    if buf.core.char_at(Cursor {
+                        row: cursor.row,
+                        col: i,
+                    }) == Some(c)
+                    {
                         buf.core.set_cursor(Cursor {
                             row: cursor.row,
                             col: i,

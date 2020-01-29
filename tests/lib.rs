@@ -1,5 +1,6 @@
 use termion::event::{Event, Key};
 
+use accepted::core::Cursor;
 use accepted::{config, core::buffer::RopeyCoreBuffer, core::CoreBuffer, Buffer, BufferMode};
 
 trait BufferModeExt {
@@ -41,6 +42,15 @@ fn simple_run(init: &str, commands: &str) -> String {
     with_buffer_mode_from(init, |mut state| {
         state.command_esc(commands);
         state.buf.core.get_string()
+    })
+}
+
+fn test_run(init: &str, commands: &[&str]) -> (String, Cursor) {
+    with_buffer_mode_from(init, |mut state| {
+        for command in commands {
+            state.command_esc(command);
+        }
+        (state.buf.core.get_string(), state.buf.core.cursor())
     })
 }
 
@@ -132,4 +142,16 @@ fn test_simples() {
     // g
     assert_eq!(simple_run("123\n456", "wwwwwgiabc"), "abc123\n456");
     assert_eq!(simple_run("123\n456", "Giabc"), "123\n456abc");
+
+    // f, F
+    assert_eq!(simple_run("123456", "f4ia"), "123a456");
+    assert_eq!(simple_run("123456", "$F4ia"), "123a456");
+
+    /*
+    // search
+    assert_eq!(
+        test_run("123\nabc\n456", &["/abc", "n"]),
+        ("123\nabc\n456".to_string(), Cursor { row: 1, col: 0 })
+    );
+    */
 }
