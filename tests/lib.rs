@@ -65,6 +65,7 @@ fn test_simples() {
     // s, S, C
     assert_eq!(simple_run("123", "sHello World"), "Hello World23");
     assert_eq!(simple_run("123", "SHello World"), "Hello World");
+    assert_eq!(simple_run("123 456 789", "wCabc"), "123 abc");
 
     /*
     // s, S, C

@@ -250,6 +250,7 @@ impl<B: CoreBuffer> Mode<B> for Normal {
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('C')) => {
+                // TODO bulk delete
                 while buf.core.char_at_cursor().is_some() {
                     buf.core.delete()
                 }
