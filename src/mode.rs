@@ -261,7 +261,7 @@ impl<B: CoreBuffer> Mode<B> for Normal {
             }
             Event::Key(Key::Char('A')) => {
                 let mut c = buf.core.cursor();
-                c.col = buf.core.current_line().len_chars();
+                c.col = buf.core.len_current_line();
                 buf.core.set_cursor(c);
                 buf.show_cursor();
                 return Transition::RecordMacro(Box::new(Insert::default()));

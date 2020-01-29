@@ -144,6 +144,14 @@ impl<B: buffer::CoreBuffer> Core<B> {
         self.core_buffer.char_at(cursor)
     }
 
+    pub fn len_line(&self, idx_line: usize) -> usize {
+        self.core_buffer.len_line(idx_line)
+    }
+
+    pub fn len_current_line(&self) -> usize {
+        self.core_buffer.len_line(self.cursor.row)
+    }
+
     pub fn current_line(&self) -> ropey::RopeSlice {
         self.buffer.l(self.cursor.row)
     }
