@@ -358,18 +358,16 @@ impl<B: CoreBuffer> Mode<B> for Normal {
                         pos = Cursor { row: 0, col: 0 };
                     }
 
-                    let idx = buf.core.buffer().line_to_char(pos.row) + pos.col;
-
                     let pos_bytes = if let Some(Ok(m)) = ac
                         .stream_find_iter(iter_read::IterRead::new(
-                            buf.core.buffer().slice(idx..).bytes(),
+                            buf.core.core_buffer().bytes_range(pos..),
                         ))
                         .next()
                     {
-                        Some(buf.core.buffer().char_to_byte(idx) + m.start())
+                        Some(buf.core.core_buffer().cursor_to_bytes(pos) + m.start())
                     } else if let Some(Ok(m)) = ac
                         .stream_find_iter(iter_read::IterRead::new(
-                            buf.core.buffer().slice(..idx).bytes(),
+                            buf.core.core_buffer().bytes_range(..pos),
                         ))
                         .next()
                     {
@@ -379,11 +377,8 @@ impl<B: CoreBuffer> Mode<B> for Normal {
                     };
 
                     if let Some(start) = pos_bytes {
-                        let row = buf.core.buffer().byte_to_line(start);
-                        let col = buf.core.buffer().byte_to_char(start)
-                            - buf.core.buffer().line_to_char(row);
-
-                        buf.core.set_cursor(Cursor { row, col });
+                        buf.core
+                            .set_cursor(buf.core.core_buffer().bytes_to_cursor(start));
                         buf.show_cursor();
                     }
                 }

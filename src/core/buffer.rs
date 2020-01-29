@@ -21,4 +21,11 @@ pub trait CoreBuffer: Default + ToString {
 
     fn get_range<R: RangeBounds<Cursor>>(&self, range: R) -> String;
     fn delete_range<R: RangeBounds<Cursor>>(&mut self, range: R);
+    fn bytes_range<'a, R: RangeBounds<Cursor>>(
+        &'a self,
+        range: R,
+    ) -> Box<dyn Iterator<Item = u8> + 'a>;
+
+    fn cursor_to_bytes(&self, cursor: Cursor) -> usize;
+    fn bytes_to_cursor(&self, bytes_idx: usize) -> Cursor;
 }

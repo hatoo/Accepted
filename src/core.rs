@@ -456,7 +456,12 @@ impl<B: buffer::CoreBuffer> Core<B> {
     }
 
     pub fn buffer(&self) -> &Rope {
-        &self.buffer
+        // &self.buffer
+        unimplemented!()
+    }
+
+    pub fn core_buffer(&self) -> &B {
+        &self.core_buffer
     }
 
     pub fn cursor(&self) -> Cursor {

@@ -56,6 +56,27 @@ impl CoreBuffer for RopeyCoreBuffer {
 
         self.0.remove(ropey_range);
     }
+
+    fn bytes_range<'a, R: RangeBounds<Cursor>>(
+        &'a self,
+        range: R,
+    ) -> Box<dyn Iterator<Item = u8> + 'a> {
+        let ropey_range = map_range(range, |c| self.0.line_to_char(c.row) + c.col);
+
+        Box::new(self.0.slice(ropey_range).bytes())
+    }
+
+    fn cursor_to_bytes(&self, cursor: Cursor) -> usize {
+        self.0
+            .char_to_byte(self.0.line_to_char(cursor.row) + cursor.col)
+    }
+
+    fn bytes_to_cursor(&self, bytes_idx: usize) -> Cursor {
+        let row = self.0.byte_to_line(bytes_idx);
+        let col = self.0.byte_to_char(bytes_idx) - self.0.line_to_char(row);
+
+        Cursor { row, col }
+    }
 }
 
 impl ToString for RopeyCoreBuffer {
