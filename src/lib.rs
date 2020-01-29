@@ -1,3 +1,5 @@
+#![feature(bound_cloned)]
+
 pub mod buffer;
 pub mod buffer_mode;
 pub mod buffer_tab;

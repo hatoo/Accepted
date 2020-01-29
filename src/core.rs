@@ -373,10 +373,7 @@ impl<B: buffer::CoreBuffer> Core<B> {
     }
 
     pub fn replace(&mut self, c: char) {
-        self.perform(operation::DeleteRange::new(CursorRange::new(
-            self.cursor,
-            self.cursor,
-        )));
+        self.perform(operation::DeleteRange::new(self.cursor..=self.cursor));
         self.perform(operation::InsertChar {
             cursor: self.cursor,
             c,
@@ -384,13 +381,16 @@ impl<B: buffer::CoreBuffer> Core<B> {
     }
 
     pub fn delete(&mut self) {
-        let op = operation::DeleteRange::new(CursorRange::new(self.cursor, self.cursor));
+        let op = operation::DeleteRange::new(self.cursor..=self.cursor);
         self.perform(op);
     }
 
     pub fn delete_range(&mut self, range: CursorRange) {
+        unimplemented!()
+        /*
         let op = operation::DeleteRange::new(range);
         self.perform(op);
+        */
     }
 
     pub fn get_slice_by_range(&self, range: CursorRange) -> RopeSlice {

@@ -3,8 +3,9 @@ use std::fmt::Debug;
 
 use crate::core::CoreBuffer;
 
-use crate::core::{Cursor, CursorRange};
+use crate::core::Cursor;
 use crate::ropey_util::{is_line_end, RopeExt};
+use failure::_core::ops::{Bound, RangeBounds};
 
 pub struct OperationArg<'a, B: CoreBuffer> {
     pub core_buffer: &'a mut B,
@@ -24,13 +25,16 @@ pub struct InsertChar {
 
 #[derive(Debug)]
 pub struct DeleteRange {
-    pub range: CursorRange,
+    range: (Bound<Cursor>, Bound<Cursor>),
     orig: Option<String>,
 }
 
 impl DeleteRange {
-    pub fn new(range: CursorRange) -> Self {
-        Self { range, orig: None }
+    pub fn new<R: RangeBounds<Cursor>>(range: R) -> Self {
+        Self {
+            range: (range.start_bound().cloned(), range.end_bound().cloned()),
+            orig: None,
+        }
     }
 }
 
@@ -64,8 +68,7 @@ impl<B: CoreBuffer> Operation<B> for InsertChar {
     }
 
     fn undo(&mut self, arg: OperationArg<B>) -> Option<usize> {
-        arg.core_buffer
-            .delete_range(CursorRange(self.cursor, self.cursor));
+        arg.core_buffer.delete_range(self.cursor..=self.cursor);
         *arg.cursor = self.cursor;
         Some(self.cursor.row)
     }
@@ -75,15 +78,29 @@ impl<B: CoreBuffer> Operation<B> for DeleteRange {
     fn perform(&mut self, arg: OperationArg<B>) -> Option<usize> {
         self.orig = Some(arg.core_buffer.get_range(self.range));
         arg.core_buffer.delete_range(self.range);
-        *arg.cursor = self.range.l();
-        Some(self.range.l().row)
+        *arg.cursor = match self.range.start_bound() {
+            Bound::Included(c) => c.clone(),
+            Bound::Excluded(c) => c.clone(),
+            Bound::Unbounded => Cursor { row: 0, col: 0 },
+        };
+        Some(match self.range.start_bound() {
+            Bound::Included(c) => c.row,
+            Bound::Excluded(c) => c.row,
+            Bound::Unbounded => 0,
+        })
     }
 
     fn undo(&mut self, arg: OperationArg<B>) -> Option<usize> {
+        let l = match self.range.start_bound() {
+            Bound::Included(c) => c.clone(),
+            Bound::Excluded(c) => c.clone(),
+            Bound::Unbounded => Cursor { row: 0, col: 0 },
+        };
+
         arg.core_buffer
-            .insert(self.range.l(), self.orig.as_ref().unwrap().as_str());
-        *arg.cursor = self.range.l();
-        Some(self.range.l().row)
+            .insert(l, self.orig.as_ref().unwrap().as_str());
+        *arg.cursor = l;
+        Some(l.row)
     }
 }
 
@@ -118,8 +135,8 @@ mod test {
     use super::InsertChar;
     use crate::core::buffer::RopeyCoreBuffer;
     use crate::core::operation::{DeleteRange, Set};
+    use crate::core::Cursor;
     use crate::core::{Core, CoreBuffer};
-    use crate::core::{Cursor, CursorRange};
     use crate::text_object::Action::Delete;
 
     #[test]
@@ -149,10 +166,9 @@ mod test {
     fn test_operation_delete_range() {
         let mut core = Core::<RopeyCoreBuffer>::from_reader("12345678".as_bytes()).unwrap();
 
-        core.perform(DeleteRange::new(CursorRange(
-            Cursor { row: 0, col: 1 },
-            Cursor { row: 0, col: 2 },
-        )));
+        core.perform(DeleteRange::new(
+            Cursor { row: 0, col: 1 }..=Cursor { row: 0, col: 2 },
+        ));
         assert_eq!(core.get_string(), "145678".to_string());
         assert_eq!(core.cursor(), Cursor { row: 0, col: 1 });
         core.commit();
@@ -162,10 +178,9 @@ mod test {
 
         let mut core = Core::<RopeyCoreBuffer>::from_reader("123\n".as_bytes()).unwrap();
 
-        core.perform(DeleteRange::new(CursorRange(
-            Cursor { row: 0, col: 0 },
-            Cursor { row: 0, col: 3 },
-        )));
+        core.perform(DeleteRange::new(
+            Cursor { row: 0, col: 0 }..=Cursor { row: 0, col: 3 },
+        ));
         assert_eq!(core.get_string(), "".to_string());
         assert_eq!(core.cursor(), Cursor { row: 0, col: 0 });
         core.commit();
@@ -175,10 +190,9 @@ mod test {
 
         let mut core = Core::<RopeyCoreBuffer>::from_reader("123\n456".as_bytes()).unwrap();
 
-        core.perform(DeleteRange::new(CursorRange(
-            Cursor { row: 0, col: 3 },
-            Cursor { row: 0, col: 3 },
-        )));
+        core.perform(DeleteRange::new(
+            Cursor { row: 0, col: 3 }..=Cursor { row: 0, col: 3 },
+        ));
         assert_eq!(core.get_string(), "123456".to_string());
         assert_eq!(core.cursor(), Cursor { row: 0, col: 3 });
         core.commit();

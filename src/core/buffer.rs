@@ -6,7 +6,7 @@ use ropey::Rope;
 
 mod ropey_core_buffer;
 
-use crate::core::CursorRange;
+use failure::_core::ops::RangeBounds;
 pub use ropey_core_buffer::RopeyCoreBuffer;
 
 pub trait CoreBuffer: Default + ToString {
@@ -18,6 +18,7 @@ pub trait CoreBuffer: Default + ToString {
         self.insert(cursor, c.to_string().as_str());
     }
     fn insert(&mut self, cursor: Cursor, s: &str);
-    fn get_range(&self, cursor_range: CursorRange) -> String;
-    fn delete_range(&mut self, cursor_range: CursorRange);
+
+    fn get_range<R: RangeBounds<Cursor>>(&self, range: R) -> String;
+    fn delete_range<R: RangeBounds<Cursor>>(&mut self, range: R);
 }

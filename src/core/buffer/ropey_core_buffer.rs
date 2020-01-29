@@ -4,7 +4,7 @@ use std::io;
 
 use super::CoreBuffer;
 use super::Cursor;
-use super::CursorRange;
+use std::ops::{Bound, RangeBounds};
 
 #[derive(Default)]
 pub struct RopeyCoreBuffer(Rope);
@@ -45,18 +45,16 @@ impl CoreBuffer for RopeyCoreBuffer {
         self.0.insert(i, s);
     }
 
-    fn get_range(&self, cursor_range: CursorRange) -> String {
-        let from = self.0.line_to_char(cursor_range.l().row) + cursor_range.l().col;
-        let to = self.0.line_to_char(cursor_range.r().row) + cursor_range.r().col;
+    fn get_range<R: RangeBounds<Cursor>>(&self, range: R) -> String {
+        let ropey_range = map_range(range, |c| self.0.line_to_char(c.row) + c.col);
 
-        self.0.slice(from..=to).to_string()
+        self.0.slice(ropey_range).to_string()
     }
 
-    fn delete_range(&mut self, cursor_range: CursorRange) {
-        let from = self.0.line_to_char(cursor_range.l().row) + cursor_range.l().col;
-        let to = self.0.line_to_char(cursor_range.r().row) + cursor_range.r().col;
+    fn delete_range<R: RangeBounds<Cursor>>(&mut self, range: R) {
+        let ropey_range = map_range(range, |c| self.0.line_to_char(c.row) + c.col);
 
-        self.0.remove(from..=to);
+        self.0.remove(ropey_range);
     }
 }
 
@@ -64,4 +62,22 @@ impl ToString for RopeyCoreBuffer {
     fn to_string(&self) -> String {
         String::from(&self.0)
     }
+}
+
+fn map_bound<T1, T2, F: Fn(&T1) -> T2>(bound: Bound<&T1>, f: F) -> Bound<T2> {
+    match bound {
+        Bound::Unbounded => Bound::Unbounded,
+        Bound::Excluded(t) => Bound::Excluded(f(t)),
+        Bound::Included(t) => Bound::Included(f(t)),
+    }
+}
+
+fn map_range<T1: Sized, T2: Sized, R1: RangeBounds<T1>, F: Fn(&T1) -> T2>(
+    range: R1,
+    f: F,
+) -> (Bound<T2>, Bound<T2>) {
+    (
+        map_bound(range.start_bound(), &f),
+        map_bound(range.end_bound(), &f),
+    )
 }
