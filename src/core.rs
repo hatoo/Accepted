@@ -425,7 +425,7 @@ impl<B: buffer::CoreBuffer> Core<B> {
 
     pub fn set_string(&mut self, s: String, clear_history: bool) {
         if clear_history {
-            self.buffer = Rope::from(s);
+            self.core_buffer = B::from_reader(s.as_bytes()).unwrap();
             self.buffer_changed.inc();
             self.dirty_from = 0;
             self.redo.clear();

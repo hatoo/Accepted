@@ -613,6 +613,14 @@ mod test_insert {
         core.set_cursor(Cursor { row: 0, col: 5 });
         assert_eq!(Insert::token(&core), "token".to_string());
     }
+
+    #[test]
+    fn test_remove_token() {
+        let mut core = Core::<RopeyCoreBuffer>::from_reader("token".as_bytes()).unwrap();
+        core.set_cursor(Cursor { row: 0, col: 5 });
+        Insert::remove_token(&mut core);
+        assert_eq!(core.get_string(), "".to_string());
+    }
 }
 
 impl Insert {
@@ -620,17 +628,13 @@ impl Insert {
         let mut cursor = core.cursor();
 
         while cursor.col > 0
-            && (core
+            && core
                 .char_at(Cursor {
                     row: cursor.row,
                     col: cursor.col - 1,
                 })
-                .map(|c| c.is_alphabetic())
+                .map(|c| c.is_alphabetic() || c == '_')
                 .unwrap_or(false)
-                || core.char_at(Cursor {
-                    row: cursor.row,
-                    col: cursor.col - 1,
-                }) == Some('_'))
         {
             cursor.col -= 1;
         }
@@ -639,14 +643,19 @@ impl Insert {
     }
 
     fn remove_token<B: CoreBuffer>(core: &mut Core<B>) {
-        let mut i = core.cursor().col;
-        while i > 0 && {
-            let c = core.current_line().char(i - 1);
-            c.is_alphanumeric() || c == '_'
+        while {
+            let cursor = core.cursor();
+            cursor.col > 0
+                && core
+                    .char_at(Cursor {
+                        row: cursor.row,
+                        col: cursor.col - 1,
+                    })
+                    .map(|c| c.is_alphabetic() || c == '_')
+                    .unwrap_or(false)
         } {
             core.cursor_left();
             core.delete();
-            i -= 1;
         }
     }
 
@@ -731,11 +740,16 @@ impl Insert {
         self.buf_update = buf.core.buffer_changed();
         let prefix = Self::token(&buf.core);
         let start_completion = {
-            let i = buf.core.cursor().col;
-            i > 0 && {
-                let c = buf.core.current_line().char(i - 1);
-                c == ':' || c == '.'
-            }
+            let cursor = buf.core.cursor();
+            cursor.col > 0
+                && buf
+                    .core
+                    .char_at(Cursor {
+                        row: cursor.row,
+                        col: cursor.col - 1,
+                    })
+                    .map(|c| c == ':' || c == '.')
+                    .unwrap_or(false)
         };
         if !prefix.is_empty() || start_completion {
             if let Some(lsp) = buf.lsp.as_ref() {

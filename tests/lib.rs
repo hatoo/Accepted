@@ -47,7 +47,7 @@ fn simple_run(init: &str, commands: &str) -> String {
 #[test]
 fn test_simples() {
     // Insertions
-    // assert_eq!(simple_run("123", "iHello World"), "Hello World123");
+    assert_eq!(simple_run("123", "iHello World"), "Hello World123");
     /*
     simple_test("123", "iHello World", "Hello World123");
     simple_test("123", "llllllIHello World", "Hello World123");
