@@ -63,7 +63,6 @@ impl<B: CoreBuffer> TextObject<B> for Quote {
         prefix: TextObjectPrefix,
         core: &Core<B>,
     ) -> (Bound<Cursor>, Bound<Cursor>) {
-        /*
         match prefix {
             TextObjectPrefix::A | TextObjectPrefix::Inner => {
                 let mut l = Cursor { row: 0, col: 0 };
@@ -75,31 +74,37 @@ impl<B: CoreBuffer> TextObject<B> for Quote {
                         level = !level;
                         if !level && t >= core.cursor() && l <= core.cursor() {
                             if prefix == TextObjectPrefix::Inner {
-                                let l = core.next_cursor(l)?;
-                                let r = core.prev_cursor(t)?;
-                                return if l <= r {
-                                    Some(CursorRange::new(l, r))
+                                return if l <= t {
+                                    (Bound::Excluded(l), Bound::Excluded(t))
                                 } else {
-                                    None
+                                    (Bound::Included(l), Bound::Excluded(l))
                                 };
                             } else {
-                                return Some(CursorRange::new(l, t));
+                                return (Bound::Included(l), Bound::Included(t));
                             }
                         }
                         l = t;
                     }
 
                     if t > core.cursor() && !level {
-                        return None;
+                        return (Bound::Included(l), Bound::Excluded(l));
                     }
 
-                    t = core.next_cursor(t)?;
+                    if let Some(next) = core.next_cursor(t) {
+                        t = next;
+                    } else {
+                        return (
+                            Bound::Included(Cursor { row: 0, col: 0 }),
+                            Bound::Excluded(Cursor { row: 0, col: 0 }),
+                        );
+                    }
                 }
             }
-            _ => None,
+            _ => (
+                Bound::Included(Cursor { row: 0, col: 0 }),
+                Bound::Excluded(Cursor { row: 0, col: 0 }),
+            ),
         }
-        */
-        unimplemented!()
     }
 }
 

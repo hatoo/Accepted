@@ -102,6 +102,11 @@ fn test_simples() {
     assert_eq!(simple_run("(123 456 789)(abc)", "di)"), "()(abc)");
     assert_eq!(simple_run("(123 456 789)(abc)", "da)"), "(abc)");
     assert_eq!(simple_run("((123 456 789)(qwe))(abc)", "da)"), "(abc)");
+
+    // Quote
+    assert_eq!(simple_run("\"123 456 789\"\"abc\"", "di\""), "\"\"\"abc\"");
+    assert_eq!(simple_run("\"123 456 789\"\"abc\"", "da\""), "\"abc\"");
+
     /*
     // f,t
     simple_test("123456", "df4", "56");
