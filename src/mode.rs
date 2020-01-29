@@ -332,7 +332,7 @@ impl<B: CoreBuffer> Mode<B> for Normal {
             Event::Key(Key::Char('$')) => {
                 buf.core.set_cursor(Cursor {
                     row: buf.core.cursor().row,
-                    col: buf.core.current_line().len_chars(),
+                    col: buf.core.len_current_line(),
                 });
             }
             Event::Key(Key::Char('g')) => {

@@ -117,11 +117,11 @@ fn test_simples() {
     assert_eq!(simple_run("123\n456\n789", "ddp"), "456\n123\n789");
     assert_eq!(simple_run("123 456 789", "dwwP"), "456 123 789");
 
-    /*
     // 0, $
-    simple_test("123 456 789", "ww0iabc ", "abc 123 456 789");
-    simple_test("123 456 789", "$i abc", "123 456 789 abc");
+    assert_eq!(simple_run("123 456 789", "ww0iabc "), "abc 123 456 789");
+    assert_eq!(simple_run("123 456 789", "$i abc"), "123 456 789 abc");
 
+    /*
     // Auto indent
     simple_test("123", "A\n", "123\n");
     simple_test("123{", "A\n", "123{\n    ");
