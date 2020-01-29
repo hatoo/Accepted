@@ -111,13 +111,13 @@ fn test_simples() {
     assert_eq!(simple_run("123456", "df4"), "56");
     assert_eq!(simple_run("123456", "dt4"), "456");
     assert_eq!(simple_run("123456abc", "dta"), "abc");
-    /*
 
     // Yanks
-    simple_test("123\n456\n789", "yyp", "123\n123\n456\n789");
-    simple_test("123\n456\n789", "ddp", "456\n123\n789");
-    simple_test("123 456 789", "dwwP", "456 123 789");
+    assert_eq!(simple_run("123\n456\n789", "yyp"), "123\n123\n456\n789");
+    assert_eq!(simple_run("123\n456\n789", "ddp"), "456\n123\n789");
+    assert_eq!(simple_run("123 456 789", "dwwP"), "456 123 789");
 
+    /*
     // 0, $
     simple_test("123 456 789", "ww0iabc ", "abc 123 456 789");
     simple_test("123 456 789", "$i abc", "123 456 789 abc");
