@@ -79,25 +79,26 @@ fn test_simples() {
     assert_eq!(simple_run("1\n2\n3\n4", "jjdkp"), "1\n4\n2\n3");
 
     // word
-    // assert_eq!(simple_run("123 456 789", "wdw"), "123 789");
-    /*
-    simple_test("123 456 789", "dw", "456 789");
-    simple_test("123 456             789", "wdw", "123 789");
-    simple_test("123 456 789", "wdaw", "123 789");
-    simple_test("123 456 789", "daw", "456 789");
-    simple_test("123 456 789", "ldaw", "456 789");
-    simple_test("123 456             789", "wdaw", "123 789");
-    simple_test("123 456 789", "wdiw", "123  789");
-    simple_test("123 456 789", "diw", " 456 789");
-    simple_test("123 456 789", "ldiw", " 456 789");
+    assert_eq!(simple_run("123 456 789", "wdw"), "123 789");
+    assert_eq!(simple_run("123 456 789", "dw"), "456 789");
+    assert_eq!(simple_run("123 456             789", "wdw"), "123 789");
+    assert_eq!(simple_run("123 456 789", "wdaw"), "123 789");
+    assert_eq!(simple_run("123 456 789", "daw"), "456 789");
+    assert_eq!(simple_run("123 456 789", "ldaw"), "456 789");
+    assert_eq!(simple_run("123 456             789", "wdaw"), "123 789");
+    assert_eq!(simple_run("123 456 789", "wdiw"), "123  789");
+    assert_eq!(simple_run("123 456 789", "diw"), " 456 789");
+    assert_eq!(simple_run("123 456 789", "ldiw"), " 456 789");
 
-    simple_test("123 456 789", "wcw", "123  789");
-    simple_test("123 456 789", "wcwabc", "123 abc 789");
-    simple_test("123 456   789", "wcw", "123    789");
-    simple_test("123 456 789", "wcaw", "123  789");
-    simple_test("123 456   789", "wcaw", "123    789");
-    simple_test("123 456 789", "wciw", "123  789");
-    simple_test("123 456   789", "wciw", "123    789");
+    assert_eq!(simple_run("123 456 789", "wcw"), "123  789");
+    assert_eq!(simple_run("123 456 789", "wcwabc"), "123 abc 789");
+    assert_eq!(simple_run("123 456   789", "wcw"), "123    789");
+    assert_eq!(simple_run("123 456 789", "wcaw"), "123  789");
+    assert_eq!(simple_run("123 456   789", "wcaw"), "123    789");
+    assert_eq!(simple_run("123 456 789", "wciw"), "123  789");
+    assert_eq!(simple_run("123 456   789", "wciw"), "123    789");
+    /*
+
     // parens
     simple_test("(123 456 789)(abc)", "di)", "()(abc)");
     simple_test("(123 456 789)(abc)", "da)", "(abc)");

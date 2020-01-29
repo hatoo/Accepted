@@ -158,56 +158,61 @@ impl<B: CoreBuffer> TextObject<B> for Word {
         prefix: TextObjectPrefix,
         core: &Core<B>,
     ) -> (Bound<Cursor>, Bound<Cursor>) {
-        /*
-        Some(match prefix {
+        match prefix {
             TextObjectPrefix::None => {
                 let l = core.cursor();
-                let line = core.current_line();
-                let mut i = l.col;
-                while i + 1 < line.len_chars() && line.char(i + 1).is_alphanumeric() {
-                    i += 1;
+                let mut r = l;
+                while r.col < core.len_line(r.row)
+                    && core
+                        .char_at(r)
+                        .map(|c| c.is_alphanumeric())
+                        .unwrap_or(false)
+                {
+                    r.col += 1;
                 }
-                if action != Action::Change && prefix != TextObjectPrefix::Inner {
-                    while i + 1 < line.len_chars() && line.char(i + 1) == ' ' {
-                        i += 1;
+                if action != Action::Change {
+                    while r.col < core.len_line(r.row) && core.char_at(r) == Some(' ') {
+                        r.col += 1;
                     }
                 }
-                CursorRange::new(l, Cursor { row: l.row, col: i })
+                (Bound::Included(l), Bound::Excluded(r))
             }
             TextObjectPrefix::A | TextObjectPrefix::Inner => {
-                let pos = core.cursor();
-                let line = core.current_line();
-                let mut l = pos.col;
-                let mut r = pos.col;
+                let mut l = core.cursor();
+                let mut r = l;
 
-                while l > 0 && line.char(l - 1).is_alphanumeric() {
-                    l -= 1;
+                while l.col > 0
+                    && core
+                        .char_at(Cursor {
+                            row: l.row,
+                            col: l.col - 1,
+                        })
+                        .map(|c| c.is_alphanumeric())
+                        .unwrap_or(false)
+                {
+                    l.col -= 1;
                 }
 
-                while r + 1 < line.len_chars() && line.char(r + 1).is_alphanumeric() {
-                    r += 1;
+                while r.col < core.len_line(r.row)
+                    && core
+                        .char_at(r)
+                        .map(|c| c.is_alphanumeric())
+                        .unwrap_or(false)
+                {
+                    r.col += 1;
                 }
 
                 if action != Action::Change && prefix != TextObjectPrefix::Inner {
-                    while r + 1 < line.len_chars() && line.char(r + 1) == ' ' {
-                        r += 1;
+                    while r.col < core.len_line(r.row)
+                        && core.char_at(r).map(|c| c == ' ').unwrap_or(false)
+                    {
+                        r.col += 1;
                     }
                 }
 
-                CursorRange::new(
-                    Cursor {
-                        row: pos.row,
-                        col: l,
-                    },
-                    Cursor {
-                        row: pos.row,
-                        col: r,
-                    },
-                )
+                (Bound::Included(l), Bound::Excluded(r))
             }
-        })
-        */
-        unimplemented!()
+        }
     }
 }
 
