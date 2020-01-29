@@ -361,7 +361,7 @@ impl<B: buffer::CoreBuffer> Core<B> {
         let op = operation::InsertChar {
             cursor: Cursor {
                 row: self.cursor.row,
-                col: self.buffer.l(self.cursor.row).len_chars(),
+                col: self.core_buffer.len_line(self.cursor.row),
             },
             c: '\n',
         };
