@@ -191,7 +191,7 @@ impl<B: buffer::CoreBuffer> Core<B> {
     }
 
     pub fn cursor_down(&mut self) {
-        self.cursor.row = min(self.buffer.len_lines() - 1, self.cursor.row + 1);
+        self.cursor.row = min(self.core_buffer.len_lines() - 1, self.cursor.row + 1);
         self.cursor.col = min(self.core_buffer.len_line(self.cursor.row), self.cursor.col);
     }
 
@@ -394,7 +394,12 @@ impl<B: buffer::CoreBuffer> Core<B> {
         self.perform(op);
     }
 
-    pub fn delete_range(&mut self, range: CursorRange) {
+    pub fn delete_range<R: RangeBounds<Cursor>>(&mut self, range: R) {
+        let op = operation::DeleteRange::new(range);
+        self.perform(op);
+    }
+
+    pub fn delete_range_old(&mut self, range: CursorRange) {
         unimplemented!()
         /*
         let op = operation::DeleteRange::new(range);

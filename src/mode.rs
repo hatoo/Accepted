@@ -1375,7 +1375,7 @@ impl<B: CoreBuffer> Mode<B> for Visual {
                     String::from(buf.core.get_slice_by_range(range))
                 };
                 let delete_to_end = range.r().row == buf.core.buffer().len_lines() - 1;
-                buf.core.delete_range(range);
+                buf.core.delete_range_old(range);
                 if to_insert && range.l().row != range.r().row {
                     if !delete_to_end {
                         buf.core.insert_newline_here();
@@ -1399,7 +1399,7 @@ impl<B: CoreBuffer> Mode<B> for Visual {
             Event::Key(Key::Char('p')) | Event::Key(Key::Ctrl('p')) => {
                 let is_clipboard = event == Event::Key(Key::Ctrl('p'));
                 let range = self.get_range(buf.core.cursor(), buf.core.buffer());
-                buf.core.delete_range(range);
+                buf.core.delete_range_old(range);
                 if is_clipboard {
                     if let Ok(s) = clipboard::clipboard_paste() {
                         for c in s.chars() {
@@ -1571,21 +1571,26 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                 // Yank current line
                 buf.yank = Yank {
                     insert_newline: true,
-                    content: String::from(buf.core.current_line()),
+                    content: buf.core.get_string_range(
+                        Cursor {
+                            row: buf.core.cursor().row,
+                            col: 0,
+                        }..Cursor {
+                            row: buf.core.cursor().row,
+                            col: buf.core.len_current_line(),
+                        },
+                    ),
                 };
                 match self.parser.action {
                     // dd
                     Action::Delete => {
-                        let range = CursorRange::new(
-                            Cursor {
-                                row: buf.core.cursor().row,
-                                col: 0,
-                            },
-                            Cursor {
-                                row: buf.core.cursor().row,
-                                col: buf.core.current_line().len_chars(),
-                            },
-                        );
+                        let range = Cursor {
+                            row: buf.core.cursor().row,
+                            col: 0,
+                        }..=Cursor {
+                            row: buf.core.cursor().row,
+                            col: buf.core.len_current_line(),
+                        };
                         buf.core.delete_range(range);
                         buf.core.commit();
                         return Transition::Return(TransitionReturn {
@@ -1660,7 +1665,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                 match self.parser.action {
                     // dj or dk
                     Action::Delete => {
-                        buf.core.delete_range(range);
+                        buf.core.delete_range_old(range);
                         buf.core.commit();
                         return Transition::Return(TransitionReturn {
                             message: None,
@@ -1674,7 +1679,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                         });
                     }
                     Action::Change => {
-                        buf.core.delete_range(range);
+                        buf.core.delete_range_old(range);
                         buf.core.insert_newline_here();
                         buf.core.commit();
                         buf.indent();
@@ -1691,7 +1696,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                     };
                     match self.parser.action {
                         Action::Delete => {
-                            buf.core.delete_range(range);
+                            buf.core.delete_range_old(range);
                             buf.core.commit();
                             return Transition::Return(TransitionReturn {
                                 message: None,
@@ -1699,7 +1704,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                             });
                         }
                         Action::Change => {
-                            buf.core.delete_range(range);
+                            buf.core.delete_range_old(range);
                             buf.core.commit();
                             return Insert::default().into_transition();
                         }

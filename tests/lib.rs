@@ -67,12 +67,10 @@ fn test_simples() {
     assert_eq!(simple_run("123", "SHello World"), "Hello World");
     assert_eq!(simple_run("123 456 789", "wCabc"), "123 abc");
 
+    // dd
+    assert_eq!(simple_run("1\n2\n3", "dd"), "2\n3");
+    assert_eq!(simple_run("1\n2\n3", "jdd"), "1\n3");
     /*
-    // s, S, C
-    simple_test("123", "sHello World", "Hello World23");
-    simple_test("123", "SHello World", "Hello World");
-    simple_test("123 456 789", "wCabc", "123 abc");
-
     // dd
     simple_test("1\n2\n3", "jdd", "1\n3");
     // dj
