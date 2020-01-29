@@ -1616,7 +1616,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                             row: pos.row,
                             col: 0,
                         });
-                        for _ in 0..buf.core.current_line().len_chars() {
+                        for _ in 0..buf.core.len_line(pos.row) {
                             buf.core.delete();
                         }
                         buf.core.commit();
