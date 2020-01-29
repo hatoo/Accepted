@@ -5,6 +5,7 @@ use std::cmp::{max, min};
 use std::io;
 use std::io::Read;
 use std::num::Wrapping;
+use std::ops::RangeBounds;
 
 use ropey::{self, Rope, RopeSlice};
 
@@ -416,6 +417,10 @@ impl<B: buffer::CoreBuffer> Core<B> {
 
     pub fn get_string(&self) -> String {
         self.core_buffer.to_string()
+    }
+
+    pub fn get_string_range<R: RangeBounds<Cursor>>(&self, range: R) -> String {
+        self.core_buffer.get_range(range)
     }
 
     pub fn set_string(&mut self, s: String, clear_history: bool) {

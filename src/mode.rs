@@ -607,23 +607,35 @@ mod test_insert {
     #[test]
     fn test_token() {
         let mut core = Core::<RopeyCoreBuffer>::from_reader("token".as_bytes()).unwrap();
-
         core.set_cursor(Cursor { row: 0, col: 5 });
-
+        assert_eq!(Insert::token(&core), "token".to_string());
+        let mut core = Core::<RopeyCoreBuffer>::from_reader("tokenblah".as_bytes()).unwrap();
+        core.set_cursor(Cursor { row: 0, col: 5 });
         assert_eq!(Insert::token(&core), "token".to_string());
     }
 }
 
 impl Insert {
-    pub(crate) fn token<B: CoreBuffer>(core: &Core<B>) -> String {
-        let line = core.current_line();
-        let mut i = core.cursor().col;
+    fn token<B: CoreBuffer>(core: &Core<B>) -> String {
+        let mut cursor = core.cursor();
 
-        while i > 0 && (line.char(i - 1).is_alphanumeric() || line.char(i - 1) == '_') {
-            i -= 1;
+        while cursor.col > 0
+            && (core
+                .char_at(Cursor {
+                    row: cursor.row,
+                    col: cursor.col - 1,
+                })
+                .map(|c| c.is_alphabetic())
+                .unwrap_or(false)
+                || core.char_at(Cursor {
+                    row: cursor.row,
+                    col: cursor.col - 1,
+                }) == Some('_'))
+        {
+            cursor.col -= 1;
         }
 
-        String::from(line.slice(i..core.cursor().col))
+        core.get_string_range(cursor..core.cursor())
     }
 
     fn remove_token<B: CoreBuffer>(core: &mut Core<B>) {
