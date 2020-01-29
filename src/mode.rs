@@ -1622,23 +1622,20 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
 
             if c == 'j' || c == 'k' {
                 let range = if c == 'j' {
-                    if buf.core.cursor().row == buf.core.buffer().len_lines() - 1 {
+                    if buf.core.cursor().row == buf.core.len_lines() - 1 {
                         return Transition::Return(TransitionReturn {
                             message: None,
                             is_commit_dot_macro: false,
                         });
                     }
-                    let next_line = buf.core.buffer().l(buf.core.cursor().row + 1).len_chars();
-                    CursorRange::new(
-                        Cursor {
-                            row: buf.core.cursor().row,
-                            col: 0,
-                        },
-                        Cursor {
-                            row: buf.core.cursor().row + 1,
-                            col: next_line,
-                        },
-                    )
+                    let next_line = buf.core.len_line(buf.core.cursor().row + 1);
+                    Cursor {
+                        row: buf.core.cursor().row,
+                        col: 0,
+                    }..=Cursor {
+                        row: buf.core.cursor().row + 1,
+                        col: next_line,
+                    }
                 } else {
                     if buf.core.cursor().row == 0 {
                         return Transition::Return(TransitionReturn {
@@ -1646,26 +1643,24 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                             is_commit_dot_macro: false,
                         });
                     }
-                    CursorRange::new(
-                        Cursor {
-                            row: buf.core.cursor().row - 1,
-                            col: 0,
-                        },
-                        Cursor {
-                            row: buf.core.cursor().row,
-                            col: buf.core.current_line().len_chars(),
-                        },
-                    )
+
+                    Cursor {
+                        row: buf.core.cursor().row - 1,
+                        col: 0,
+                    }..=Cursor {
+                        row: buf.core.cursor().row,
+                        col: buf.core.current_line().len_chars(),
+                    }
                 };
 
                 buf.yank = Yank {
                     insert_newline: true,
-                    content: String::from(buf.core.get_slice_by_range(range).trim_end()),
+                    content: String::from(buf.core.get_string_range(range.start()..range.end())),
                 };
                 match self.parser.action {
                     // dj or dk
                     Action::Delete => {
-                        buf.core.delete_range_old(range);
+                        buf.core.delete_range(range);
                         buf.core.commit();
                         return Transition::Return(TransitionReturn {
                             message: None,
@@ -1679,7 +1674,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                         });
                     }
                     Action::Change => {
-                        buf.core.delete_range_old(range);
+                        buf.core.delete_range(range);
                         buf.core.insert_newline_here();
                         buf.core.commit();
                         buf.indent();

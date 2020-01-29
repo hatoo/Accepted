@@ -144,6 +144,10 @@ impl<B: buffer::CoreBuffer> Core<B> {
         self.core_buffer.char_at(cursor)
     }
 
+    pub fn len_lines(&self) -> usize {
+        self.core_buffer.len_lines()
+    }
+
     pub fn len_line(&self, idx_line: usize) -> usize {
         self.core_buffer.len_line(idx_line)
     }
