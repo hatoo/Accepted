@@ -97,11 +97,12 @@ fn test_simples() {
     assert_eq!(simple_run("123 456   789", "wcaw"), "123    789");
     assert_eq!(simple_run("123 456 789", "wciw"), "123  789");
     assert_eq!(simple_run("123 456   789", "wciw"), "123    789");
-    /*
 
     // parens
-    simple_test("(123 456 789)(abc)", "di)", "()(abc)");
-    simple_test("(123 456 789)(abc)", "da)", "(abc)");
+    assert_eq!(simple_run("(123 456 789)(abc)", "di)"), "()(abc)");
+    assert_eq!(simple_run("(123 456 789)(abc)", "da)"), "(abc)");
+    assert_eq!(simple_run("((123 456 789)(qwe))(abc)", "da)"), "(abc)");
+    /*
     // f,t
     simple_test("123456", "df4", "56");
     simple_test("123456", "dt4", "456");

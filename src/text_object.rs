@@ -110,7 +110,6 @@ impl<B: CoreBuffer> TextObject<B> for Parens {
         prefix: TextObjectPrefix,
         core: &Core<B>,
     ) -> (Bound<Cursor>, Bound<Cursor>) {
-        /*
         match prefix {
             TextObjectPrefix::A | TextObjectPrefix::Inner => {
                 let mut stack = Vec::new();
@@ -123,15 +122,16 @@ impl<B: CoreBuffer> TextObject<B> for Parens {
                         if let Some(l) = stack.pop() {
                             if l <= core.cursor() && t >= core.cursor() {
                                 if prefix == TextObjectPrefix::Inner {
-                                    let l = core.next_cursor(l)?;
-                                    let r = core.prev_cursor(t)?;
-                                    return if l < r {
-                                        Some(CursorRange::new(l, r))
+                                    return if l < t {
+                                        (Bound::Excluded(l), Bound::Excluded(t))
                                     } else {
-                                        None
+                                        (
+                                            Bound::Included(Cursor { row: 0, col: 0 }),
+                                            Bound::Excluded(Cursor { row: 0, col: 0 }),
+                                        )
                                     };
                                 } else {
-                                    return Some(CursorRange::new(l, t));
+                                    return (Bound::Included(l), Bound::Included(t));
                                 }
                             }
                         }
@@ -139,15 +139,26 @@ impl<B: CoreBuffer> TextObject<B> for Parens {
 
                     if t > core.cursor() && stack.get(0).map(|&c| c > core.cursor()).unwrap_or(true)
                     {
-                        return None;
+                        return (
+                            Bound::Included(Cursor { row: 0, col: 0 }),
+                            Bound::Excluded(Cursor { row: 0, col: 0 }),
+                        );
                     }
-                    t = core.next_cursor(t)?;
+                    if let Some(next) = core.next_cursor(t) {
+                        t = next;
+                    } else {
+                        return (
+                            Bound::Included(Cursor { row: 0, col: 0 }),
+                            Bound::Excluded(Cursor { row: 0, col: 0 }),
+                        );
+                    }
                 }
             }
-            _ => None,
+            _ => (
+                Bound::Included(Cursor { row: 0, col: 0 }),
+                Bound::Excluded(Cursor { row: 0, col: 0 }),
+            ),
         }
-        */
-        unimplemented!()
     }
 }
 
