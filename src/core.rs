@@ -170,7 +170,7 @@ impl<B: buffer::CoreBuffer> Core<B> {
 
     pub fn cursor_right(&mut self) {
         self.cursor.col = min(
-            self.buffer.l(self.cursor.row).len_chars(),
+            self.core_buffer.len_line(self.cursor.row),
             self.cursor.col + 1,
         );
     }
@@ -178,20 +178,20 @@ impl<B: buffer::CoreBuffer> Core<B> {
     pub fn cursor_up(&mut self) {
         if self.cursor.row != 0 {
             self.cursor.row -= 1;
-            self.cursor.col = min(self.buffer.l(self.cursor.row).len_chars(), self.cursor.col);
+            self.cursor.col = min(self.core_buffer.len_line(self.cursor.row), self.cursor.col);
         }
     }
 
     pub fn cursor_down(&mut self) {
         self.cursor.row = min(self.buffer.len_lines() - 1, self.cursor.row + 1);
-        self.cursor.col = min(self.buffer.l(self.cursor.row).len_chars(), self.cursor.col);
+        self.cursor.col = min(self.core_buffer.len_line(self.cursor.row), self.cursor.col);
     }
 
     pub fn cursor_inc(&mut self) -> bool {
-        if self.cursor.col < self.buffer.l(self.cursor.row).len_chars() {
+        if self.cursor.col < self.core_buffer.len_line(self.cursor.row) {
             self.cursor_right();
             true
-        } else if self.cursor.row + 1 < self.buffer.len_lines() {
+        } else if self.cursor.row + 1 < self.core_buffer.len_lines() {
             self.cursor.row += 1;
             self.cursor.col = 0;
             true
@@ -207,7 +207,7 @@ impl<B: buffer::CoreBuffer> Core<B> {
 
         if self.cursor.col == 0 {
             self.cursor.row -= 1;
-            self.cursor.col = self.buffer.l(self.cursor.row).len_chars();
+            self.cursor.col = self.core_buffer.len_line(self.cursor.row);
         } else {
             self.cursor.col -= 1;
         }
@@ -228,19 +228,19 @@ impl<B: buffer::CoreBuffer> Core<B> {
         } else {
             Cursor {
                 row: cursor.row - 1,
-                col: self.buffer.l(cursor.row - 1).len_chars(),
+                col: self.core_buffer.len_line(cursor.row - 1),
             }
         })
     }
 
     pub fn next_cursor(&self, cursor: Cursor) -> Option<Cursor> {
         if cursor.row == self.buffer.len_lines() - 1
-            && cursor.col == self.buffer.l(cursor.row).len_chars()
+            && cursor.col == self.core_buffer.len_line(cursor.row)
         {
             return None;
         }
 
-        Some(if cursor.col < self.buffer.l(cursor.row).len_chars() {
+        Some(if cursor.col < self.core_buffer.len_line(cursor.row) {
             Cursor {
                 row: cursor.row,
                 col: cursor.col + 1,

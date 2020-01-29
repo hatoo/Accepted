@@ -48,9 +48,13 @@ fn simple_run(init: &str, commands: &str) -> String {
 fn test_simples() {
     // Insertions
     assert_eq!(simple_run("123", "iHello World"), "Hello World123");
+    assert_eq!(simple_run("123", "iHello\nWorld"), "Hello\nWorld123");
+    assert_eq!(simple_run("123", "llllllIHello World"), "Hello World123");
+    assert_eq!(
+        simple_run("    123", "lllllllllllllllllllIHello World"),
+        "    Hello World123"
+    );
     /*
-    simple_test("123", "iHello World", "Hello World123");
-    simple_test("123", "llllllIHello World", "Hello World123");
     simple_test("123", "aHello World", "1Hello World23");
     simple_test("123", "AHello World", "123Hello World");
     simple_test("123", "oHello World", "123\nHello World");
