@@ -77,9 +77,10 @@ fn test_simples() {
     // dk
     assert_eq!(simple_run("1\n2\n3\n4", "jjdk"), "1\n4");
     assert_eq!(simple_run("1\n2\n3\n4", "jjdkp"), "1\n4\n2\n3");
-    /*
+
     // word
-    simple_test("123 456 789", "wdw", "123 789");
+    // assert_eq!(simple_run("123 456 789", "wdw"), "123 789");
+    /*
     simple_test("123 456 789", "dw", "456 789");
     simple_test("123 456             789", "wdw", "123 789");
     simple_test("123 456 789", "wdaw", "123 789");
