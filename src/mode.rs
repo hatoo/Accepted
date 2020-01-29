@@ -1649,7 +1649,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                         col: 0,
                     }..=Cursor {
                         row: buf.core.cursor().row,
-                        col: buf.core.current_line().len_chars(),
+                        col: buf.core.len_current_line(),
                     }
                 };
 

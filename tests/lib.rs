@@ -74,12 +74,10 @@ fn test_simples() {
     // dj
     assert_eq!(simple_run("1\n2\n3\n4", "jdj"), "1\n4");
     assert_eq!(simple_run("1\n2\n3\n4", "jdjp"), "1\n4\n2\n3");
-    /*
-    // dj
-    simple_test("1\n2\n3\n4", "jdj", "1\n4");
     // dk
-    simple_test("1\n2\n3\n4", "jjdk", "1\n4");
-
+    assert_eq!(simple_run("1\n2\n3\n4", "jjdk"), "1\n4");
+    assert_eq!(simple_run("1\n2\n3\n4", "jjdkp"), "1\n4\n2\n3");
+    /*
     // word
     simple_test("123 456 789", "wdw", "123 789");
     simple_test("123 456 789", "dw", "456 789");
