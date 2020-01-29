@@ -205,7 +205,7 @@ mod test {
     fn test_operation_set() {
         let mut core = Core::<RopeyCoreBuffer>::from_reader("123456".as_bytes()).unwrap();
 
-        core.cursor_mut().col = 4;
+        core.set_cursor(Cursor { row: 0, col: 4 });
         core.perform(Set::new("abc".to_string()));
 
         assert_eq!(core.get_string(), "abc".to_string());

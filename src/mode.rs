@@ -227,7 +227,10 @@ impl<B: CoreBuffer> Mode<B> for Normal {
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('I')) => {
-                buf.core.cursor_mut().col = 0;
+                buf.core.set_cursor(Cursor {
+                    row: buf.core.cursor().row,
+                    col: 0,
+                });
                 while buf.core.char_at_cursor() == Some(' ') {
                     buf.core.cursor_right();
                 }
@@ -235,7 +238,10 @@ impl<B: CoreBuffer> Mode<B> for Normal {
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('S')) => {
-                buf.core.cursor_mut().col = 0;
+                buf.core.set_cursor(Cursor {
+                    row: buf.core.cursor().row,
+                    col: 0,
+                });
                 for _ in 0..buf.core.current_line().len_chars() {
                     buf.core.delete()
                 }
@@ -591,8 +597,25 @@ impl<B: CoreBuffer> Mode<B> for Normal {
     }
 }
 
+#[cfg(test)]
+mod test_insert {
+    use super::Core;
+    use super::Insert;
+    use crate::core::buffer::RopeyCoreBuffer;
+    use crate::core::Cursor;
+
+    #[test]
+    fn test_token() {
+        let mut core = Core::<RopeyCoreBuffer>::from_reader("token".as_bytes()).unwrap();
+
+        core.set_cursor(Cursor { row: 0, col: 5 });
+
+        assert_eq!(Insert::token(&core), "token".to_string());
+    }
+}
+
 impl Insert {
-    fn token<B: CoreBuffer>(core: &Core<B>) -> String {
+    pub(crate) fn token<B: CoreBuffer>(core: &Core<B>) -> String {
         let line = core.current_line();
         let mut i = core.cursor().col;
 

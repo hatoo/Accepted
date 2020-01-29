@@ -440,13 +440,9 @@ impl<B: buffer::CoreBuffer> Core<B> {
         self.cursor
     }
 
-    pub fn cursor_mut(&mut self) -> &mut Cursor {
-        &mut self.cursor
-    }
-
     pub fn set_cursor(&mut self, cursor: Cursor) {
-        assert!(cursor.row < self.buffer.len_lines());
-        assert!(cursor.col <= self.buffer.l(cursor.row).len_chars());
+        assert!(cursor.row < self.core_buffer.len_lines());
+        assert!(cursor.col <= self.core_buffer.len_line(cursor.row));
         self.cursor = cursor;
     }
 
