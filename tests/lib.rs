@@ -107,11 +107,11 @@ fn test_simples() {
     assert_eq!(simple_run("\"123 456 789\"\"abc\"", "di\""), "\"\"\"abc\"");
     assert_eq!(simple_run("\"123 456 789\"\"abc\"", "da\""), "\"abc\"");
 
-    /*
     // f,t
-    simple_test("123456", "df4", "56");
-    simple_test("123456", "dt4", "456");
-    simple_test("123456abc", "dta", "abc");
+    assert_eq!(simple_run("123456", "df4"), "56");
+    assert_eq!(simple_run("123456", "dt4"), "456");
+    assert_eq!(simple_run("123456abc", "dta"), "abc");
+    /*
 
     // Yanks
     simple_test("123\n456\n789", "yyp", "123\n123\n456\n789");
