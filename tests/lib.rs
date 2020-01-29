@@ -148,8 +148,6 @@ fn test_simples() {
     assert_eq!(simple_run("123456", "$F4ia"), "123a456");
 
     // search
-    assert_eq!(
-        test_run("123\nabc\n456", &["/abc", "n"]),
-        ("123\nabc\n456".to_string(), Cursor { row: 1, col: 0 })
-    );
+    assert_eq!(simple_run("123\nabc\n456", "/abc\nniz"), "123\nzabc\n456");
+    assert_eq!(simple_run("123\nabc\n456", "G/abc\nNiz"), "123\nzabc\n456");
 }

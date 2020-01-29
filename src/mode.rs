@@ -387,35 +387,34 @@ impl<B: CoreBuffer> Mode<B> for Normal {
                 // TODO: Use aho-corasick. Waiting reverse iterator of ropey.
                 if !buf.search.is_empty() {
                     let search: String = buf.search.iter().collect();
-                    let last_pos = Cursor {
-                        row: buf.core.buffer().len_lines() - 1,
-                        col: buf
-                            .core
-                            .buffer()
-                            .l(buf.core.buffer().len_lines() - 1)
-                            .len_chars(),
-                    };
-                    let orig_pos = buf.core.cursor();
-                    if !buf.core.cursor_dec() {
-                        buf.core.set_cursor(last_pos);
+                    let ac = aho_corasick::AhoCorasick::new(vec![search]);
+
+                    let mut last_before = None;
+                    let mut last = None;
+
+                    for cursor in ac
+                        .stream_find_iter(iter_read::IterRead::new(
+                            buf.core.core_buffer().bytes_range(..),
+                        ))
+                        .filter_map(|m| m.ok())
+                        .map(|m| buf.core.core_buffer().bytes_to_cursor(m.start()))
+                    {
+                        match cursor.cmp(&buf.core.cursor()) {
+                            std::cmp::Ordering::Equal | std::cmp::Ordering::Less => {
+                                last_before = Some(cursor);
+                            }
+                            std::cmp::Ordering::Greater => {
+                                if last_before.is_some() {
+                                    break;
+                                } else {
+                                    last = Some(cursor);
+                                }
+                            }
+                        }
                     }
-
-                    loop {
-                        let matched = buf.core.current_line_after_cursor().len_chars()
-                            >= buf.search.len()
-                            && buf
-                                .core
-                                .current_line_after_cursor()
-                                .slice(..buf.search.len())
-                                == search;
-                        if matched || buf.core.cursor() == orig_pos {
-                            buf.show_cursor();
-                            break;
-                        }
-
-                        if !buf.core.cursor_dec() {
-                            buf.core.set_cursor(last_pos);
-                        }
+                    if let Some(cursor) = last_before.or(last) {
+                        buf.core.set_cursor(cursor);
+                        buf.show_cursor();
                     }
                 }
             }
