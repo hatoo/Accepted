@@ -340,8 +340,8 @@ impl<B: CoreBuffer> Mode<B> for Normal {
                 buf.show_cursor();
             }
             Event::Key(Key::Char('G')) => {
-                let row = buf.core.buffer().len_lines() - 1;
-                let col = buf.core.buffer().l(row).len_chars();
+                let row = buf.core.len_lines() - 1;
+                let col = buf.core.len_line(row);
                 buf.core.set_cursor(Cursor { row, col });
                 buf.show_cursor();
             }

@@ -124,4 +124,8 @@ fn test_simples() {
     // Auto indent
     assert_eq!(simple_run("123", "A\n"), "123\n");
     assert_eq!(simple_run("123{", "A\n"), "123{\n    ");
+
+    // g
+    assert_eq!(simple_run("123\n456", "wwwwwgiabc"), "abc123\n456");
+    assert_eq!(simple_run("123\n456", "Giabc"), "123\n456abc");
 }
