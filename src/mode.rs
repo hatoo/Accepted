@@ -242,7 +242,8 @@ impl<B: CoreBuffer> Mode<B> for Normal {
                     row: buf.core.cursor().row,
                     col: 0,
                 });
-                for _ in 0..buf.core.current_line().len_chars() {
+                // TODO bulk delete
+                for _ in 0..buf.core.len_current_line() {
                     buf.core.delete()
                 }
                 buf.indent();

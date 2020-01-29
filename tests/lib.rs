@@ -58,12 +58,15 @@ fn test_simples() {
     assert_eq!(simple_run("123", "AHello World"), "123Hello World");
     assert_eq!(simple_run("123", "oHello World"), "123\nHello World");
     assert_eq!(simple_run("123", "OHello World"), "Hello World\n123");
+
     // r
     assert_eq!(simple_run("123", "r8"), "823");
-    /*
-    // r
-    simple_test("123", "r8", "823");
 
+    // s, S, C
+    assert_eq!(simple_run("123", "sHello World"), "Hello World23");
+    assert_eq!(simple_run("123", "SHello World"), "Hello World");
+
+    /*
     // s, S, C
     simple_test("123", "sHello World", "Hello World23");
     simple_test("123", "SHello World", "Hello World");
