@@ -340,8 +340,8 @@ impl<B: CoreBuffer> Mode<B> for Normal {
                 buf.show_cursor();
             }
             Event::Key(Key::Char('G')) => {
-                let row = buf.core.len_lines() - 1;
-                let col = buf.core.len_line(row);
+                let row = buf.core.core_buffer().len_lines() - 1;
+                let col = buf.core.core_buffer().len_line(row);
                 buf.core.set_cursor(Cursor { row, col });
                 buf.show_cursor();
             }
@@ -626,6 +626,7 @@ impl Insert {
 
         while cursor.col > 0
             && core
+                .core_buffer()
                 .char_at(Cursor {
                     row: cursor.row,
                     col: cursor.col - 1,
@@ -644,6 +645,7 @@ impl Insert {
             let cursor = core.cursor();
             cursor.col > 0
                 && core
+                    .core_buffer()
                     .char_at(Cursor {
                         row: cursor.row,
                         col: cursor.col - 1,
@@ -741,6 +743,7 @@ impl Insert {
             cursor.col > 0
                 && buf
                     .core
+                    .core_buffer()
                     .char_at(Cursor {
                         row: cursor.row,
                         col: cursor.col - 1,
@@ -867,7 +870,7 @@ impl<B: CoreBuffer> Mode<B> for Insert {
                             col: 0,
                         }..Cursor {
                             row: buf.core.cursor().row - 1,
-                            col: buf.core.len_line(buf.core.cursor().row - 1),
+                            col: buf.core.core_buffer().len_line(buf.core.cursor().row - 1),
                         },
                     );
                     let indent = indent::next_indent_level(line.as_str(), indent_width);
@@ -1611,7 +1614,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                             row: pos.row,
                             col: 0,
                         });
-                        for _ in 0..buf.core.len_line(pos.row) {
+                        for _ in 0..buf.core.core_buffer().len_line(pos.row) {
                             buf.core.delete();
                         }
                         buf.core.commit();
@@ -1623,13 +1626,13 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
 
             if c == 'j' || c == 'k' {
                 let range = if c == 'j' {
-                    if buf.core.cursor().row == buf.core.len_lines() - 1 {
+                    if buf.core.cursor().row == buf.core.core_buffer().len_lines() - 1 {
                         return Transition::Return(TransitionReturn {
                             message: None,
                             is_commit_dot_macro: false,
                         });
                     }
-                    let next_line = buf.core.len_line(buf.core.cursor().row + 1);
+                    let next_line = buf.core.core_buffer().len_line(buf.core.cursor().row + 1);
                     Cursor {
                         row: buf.core.cursor().row,
                         col: 0,
@@ -1813,7 +1816,7 @@ impl<B: CoreBuffer> Mode<B> for Find {
                 };
 
                 for i in range {
-                    if buf.core.char_at(Cursor {
+                    if buf.core.core_buffer().char_at(Cursor {
                         row: cursor.row,
                         col: i,
                     }) == Some(c)

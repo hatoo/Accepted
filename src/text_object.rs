@@ -70,7 +70,7 @@ impl<B: CoreBuffer> TextObject<B> for Quote {
                 let mut level = false;
 
                 loop {
-                    if core.char_at(t) == Some(self.0) {
+                    if core.core_buffer().char_at(t) == Some(self.0) {
                         level = !level;
                         if !level && t >= core.cursor() && l <= core.cursor() {
                             if prefix == TextObjectPrefix::Inner {
@@ -121,9 +121,9 @@ impl<B: CoreBuffer> TextObject<B> for Parens {
                 let mut t = Cursor { row: 0, col: 0 };
 
                 loop {
-                    if core.char_at(t) == Some(self.0) {
+                    if core.core_buffer().char_at(t) == Some(self.0) {
                         stack.push(t);
-                    } else if core.char_at(t) == Some(self.1) {
+                    } else if core.core_buffer().char_at(t) == Some(self.1) {
                         if let Some(l) = stack.pop() {
                             if l <= core.cursor() && t >= core.cursor() {
                                 if prefix == TextObjectPrefix::Inner {
@@ -178,8 +178,9 @@ impl<B: CoreBuffer> TextObject<B> for Word {
             TextObjectPrefix::None => {
                 let l = core.cursor();
                 let mut r = l;
-                while r.col < core.len_line(r.row)
+                while r.col < core.core_buffer().len_line(r.row)
                     && core
+                        .core_buffer()
                         .char_at(r)
                         .map(|c| c.is_alphanumeric())
                         .unwrap_or(false)
@@ -187,7 +188,9 @@ impl<B: CoreBuffer> TextObject<B> for Word {
                     r.col += 1;
                 }
                 if action != Action::Change {
-                    while r.col < core.len_line(r.row) && core.char_at(r) == Some(' ') {
+                    while r.col < core.core_buffer().len_line(r.row)
+                        && core.core_buffer().char_at(r) == Some(' ')
+                    {
                         r.col += 1;
                     }
                 }
@@ -199,6 +202,7 @@ impl<B: CoreBuffer> TextObject<B> for Word {
 
                 while l.col > 0
                     && core
+                        .core_buffer()
                         .char_at(Cursor {
                             row: l.row,
                             col: l.col - 1,
@@ -209,8 +213,9 @@ impl<B: CoreBuffer> TextObject<B> for Word {
                     l.col -= 1;
                 }
 
-                while r.col < core.len_line(r.row)
+                while r.col < core.core_buffer().len_line(r.row)
                     && core
+                        .core_buffer()
                         .char_at(r)
                         .map(|c| c.is_alphanumeric())
                         .unwrap_or(false)
@@ -219,8 +224,12 @@ impl<B: CoreBuffer> TextObject<B> for Word {
                 }
 
                 if action != Action::Change && prefix != TextObjectPrefix::Inner {
-                    while r.col < core.len_line(r.row)
-                        && core.char_at(r).map(|c| c == ' ').unwrap_or(false)
+                    while r.col < core.core_buffer().len_line(r.row)
+                        && core
+                            .core_buffer()
+                            .char_at(r)
+                            .map(|c| c == ' ')
+                            .unwrap_or(false)
                     {
                         r.col += 1;
                     }
@@ -277,11 +286,13 @@ impl TextObjectParser {
                 let find = c;
                 let l = core.cursor();
                 let mut r = l;
-                while r.col < core.len_line(r.row) && core.char_at(r) != Some(find) {
+                while r.col < core.core_buffer().len_line(r.row)
+                    && core.core_buffer().char_at(r) != Some(find)
+                {
                     r.col += 1;
                 }
 
-                if r.col == core.len_line(r.row) {
+                if r.col == core.core_buffer().len_line(r.row) {
                     // Nothing
                     return Some((Bound::Included(l), Bound::Excluded(l)));
                 }
