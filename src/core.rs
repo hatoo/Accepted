@@ -144,15 +144,6 @@ impl<B: buffer::CoreBuffer> Core<B> {
         self.core_buffer.len_line(self.cursor.row)
     }
 
-    pub fn current_line(&self) -> ropey::RopeSlice {
-        // self.buffer.l(self.cursor.row)
-        unimplemented!()
-    }
-
-    pub fn current_line_after_cursor(&self) -> ropey::RopeSlice {
-        self.current_line().slice(self.cursor.col..)
-    }
-
     pub fn before_cursor(&self) -> ropey::RopeSlice {
         let idx = self.buffer.line_to_char(self.cursor.row) + self.cursor.col;
         self.buffer.slice(..idx)
