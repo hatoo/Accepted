@@ -44,6 +44,7 @@ impl LSPClient {
             .stderr(process::Stdio::piped())
             .spawn()?;
 
+        #[allow(deprecated)]
         let init = lsp_types::InitializeParams {
             process_id: Some(u64::from(process::id())),
             root_path: None,

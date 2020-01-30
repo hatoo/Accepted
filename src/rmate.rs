@@ -11,7 +11,7 @@ use std::thread;
 
 struct Rmate {
     display_name: String,
-    real_path: String,
+    _real_path: String,
     token: String,
     data: String,
 }
@@ -135,7 +135,7 @@ fn reader_thread(
 
         let rmate = Rmate {
             display_name: hash.get("display-name").cloned().unwrap_or_default(),
-            real_path: hash.get("real-path").cloned().unwrap_or_default(),
+            _real_path: hash.get("real-path").cloned().unwrap_or_default(),
             token: hash.get("token")?.to_string(),
             data: hash.get("data").cloned().unwrap_or_default(),
         };
