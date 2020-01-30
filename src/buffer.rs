@@ -139,7 +139,7 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
 
     pub fn extend_cache_duration(&mut self, duration: std::time::Duration) {
         self.cache
-            .extend_cache_duration(self.core.buffer(), duration);
+            .extend_cache_duration(self.core.core_buffer(), duration);
     }
 
     pub fn indent_width(&self) -> usize {

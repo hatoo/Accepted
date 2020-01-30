@@ -8,6 +8,7 @@ use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter};
 use syntect::parsing::SyntaxSet;
 use syntect::parsing::{ParseState, ScopeStack, ScopeStackOp};
 
+use crate::core::{CoreBuffer, Cursor};
 use crate::draw::CharStyle;
 use crate::draw::Color;
 use crate::parenthesis;
@@ -185,7 +186,7 @@ impl<'a> DrawCache<'a> {
         DrawState::new(self.syntax, &self.highlighter)
     }
 
-    pub fn extend_cache_duration(&mut self, buffer: &Rope, duration: Duration) {
+    pub fn extend_cache_duration<B: CoreBuffer>(&mut self, buffer: &B, duration: Duration) {
         let start = Instant::now();
         while self.state_cache.len() < buffer.len_lines() / Self::CACHE_WIDTH {
             let mut state = self
@@ -197,8 +198,16 @@ impl<'a> DrawCache<'a> {
             for line in self.state_cache.len() * Self::CACHE_WIDTH
                 ..(self.state_cache.len() + 1) * Self::CACHE_WIDTH
             {
+                // TODO use COW
                 state.next(
-                    &Cow::from(buffer.l(line)),
+                    buffer
+                        .get_range(
+                            Cursor { row: line, col: 0 }..Cursor {
+                                row: line,
+                                col: buffer.len_line(line),
+                            },
+                        )
+                        .as_str(),
                     self.syntax_set,
                     &self.highlighter,
                 );
