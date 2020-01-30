@@ -383,35 +383,6 @@ impl<B: buffer::CoreBuffer> Core<B> {
         self.perform(op);
     }
 
-    pub fn delete_range_old(&mut self, range: CursorRange) {
-        unimplemented!()
-        /*
-        let op = operation::DeleteRange::new(range);
-        self.perform(op);
-        */
-    }
-
-    pub fn get_slice_by_range(&self, range: CursorRange) -> RopeSlice {
-        let l = self.buffer.line_to_char(range.l().row) + range.l().col;
-        let mut r = self.buffer.line_to_char(range.r().row) + range.r().col;
-
-        if r < self.buffer.len_chars() {
-            if range.r().col == self.buffer.l(range.r().row).len_chars() {
-                while r < self.buffer.len_chars() && self.buffer.char(r) == '\r' {
-                    r += 1;
-                }
-
-                if r < self.buffer.len_chars() && is_line_end(self.buffer.char(r)) {
-                    r += 1;
-                }
-            } else {
-                r += 1;
-            }
-        }
-
-        self.buffer.slice(l..r)
-    }
-
     pub fn get_string(&self) -> String {
         self.core_buffer.to_string()
     }
