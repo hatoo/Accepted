@@ -92,7 +92,6 @@ impl CursorRange {
 
 #[derive(Debug)]
 pub struct Core<B: buffer::CoreBuffer> {
-    buffer: Rope,
     core_buffer: B,
     cursor: Cursor,
     history: Vec<Vec<Box<dyn Operation<B>>>>,
@@ -105,7 +104,6 @@ pub struct Core<B: buffer::CoreBuffer> {
 impl<B: buffer::CoreBuffer> Default for Core<B> {
     fn default() -> Self {
         Self {
-            buffer: Rope::default(),
             core_buffer: B::default(),
             cursor: Cursor { row: 0, col: 0 },
             history: Vec::new(),
@@ -121,7 +119,6 @@ impl<B: buffer::CoreBuffer> Default for Core<B> {
 impl<B: buffer::CoreBuffer> Core<B> {
     pub fn from_reader<T: Read>(reader: T) -> io::Result<Self> {
         Ok(Self {
-            buffer: Rope::default(),
             core_buffer: B::from_reader(reader)?,
             cursor: Cursor { row: 0, col: 0 },
             history: Vec::new(),
@@ -216,7 +213,7 @@ impl<B: buffer::CoreBuffer> Core<B> {
     }
 
     pub fn next_cursor(&self, cursor: Cursor) -> Option<Cursor> {
-        if cursor.row == self.buffer.len_lines() - 1
+        if cursor.row == self.core_buffer.len_lines() - 1
             && cursor.col == self.core_buffer.len_line(cursor.row)
         {
             return None;
@@ -239,7 +236,17 @@ impl<B: buffer::CoreBuffer> Core<B> {
         self.cursor.col = 0;
         if self.cursor.row > 0 {
             let indent = indent::next_indent_level(
-                &Cow::from(self.buffer.l(self.cursor.row - 1)),
+                self.core_buffer()
+                    .get_range(
+                        Cursor {
+                            row: self.cursor.row - 1,
+                            col: 0,
+                        }..Cursor {
+                            row: self.cursor.row - 1,
+                            col: self.core_buffer.len_line(self.cursor.row - 1),
+                        },
+                    )
+                    .as_str(),
                 indent_width,
             );
             for _ in 0..indent_width * indent {
