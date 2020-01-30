@@ -1310,17 +1310,20 @@ impl<B: CoreBuffer> Mode<B> for Prefix {
 }
 
 impl Visual {
-    fn get_range(&self, to: Cursor, buf: &Rope) -> CursorRange {
+    fn get_range<B: CoreBuffer>(&self, to: Cursor, buf: &B) -> std::ops::RangeInclusive<Cursor> {
         if self.line_mode {
             let mut l = min(self.cursor, to);
             let mut r = max(self.cursor, to);
 
             l.col = 0;
-            r.col = buf.l(r.row).len_chars();
+            r.col = buf.len_line(r.row);
 
-            CursorRange::new(l, r)
+            l..=r
         } else {
-            CursorRange::new(self.cursor, to)
+            let l = min(self.cursor, to);
+            let r = max(self.cursor, to);
+
+            l..=r
         }
     }
 }
@@ -1374,15 +1377,15 @@ impl<B: CoreBuffer> Mode<B> for Visual {
             | Event::Key(Key::Char('x'))
             | Event::Key(Key::Char('s')) => {
                 let to_insert = event == Event::Key(Key::Char('s'));
-                let range = self.get_range(buf.core.cursor(), buf.core.buffer());
+                let range = self.get_range(buf.core.cursor(), buf.core.core_buffer());
                 let s = if self.line_mode {
-                    String::from(buf.core.get_slice_by_range(range).trim_end())
+                    buf.core.get_string_range(range.start()..range.end())
                 } else {
-                    String::from(buf.core.get_slice_by_range(range))
+                    buf.core.get_string_range(range.clone())
                 };
-                let delete_to_end = range.r().row == buf.core.buffer().len_lines() - 1;
-                buf.core.delete_range_old(range);
-                if to_insert && range.l().row != range.r().row {
+                let delete_to_end = range.end().row == buf.core.core_buffer().len_lines() - 1;
+                buf.core.delete_range(range.clone());
+                if to_insert && range.start().row != range.end().row {
                     if !delete_to_end {
                         buf.core.insert_newline_here();
                     }
@@ -1404,8 +1407,8 @@ impl<B: CoreBuffer> Mode<B> for Visual {
             }
             Event::Key(Key::Char('p')) | Event::Key(Key::Ctrl('p')) => {
                 let is_clipboard = event == Event::Key(Key::Ctrl('p'));
-                let range = self.get_range(buf.core.cursor(), buf.core.buffer());
-                buf.core.delete_range_old(range);
+                let range = self.get_range(buf.core.cursor(), buf.core.core_buffer());
+                buf.core.delete_range(range);
                 if is_clipboard {
                     if let Ok(s) = clipboard::clipboard_paste() {
                         for c in s.chars() {
@@ -1426,13 +1429,13 @@ impl<B: CoreBuffer> Mode<B> for Visual {
             }
             Event::Key(Key::Char('y')) | Event::Key(Key::Ctrl('y')) => {
                 let is_clipboard = event == Event::Key(Key::Ctrl('y'));
-                let range = self.get_range(buf.core.cursor(), buf.core.buffer());
+                let range = self.get_range(buf.core.cursor(), buf.core.core_buffer());
                 let s = if self.line_mode {
-                    String::from(buf.core.get_slice_by_range(range).trim_end())
+                    buf.core.get_string_range(range.start()..range.end())
                 } else {
-                    String::from(buf.core.get_slice_by_range(range))
+                    buf.core.get_string_range(range.clone())
                 };
-                buf.core.set_cursor(range.l());
+                buf.core.set_cursor(*range.start());
                 if is_clipboard {
                     if clipboard::clipboard_copy(&s).is_ok() {
                         return Transition::Return(TransitionReturn {
@@ -1455,8 +1458,9 @@ impl<B: CoreBuffer> Mode<B> for Visual {
                 });
             }
             Event::Key(Key::Char('S')) => {
-                let range = self.get_range(buf.core.cursor(), buf.core.buffer());
-                return S(range).into_transition();
+                // let range = self.get_range(buf.core.cursor(), buf.core.core_buffer());
+                // return S(range).into_transition();
+                return Transition::Nothing;
             }
             Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
                 let col = x as usize - 1;
@@ -1493,12 +1497,15 @@ impl<B: CoreBuffer> Mode<B> for Visual {
     }
 
     fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
+        /*
         let height = view.height();
         let width = view.width();
         let range = self.get_range(buf.core.cursor(), buf.core.buffer());
         buf.draw_with_selected(view.view((0, 0), height, width), Some(range))
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide)
+        */
+        draw::CursorState::Hide
     }
 }
 

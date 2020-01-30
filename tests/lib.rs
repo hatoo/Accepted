@@ -157,4 +157,11 @@ fn test_simples() {
         simple_run("#!/bin/sh\n\necho Hello", " tgG"),
         "#!/bin/sh\n\necho Hello"
     );
+
+    // Visual
+    assert_eq!(simple_run("123 456 789", "ved"), " 456 789");
+    assert_eq!(simple_run("123 456 789", "vesabc"), "abc 456 789");
+    assert_eq!(simple_run("123\n456\n789", "Vd"), "456\n789");
+    assert_eq!(simple_run("123\n456\n789", "Vjd"), "789");
+    assert_eq!(simple_run("123\n456\n789", "Vyp"), "123\n123\n456\n789");
 }
