@@ -14,6 +14,10 @@ impl CoreBuffer for RopeyCoreBuffer {
         Ok(RopeyCoreBuffer(Rope::from_reader(reader)?))
     }
 
+    fn len_bytes(&self) -> usize {
+        self.0.len_bytes()
+    }
+
     fn len_lines(&self) -> usize {
         self.0.len_lines()
     }

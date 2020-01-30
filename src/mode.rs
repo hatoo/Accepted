@@ -575,7 +575,7 @@ impl<B: CoreBuffer> Mode<B> for Normal {
                 footer.puts(msg, draw::styles::FOOTER);
             }
             footer.puts(
-                &format!(" {} bytes", buf.core.buffer().len_bytes()),
+                &format!(" {} bytes", buf.core.core_buffer().len_bytes()),
                 draw::styles::FOOTER,
             );
         }
