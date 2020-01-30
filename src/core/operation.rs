@@ -77,8 +77,8 @@ impl<B: CoreBuffer> Operation<B> for DeleteRange {
         self.orig = Some(arg.core_buffer.get_range(self.range));
         arg.core_buffer.delete_range(self.range);
         *arg.cursor = match self.range.start_bound() {
-            Bound::Included(c) => c.clone(),
-            Bound::Excluded(c) => c.clone(),
+            Bound::Included(&c) => c,
+            Bound::Excluded(&c) => c,
             Bound::Unbounded => Cursor { row: 0, col: 0 },
         };
         Some(match self.range.start_bound() {
@@ -90,8 +90,8 @@ impl<B: CoreBuffer> Operation<B> for DeleteRange {
 
     fn undo(&mut self, arg: OperationArg<B>) -> Option<usize> {
         let l = match self.range.start_bound() {
-            Bound::Included(c) => c.clone(),
-            Bound::Excluded(c) => c.clone(),
+            Bound::Included(&c) => c,
+            Bound::Excluded(&c) => c,
             Bound::Unbounded => Cursor { row: 0, col: 0 },
         };
 
@@ -112,7 +112,7 @@ impl<B: CoreBuffer> Operation<B> for Set {
             col: arg.core_buffer.len_line(arg.core_buffer.len_lines() - 1),
         };
 
-        *arg.cursor = std::cmp::min(arg.cursor.clone(), end);
+        *arg.cursor = std::cmp::min(*arg.cursor, end);
         Some(0)
     }
 
@@ -123,7 +123,7 @@ impl<B: CoreBuffer> Operation<B> for Set {
             col: arg.core_buffer.len_line(arg.core_buffer.len_lines() - 1),
         };
 
-        *arg.cursor = std::cmp::min(arg.cursor.clone(), end);
+        *arg.cursor = std::cmp::min(*arg.cursor, end);
         Some(0)
     }
 }

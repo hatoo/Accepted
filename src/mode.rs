@@ -148,7 +148,7 @@ impl ViewProcess {
         let stderr = child.stderr.take()?;
         let (tx, rx) = mpsc::channel();
         let tx1 = tx.clone();
-        let tx2 = tx.clone();
+        let tx2 = tx;
 
         thread::spawn(move || {
             let mut line = String::new();
@@ -1224,7 +1224,7 @@ impl<B: CoreBuffer> Mode<B> for Prefix {
 
                                 Ok(crate::config::types::Command {
                                     program: v[0].clone(),
-                                    args: v[1..].into_iter().cloned().collect(),
+                                    args: v[1..].to_vec(),
                                 })
                             } else {
                                 Err(e)
@@ -1662,7 +1662,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
 
                 buf.yank = Yank {
                     insert_newline: true,
-                    content: String::from(buf.core.get_string_range(range.start()..range.end())),
+                    content: buf.core.get_string_range(range.start()..range.end()),
                 };
                 match self.parser.action {
                     // dj or dk
@@ -1766,13 +1766,13 @@ impl<B: CoreBuffer, R: RangeBounds<Cursor> + Clone> Mode<B> for S<R> {
             }
             Event::Key(Key::Char(c)) if !c.is_control() => {
                 let l = match self.0.start_bound() {
-                    Bound::Excluded(c) => buf.core.next_cursor(*c).unwrap_or(*c),
-                    Bound::Included(c) => *c,
+                    Bound::Excluded(&c) => buf.core.next_cursor(c).unwrap_or(c),
+                    Bound::Included(&c) => c,
                     Bound::Unbounded => Cursor { row: 0, col: 0 },
                 };
                 let r = match self.0.end_bound() {
-                    Bound::Excluded(c) => buf.core.prev_cursor(*c).unwrap_or(*c),
-                    Bound::Included(c) => *c,
+                    Bound::Excluded(&c) => buf.core.prev_cursor(c).unwrap_or(c),
+                    Bound::Included(&c) => c,
                     Bound::Unbounded => Cursor { row: 0, col: 0 },
                 };
 

@@ -13,7 +13,7 @@ impl Command {
     pub fn new(args: &[String]) -> Option<Self> {
         args.split_first().map(|(fst, rest)| Self {
             program: fst.clone(),
-            args: rest.iter().cloned().collect(),
+            args: rest.to_vec(),
         })
     }
     pub fn command(&self) -> process::Command {
