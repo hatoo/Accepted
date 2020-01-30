@@ -92,8 +92,8 @@ impl TabNineClient {
     }
 
     pub fn request_completion<B: CoreBuffer>(&self, buf: &crate::Buffer<B>) {
-        let before = buf.core.before_cursor().to_string();
-        let after = buf.core.after_cursor().to_string();
+        let before = buf.core.core_buffer().get_range(..buf.core.cursor());
+        let after = buf.core.core_buffer().get_range(buf.core.cursor()..);
 
         let req = AutocompleteArgs {
             before,

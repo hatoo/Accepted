@@ -144,16 +144,6 @@ impl<B: buffer::CoreBuffer> Core<B> {
         self.core_buffer.len_line(self.cursor.row)
     }
 
-    pub fn before_cursor(&self) -> ropey::RopeSlice {
-        let idx = self.buffer.line_to_char(self.cursor.row) + self.cursor.col;
-        self.buffer.slice(..idx)
-    }
-
-    pub fn after_cursor(&self) -> ropey::RopeSlice {
-        let idx = self.buffer.line_to_char(self.cursor.row) + self.cursor.col;
-        self.buffer.slice(idx..)
-    }
-
     pub fn cursor_left(&mut self) {
         if self.cursor.col != 0 {
             self.cursor.col -= 1;
