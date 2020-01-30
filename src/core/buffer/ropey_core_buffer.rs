@@ -1,4 +1,3 @@
-use crate::ropey_util::RopeExt;
 use ropey::Rope;
 use std::io;
 
@@ -6,6 +5,10 @@ use super::CoreBuffer;
 use super::Cursor;
 use std::io::Error;
 use std::ops::{Bound, RangeBounds};
+
+mod ropey_util;
+
+use ropey_util::RopeExt;
 
 #[derive(Default)]
 pub struct RopeyCoreBuffer(Rope);

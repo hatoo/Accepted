@@ -18,7 +18,6 @@ mod lsp;
 mod mode;
 pub mod parenthesis;
 mod rmate;
-mod ropey_util;
 mod rustc;
 pub mod storage;
 pub mod syntax;
