@@ -25,6 +25,7 @@ use crate::ropey_util::RopeExt;
 use crate::storage::Storage;
 use crate::syntax;
 use crate::tabnine::TabNineClient;
+use failure::_core::ops::{RangeBounds, RangeInclusive};
 
 pub struct Yank {
     pub insert_newline: bool,
@@ -377,13 +378,13 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
 
     pub fn draw(&mut self, view: TermView) -> Option<Cursor> {
         self.poll_compile_message();
-        self.draw_with_selected(view, None)
+        self.draw_with_selected::<RangeInclusive<Cursor>>(view, None)
     }
 
-    pub fn draw_with_selected(
+    pub fn draw_with_selected<R: RangeBounds<Cursor>>(
         &mut self,
         mut view: TermView,
-        selected: Option<CursorRange>,
+        selected: Option<R>,
     ) -> Option<Cursor> {
         match self.show_cursor_on_draw {
             ShowCursor::ShowMiddle => {
@@ -445,7 +446,7 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
                     style.modification = draw::CharModification::UnderLine;
                 }
 
-                let style = if selected.as_ref().map(|r| r.contains(t)) == Some(true) {
+                let style = if selected.as_ref().map(|r| r.contains(&t)) == Some(true) {
                     styles::SELECTED
                 } else {
                     style

@@ -4,6 +4,7 @@ use std::cmp::{max, min};
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
+use std::ops::Bound;
 use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::mpsc;
@@ -31,6 +32,7 @@ use crate::parenthesis;
 use crate::ropey_util::RopeExt;
 use crate::ropey_util::RopeSliceExt;
 use crate::text_object::{self, Action};
+use failure::_core::ops::RangeBounds;
 
 mod fuzzy;
 
@@ -94,7 +96,7 @@ impl Default for Insert {
 
 struct R;
 
-struct S(CursorRange);
+struct S<R: RangeBounds<Cursor> + Clone>(R);
 
 struct Find {
     to_right: bool,
@@ -1497,15 +1499,12 @@ impl<B: CoreBuffer> Mode<B> for Visual {
     }
 
     fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
-        /*
         let height = view.height();
         let width = view.width();
-        let range = self.get_range(buf.core.cursor(), buf.core.buffer());
+        let range = self.get_range(buf.core.cursor(), buf.core.core_buffer());
         buf.draw_with_selected(view.view((0, 0), height, width), Some(range))
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide)
-        */
-        draw::CursorState::Hide
     }
 }
 
@@ -1761,7 +1760,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
     }
 }
 
-impl<B: CoreBuffer> Mode<B> for S {
+impl<B: CoreBuffer, R: RangeBounds<Cursor> + Clone> Mode<B> for S<R> {
     fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
@@ -1771,8 +1770,16 @@ impl<B: CoreBuffer> Mode<B> for S {
                 });
             }
             Event::Key(Key::Char(c)) if !c.is_control() => {
-                let l = self.0.l();
-                let r = self.0.r();
+                let l = match self.0.start_bound() {
+                    Bound::Excluded(c) => buf.core.next_cursor(*c).unwrap_or(*c),
+                    Bound::Included(c) => *c,
+                    Bound::Unbounded => Cursor { row: 0, col: 0 },
+                };
+                let r = match self.0.end_bound() {
+                    Bound::Excluded(c) => buf.core.prev_cursor(*c).unwrap_or(*c),
+                    Bound::Included(c) => *c,
+                    Bound::Unbounded => Cursor { row: 0, col: 0 },
+                };
 
                 let (cl, cr) = parenthesis::PARENTHESIS_PAIRS
                     .iter()
@@ -1800,7 +1807,7 @@ impl<B: CoreBuffer> Mode<B> for S {
     fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
-        let range = self.0;
+        let range = self.0.clone();
         buf.draw_with_selected(view.view((0, 0), height, width), Some(range))
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide)
