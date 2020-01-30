@@ -1883,7 +1883,7 @@ impl<B: CoreBuffer> Mode<B> for Goto {
                         if row > 0 {
                             row -= 1;
                         }
-                        row = min(row, buf.core.buffer().len_lines() - 1);
+                        row = min(row, buf.core.core_buffer().len_lines() - 1);
 
                         buf.core.set_cursor(Cursor { row, col: 0 });
                         buf.show_cursor();
