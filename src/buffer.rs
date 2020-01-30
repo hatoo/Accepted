@@ -404,7 +404,7 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
             .unwrap_or_else(|| &v);
         let mut view = LinenumView::new(
             self.row_offset,
-            self.core.buffer().len_lines(),
+            self.core.core_buffer().len_lines(),
             &compiler_outputs,
             view,
         );
@@ -415,8 +415,8 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
             self.cache.dirty_from(self.core.dirty_from);
         }
 
-        'outer: for i in self.row_offset..self.core.buffer().len_lines() {
-            self.cache.cache_line(self.core.buffer(), i);
+        'outer: for i in self.row_offset..self.core.core_buffer().len_lines() {
+            self.cache.cache_line(self.core.core_buffer(), i);
             let line_ref = self.cache.get_line(i).unwrap();
             let mut line = Cow::Borrowed(line_ref);
 
@@ -459,14 +459,14 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
             }
             let t = Cursor {
                 row: i,
-                col: self.core.buffer().l(i).len_chars(),
+                col: self.core.core_buffer().len_line(i),
             };
 
             if self.core.cursor() == t {
                 cursor = view.cursor();
             }
 
-            if self.core.buffer().l(i).len_chars() == 0 {
+            if self.core.core_buffer().len_line(i) == 0 {
                 if let Some(col) = self.syntax.theme.settings.background {
                     view.put(' ', CharStyle::bg(col.into()), Some(t));
                 } else {
@@ -474,7 +474,7 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
                 }
             }
 
-            if i != self.core.buffer().len_lines() - 1 {
+            if i != self.core.core_buffer().len_lines() - 1 {
                 if let Some(col) = self.syntax.theme.settings.background {
                     while !view.cause_newline(' ') {
                         view.put(' ', CharStyle::bg(col.into()), Some(t));
