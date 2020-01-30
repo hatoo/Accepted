@@ -23,7 +23,6 @@ use crate::config::types::keys;
 use crate::core::Core;
 use crate::core::CoreBuffer;
 use crate::core::Cursor;
-use crate::core::CursorRange;
 use crate::core::Id;
 use crate::draw;
 use crate::indent;

@@ -1,5 +1,5 @@
 use crate::core::CoreBuffer;
-use crate::core::{Core, Cursor, CursorRange};
+use crate::core::{Core, Cursor};
 use std::ops::Bound;
 
 #[derive(Copy, Clone, PartialEq, Eq)]

@@ -14,7 +14,6 @@ use crate::config::types::keys;
 use crate::core::Core;
 use crate::core::CoreBuffer;
 use crate::core::Cursor;
-use crate::core::CursorRange;
 use crate::core::Id;
 use crate::draw;
 use crate::draw::{styles, CharStyle, LinenumView, TermView};
@@ -335,7 +334,7 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
     fn is_annotate(&self, cursor: Cursor) -> bool {
         self.last_compiler_result
             .as_ref()
-            .map(|res| res.messages.iter().any(|r| r.span.contains(cursor)))
+            .map(|res| res.messages.iter().any(|r| r.span.contains(&cursor)))
             .unwrap_or(false)
     }
 

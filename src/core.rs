@@ -53,43 +53,6 @@ impl Ord for Cursor {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct CursorRange(Cursor, Cursor);
-
-impl CursorRange {
-    pub fn new(l: Cursor, r: Cursor) -> Self {
-        CursorRange(l, r)
-    }
-
-    pub fn l(&self) -> Cursor {
-        min(self.0, self.1)
-    }
-
-    pub fn l_mut(&mut self) -> &mut Cursor {
-        if self.0 <= self.1 {
-            &mut self.0
-        } else {
-            &mut self.1
-        }
-    }
-
-    pub fn r(&self) -> Cursor {
-        max(self.0, self.1)
-    }
-
-    pub fn r_mut(&mut self) -> &mut Cursor {
-        if self.1 >= self.0 {
-            &mut self.1
-        } else {
-            &mut self.0
-        }
-    }
-
-    pub fn contains(&self, cursor: Cursor) -> bool {
-        min(self.0, self.1) <= cursor && cursor <= max(self.0, self.1)
-    }
-}
-
 #[derive(Debug)]
 pub struct Core<B: buffer::CoreBuffer> {
     core_buffer: B,
