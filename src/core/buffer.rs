@@ -29,4 +29,11 @@ pub trait CoreBuffer: Default + ToString {
 
     fn cursor_to_bytes(&self, cursor: Cursor) -> usize;
     fn bytes_to_cursor(&self, bytes_idx: usize) -> Cursor;
+
+    fn end_cursor(&self) -> Cursor {
+        let row = self.len_lines() - 1;
+        let col = self.len_line(row);
+
+        Cursor { row, col }
+    }
 }

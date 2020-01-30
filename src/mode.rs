@@ -1362,9 +1362,7 @@ impl<B: CoreBuffer> Mode<B> for Visual {
                 buf.show_cursor();
             }
             Event::Key(Key::Char('G')) => {
-                let row = buf.core.buffer().len_lines() - 1;
-                let col = buf.core.buffer().l(row).len_chars();
-                buf.core.set_cursor(Cursor { row, col });
+                buf.core.set_cursor(buf.core.core_buffer().end_cursor());
                 buf.show_cursor();
             }
             Event::Key(Key::Char('d'))
