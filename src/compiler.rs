@@ -8,17 +8,17 @@ use regex;
 use crate::config::types::CompilerConfig;
 use crate::config::types::CompilerType;
 use crate::core::Cursor;
-use crate::core::CursorRange;
 use crate::core::Id;
 use crate::job_queue::JobQueue;
 use crate::rustc;
+use failure::_core::ops::RangeInclusive;
 use std::ffi::OsString;
 
 pub struct CompilerOutput {
     pub message: String,
     pub line: usize,
     pub level: String,
-    pub span: CursorRange,
+    pub span: RangeInclusive<Cursor>,
 }
 
 pub struct Compiler<'a> {
@@ -184,7 +184,7 @@ impl Default for Cpp {
                             message: caps["msg"].into(),
                             line,
                             level: caps["level"].into(),
-                            span: CursorRange(Cursor { row: line, col }, Cursor { row: line, col }),
+                            span: Cursor { row: line, col }..=Cursor { row: line, col },
                         };
 
                         messages.push(out);

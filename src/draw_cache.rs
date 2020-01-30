@@ -1,17 +1,15 @@
-use std::borrow::Cow;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use ropey::Rope;
 use syntect::highlighting::{HighlightIterator, HighlightState, Highlighter};
 use syntect::parsing::SyntaxSet;
 use syntect::parsing::{ParseState, ScopeStack, ScopeStackOp};
 
+use crate::core::{CoreBuffer, Cursor};
 use crate::draw::CharStyle;
 use crate::draw::Color;
 use crate::parenthesis;
-use crate::ropey_util::RopeExt;
 use crate::syntax;
 
 #[derive(Clone)]
@@ -185,7 +183,7 @@ impl<'a> DrawCache<'a> {
         DrawState::new(self.syntax, &self.highlighter)
     }
 
-    pub fn extend_cache_duration(&mut self, buffer: &Rope, duration: Duration) {
+    pub fn extend_cache_duration<B: CoreBuffer>(&mut self, buffer: &B, duration: Duration) {
         let start = Instant::now();
         while self.state_cache.len() < buffer.len_lines() / Self::CACHE_WIDTH {
             let mut state = self
@@ -197,8 +195,16 @@ impl<'a> DrawCache<'a> {
             for line in self.state_cache.len() * Self::CACHE_WIDTH
                 ..(self.state_cache.len() + 1) * Self::CACHE_WIDTH
             {
+                // TODO use COW
                 state.next(
-                    &Cow::from(buffer.l(line)),
+                    buffer
+                        .get_range(
+                            Cursor { row: line, col: 0 }..Cursor {
+                                row: line,
+                                col: buffer.len_line(line),
+                            },
+                        )
+                        .as_str(),
                     self.syntax_set,
                     &self.highlighter,
                 );
@@ -220,7 +226,7 @@ impl<'a> DrawCache<'a> {
         self.state_cache.get(i / Self::CACHE_WIDTH - 1).cloned()
     }
 
-    pub fn cache_line(&mut self, buffer: &Rope, i: usize) {
+    pub fn cache_line<B: CoreBuffer>(&mut self, buffer: &B, i: usize) {
         if !self.draw_cache.contains_key(&i) {
             if let Some(mut state) = self.near_state(i) {
                 for i in i - (i % Self::CACHE_WIDTH)
@@ -230,7 +236,14 @@ impl<'a> DrawCache<'a> {
                     )
                 {
                     let draw = state.highlight(
-                        &Cow::from(buffer.l(i)),
+                        buffer
+                            .get_range(
+                                Cursor { row: i, col: 0 }..Cursor {
+                                    row: i,
+                                    col: buffer.len_line(i),
+                                },
+                            )
+                            .as_str(),
                         self.syntax_set,
                         &self.highlighter,
                         self.bg,
@@ -250,7 +263,14 @@ impl<'a> DrawCache<'a> {
                 )
             {
                 let draw = state.highlight(
-                    &Cow::from(buffer.l(i)),
+                    buffer
+                        .get_range(
+                            Cursor { row: i, col: 0 }..Cursor {
+                                row: i,
+                                col: buffer.len_line(i),
+                            },
+                        )
+                        .as_str(),
                     self.syntax_set,
                     &self.highlighter,
                     self.bg,

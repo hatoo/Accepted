@@ -88,7 +88,8 @@ fn main() {
 
     let syntax_parent = accepted::syntax::SyntaxParent::default();
 
-    let mut state = BufferTab::new(&syntax_parent, &config);
+    let mut state: BufferTab<accepted::core::buffer::RopeyCoreBuffer> =
+        BufferTab::new(&syntax_parent, &config);
 
     let files = matches.values_of_os("file");
     if let Some(files) = files {

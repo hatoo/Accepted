@@ -4,5 +4,5 @@ rust:
 script:
   - cargo build
   - cargo test
-  - cargo bench
+  - cargo bench --no-run
   - cargo install --path .

@@ -1,10 +1,12 @@
+#![feature(bound_cloned)]
+
 pub mod buffer;
 pub mod buffer_mode;
 pub mod buffer_tab;
 mod clipboard;
 mod compiler;
 pub mod config;
-mod core;
+pub mod core;
 mod cursor;
 pub mod draw;
 mod draw_cache;
@@ -16,7 +18,6 @@ mod lsp;
 mod mode;
 pub mod parenthesis;
 mod rmate;
-mod ropey_util;
 mod rustc;
 pub mod storage;
 pub mod syntax;

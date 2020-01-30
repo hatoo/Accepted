@@ -1,20 +1,20 @@
 use std;
-use std::borrow::Cow;
+use std::cmp::min;
 use std::cmp::Ordering;
-use std::cmp::{max, min};
 use std::io;
 use std::io::Read;
 use std::num::Wrapping;
-
-use ropey::{self, Rope, RopeSlice};
+use std::ops::RangeBounds;
 
 use crate::indent;
 use crate::parenthesis;
-use crate::ropey_util::{is_line_end, RopeExt};
 
 use self::operation::{Operation, OperationArg};
 
+pub mod buffer;
 pub mod operation;
+
+pub use buffer::CoreBuffer;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Id(Wrapping<usize>);
@@ -49,54 +49,21 @@ impl Ord for Cursor {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct CursorRange(pub Cursor, pub Cursor);
-
-impl CursorRange {
-    pub fn l(&self) -> Cursor {
-        min(self.0, self.1)
-    }
-
-    pub fn l_mut(&mut self) -> &mut Cursor {
-        if self.0 <= self.1 {
-            &mut self.0
-        } else {
-            &mut self.1
-        }
-    }
-
-    pub fn r(&self) -> Cursor {
-        max(self.0, self.1)
-    }
-
-    pub fn r_mut(&mut self) -> &mut Cursor {
-        if self.1 >= self.0 {
-            &mut self.1
-        } else {
-            &mut self.0
-        }
-    }
-
-    pub fn contains(&self, cursor: Cursor) -> bool {
-        min(self.0, self.1) <= cursor && cursor <= max(self.0, self.1)
-    }
-}
-
 #[derive(Debug)]
-pub struct Core {
-    buffer: Rope,
+pub struct Core<B: buffer::CoreBuffer> {
+    core_buffer: B,
     cursor: Cursor,
-    history: Vec<Vec<Box<dyn Operation>>>,
-    history_tmp: Vec<Box<dyn Operation>>,
-    redo: Vec<Vec<Box<dyn Operation>>>,
+    history: Vec<Vec<Box<dyn Operation<B>>>>,
+    history_tmp: Vec<Box<dyn Operation<B>>>,
+    redo: Vec<Vec<Box<dyn Operation<B>>>>,
     buffer_changed: Id,
     pub dirty_from: usize,
 }
 
-impl Default for Core {
+impl<B: buffer::CoreBuffer> Default for Core<B> {
     fn default() -> Self {
         Self {
-            buffer: Rope::default(),
+            core_buffer: B::default(),
             cursor: Cursor { row: 0, col: 0 },
             history: Vec::new(),
             history_tmp: Vec::new(),
@@ -108,10 +75,10 @@ impl Default for Core {
     }
 }
 
-impl Core {
+impl<B: buffer::CoreBuffer> Core<B> {
     pub fn from_reader<T: Read>(reader: T) -> io::Result<Self> {
         Ok(Self {
-            buffer: Rope::from_reader(reader)?,
+            core_buffer: B::from_reader(reader)?,
             cursor: Cursor { row: 0, col: 0 },
             history: Vec::new(),
             history_tmp: Vec::new(),
@@ -126,38 +93,11 @@ impl Core {
     }
 
     pub fn char_at_cursor(&self) -> Option<char> {
-        self.char_at(self.cursor)
+        self.core_buffer.char_at(self.cursor)
     }
 
-    pub fn char_at(&self, cursor: Cursor) -> Option<char> {
-        if cursor.row < self.buffer.len_lines() {
-            let line = self.buffer.l(cursor.row);
-            if cursor.col < line.len_chars() {
-                Some(line.char(cursor.col))
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
-    pub fn current_line(&self) -> ropey::RopeSlice {
-        self.buffer.l(self.cursor.row)
-    }
-
-    pub fn current_line_after_cursor(&self) -> ropey::RopeSlice {
-        self.current_line().slice(self.cursor.col..)
-    }
-
-    pub fn before_cursor(&self) -> ropey::RopeSlice {
-        let idx = self.buffer.line_to_char(self.cursor.row) + self.cursor.col;
-        self.buffer.slice(..idx)
-    }
-
-    pub fn after_cursor(&self) -> ropey::RopeSlice {
-        let idx = self.buffer.line_to_char(self.cursor.row) + self.cursor.col;
-        self.buffer.slice(idx..)
+    pub fn len_current_line(&self) -> usize {
+        self.core_buffer.len_line(self.cursor.row)
     }
 
     pub fn cursor_left(&mut self) {
@@ -168,7 +108,7 @@ impl Core {
 
     pub fn cursor_right(&mut self) {
         self.cursor.col = min(
-            self.buffer.l(self.cursor.row).len_chars(),
+            self.core_buffer.len_line(self.cursor.row),
             self.cursor.col + 1,
         );
     }
@@ -176,20 +116,20 @@ impl Core {
     pub fn cursor_up(&mut self) {
         if self.cursor.row != 0 {
             self.cursor.row -= 1;
-            self.cursor.col = min(self.buffer.l(self.cursor.row).len_chars(), self.cursor.col);
+            self.cursor.col = min(self.core_buffer.len_line(self.cursor.row), self.cursor.col);
         }
     }
 
     pub fn cursor_down(&mut self) {
-        self.cursor.row = min(self.buffer.len_lines() - 1, self.cursor.row + 1);
-        self.cursor.col = min(self.buffer.l(self.cursor.row).len_chars(), self.cursor.col);
+        self.cursor.row = min(self.core_buffer.len_lines() - 1, self.cursor.row + 1);
+        self.cursor.col = min(self.core_buffer.len_line(self.cursor.row), self.cursor.col);
     }
 
     pub fn cursor_inc(&mut self) -> bool {
-        if self.cursor.col < self.buffer.l(self.cursor.row).len_chars() {
+        if self.cursor.col < self.core_buffer.len_line(self.cursor.row) {
             self.cursor_right();
             true
-        } else if self.cursor.row + 1 < self.buffer.len_lines() {
+        } else if self.cursor.row + 1 < self.core_buffer.len_lines() {
             self.cursor.row += 1;
             self.cursor.col = 0;
             true
@@ -205,7 +145,7 @@ impl Core {
 
         if self.cursor.col == 0 {
             self.cursor.row -= 1;
-            self.cursor.col = self.buffer.l(self.cursor.row).len_chars();
+            self.cursor.col = self.core_buffer.len_line(self.cursor.row);
         } else {
             self.cursor.col -= 1;
         }
@@ -226,19 +166,19 @@ impl Core {
         } else {
             Cursor {
                 row: cursor.row - 1,
-                col: self.buffer.l(cursor.row - 1).len_chars(),
+                col: self.core_buffer.len_line(cursor.row - 1),
             }
         })
     }
 
     pub fn next_cursor(&self, cursor: Cursor) -> Option<Cursor> {
-        if cursor.row == self.buffer.len_lines() - 1
-            && cursor.col == self.buffer.l(cursor.row).len_chars()
+        if cursor.row == self.core_buffer.len_lines() - 1
+            && cursor.col == self.core_buffer.len_line(cursor.row)
         {
             return None;
         }
 
-        Some(if cursor.col < self.buffer.l(cursor.row).len_chars() {
+        Some(if cursor.col < self.core_buffer.len_line(cursor.row) {
             Cursor {
                 row: cursor.row,
                 col: cursor.col + 1,
@@ -255,7 +195,17 @@ impl Core {
         self.cursor.col = 0;
         if self.cursor.row > 0 {
             let indent = indent::next_indent_level(
-                &Cow::from(self.buffer.l(self.cursor.row - 1)),
+                self.core_buffer()
+                    .get_range(
+                        Cursor {
+                            row: self.cursor.row - 1,
+                            col: 0,
+                        }..Cursor {
+                            row: self.cursor.row - 1,
+                            col: self.core_buffer.len_line(self.cursor.row - 1),
+                        },
+                    )
+                    .as_str(),
                 indent_width,
             );
             for _ in 0..indent_width * indent {
@@ -339,7 +289,7 @@ impl Core {
     }
 
     pub fn insert(&mut self, c: char) {
-        let op = operation::Insert {
+        let op = operation::InsertChar {
             cursor: self.cursor,
             c,
         };
@@ -348,10 +298,10 @@ impl Core {
 
     // o
     pub fn insert_newline(&mut self) {
-        let op = operation::Insert {
+        let op = operation::InsertChar {
             cursor: Cursor {
                 row: self.cursor.row,
-                col: self.buffer.l(self.cursor.row).len_chars(),
+                col: self.core_buffer.len_line(self.cursor.row),
             },
             c: '\n',
         };
@@ -360,7 +310,7 @@ impl Core {
 
     // O
     pub fn insert_newline_here(&mut self) {
-        let op = operation::Insert {
+        let op = operation::InsertChar {
             cursor: Cursor {
                 row: self.cursor.row,
                 col: 0,
@@ -372,48 +322,34 @@ impl Core {
     }
 
     pub fn replace(&mut self, c: char) {
-        let op = operation::Replace::new(self.cursor, c);
-        self.perform(op);
+        self.perform(operation::DeleteRange::new(self.cursor..=self.cursor));
+        self.perform(operation::InsertChar {
+            cursor: self.cursor,
+            c,
+        });
     }
 
     pub fn delete(&mut self) {
-        let op = operation::Delete::new(self.cursor);
+        let op = operation::DeleteRange::new(self.cursor..=self.cursor);
         self.perform(op);
     }
 
-    pub fn delete_range(&mut self, range: CursorRange) {
+    pub fn delete_range<R: RangeBounds<Cursor>>(&mut self, range: R) {
         let op = operation::DeleteRange::new(range);
         self.perform(op);
     }
 
-    pub fn get_slice_by_range(&self, range: CursorRange) -> RopeSlice {
-        let l = self.buffer.line_to_char(range.l().row) + range.l().col;
-        let mut r = self.buffer.line_to_char(range.r().row) + range.r().col;
-
-        if r < self.buffer.len_chars() {
-            if range.r().col == self.buffer.l(range.r().row).len_chars() {
-                while r < self.buffer.len_chars() && self.buffer.char(r) == '\r' {
-                    r += 1;
-                }
-
-                if r < self.buffer.len_chars() && is_line_end(self.buffer.char(r)) {
-                    r += 1;
-                }
-            } else {
-                r += 1;
-            }
-        }
-
-        self.buffer.slice(l..r)
+    pub fn get_string(&self) -> String {
+        self.core_buffer.to_string()
     }
 
-    pub fn get_string(&self) -> String {
-        String::from(&self.buffer)
+    pub fn get_string_range<R: RangeBounds<Cursor>>(&self, range: R) -> String {
+        self.core_buffer.get_range(range)
     }
 
     pub fn set_string(&mut self, s: String, clear_history: bool) {
         if clear_history {
-            self.buffer = Rope::from(s);
+            self.core_buffer = B::from_reader(s.as_bytes()).unwrap();
             self.buffer_changed.inc();
             self.dirty_from = 0;
             self.redo.clear();
@@ -425,8 +361,8 @@ impl Core {
         }
     }
 
-    pub fn buffer(&self) -> &Rope {
-        &self.buffer
+    pub fn core_buffer(&self) -> &B {
+        &self.core_buffer
     }
 
     pub fn cursor(&self) -> Cursor {
@@ -434,19 +370,19 @@ impl Core {
     }
 
     pub fn set_cursor(&mut self, cursor: Cursor) {
-        assert!(cursor.row < self.buffer.len_lines());
-        assert!(cursor.col <= self.buffer.l(cursor.row).len_chars());
+        assert!(cursor.row < self.core_buffer.len_lines());
+        assert!(cursor.col <= self.core_buffer.len_line(cursor.row));
         self.cursor = cursor;
     }
 
-    fn arg(&mut self) -> OperationArg {
+    fn arg(&mut self) -> OperationArg<B> {
         OperationArg {
-            buffer: &mut self.buffer,
+            core_buffer: &mut self.core_buffer,
             cursor: &mut self.cursor,
         }
     }
 
-    fn perform<T: Operation + 'static>(&mut self, mut op: T) {
+    fn perform<T: Operation<B> + 'static>(&mut self, mut op: T) {
         if let Some(l) = op.perform(self.arg()) {
             self.dirty_from = min(self.dirty_from, l);
         }

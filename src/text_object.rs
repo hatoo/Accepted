@@ -1,4 +1,6 @@
-use crate::core::{Core, Cursor, CursorRange};
+use crate::core::CoreBuffer;
+use crate::core::{Core, Cursor};
+use std::ops::Bound;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Action {
@@ -39,13 +41,13 @@ pub enum Prefix {
     Find { inclusive: bool },
 }
 
-pub trait TextObject {
+pub trait TextObject<B: CoreBuffer> {
     fn get_range(
         &self,
         action: Action,
         prefix: TextObjectPrefix,
-        core: &Core,
-    ) -> Option<CursorRange>;
+        core: &Core<B>,
+    ) -> (Bound<Cursor>, Bound<Cursor>);
 }
 
 struct Word;
@@ -54,8 +56,13 @@ struct Quote(char);
 
 struct Parens(char, char);
 
-impl TextObject for Quote {
-    fn get_range(&self, _: Action, prefix: TextObjectPrefix, core: &Core) -> Option<CursorRange> {
+impl<B: CoreBuffer> TextObject<B> for Quote {
+    fn get_range(
+        &self,
+        _: Action,
+        prefix: TextObjectPrefix,
+        core: &Core<B>,
+    ) -> (Bound<Cursor>, Bound<Cursor>) {
         match prefix {
             TextObjectPrefix::A | TextObjectPrefix::Inner => {
                 let mut l = Cursor { row: 0, col: 0 };
@@ -63,55 +70,73 @@ impl TextObject for Quote {
                 let mut level = false;
 
                 loop {
-                    if core.char_at(t) == Some(self.0) {
+                    if core.core_buffer().char_at(t) == Some(self.0) {
                         level = !level;
                         if !level && t >= core.cursor() && l <= core.cursor() {
                             if prefix == TextObjectPrefix::Inner {
-                                let l = core.next_cursor(l)?;
-                                let r = core.prev_cursor(t)?;
-                                return if l <= r {
-                                    Some(CursorRange(l, r))
+                                return if l <= t {
+                                    (Bound::Excluded(l), Bound::Excluded(t))
                                 } else {
-                                    None
+                                    (Bound::Included(l), Bound::Excluded(l))
                                 };
                             } else {
-                                return Some(CursorRange(l, t));
+                                return (Bound::Included(l), Bound::Included(t));
                             }
                         }
                         l = t;
                     }
 
                     if t > core.cursor() && !level {
-                        return None;
+                        return (Bound::Included(l), Bound::Excluded(l));
                     }
 
-                    t = core.next_cursor(t)?;
+                    if let Some(next) = core.next_cursor(t) {
+                        t = next;
+                    } else {
+                        return (
+                            Bound::Included(Cursor { row: 0, col: 0 }),
+                            Bound::Excluded(Cursor { row: 0, col: 0 }),
+                        );
+                    }
                 }
             }
-            _ => None,
+            _ => (
+                Bound::Included(Cursor { row: 0, col: 0 }),
+                Bound::Excluded(Cursor { row: 0, col: 0 }),
+            ),
         }
     }
 }
 
-impl TextObject for Parens {
-    fn get_range(&self, _: Action, prefix: TextObjectPrefix, core: &Core) -> Option<CursorRange> {
+impl<B: CoreBuffer> TextObject<B> for Parens {
+    fn get_range(
+        &self,
+        _: Action,
+        prefix: TextObjectPrefix,
+        core: &Core<B>,
+    ) -> (Bound<Cursor>, Bound<Cursor>) {
         match prefix {
             TextObjectPrefix::A | TextObjectPrefix::Inner => {
                 let mut stack = Vec::new();
                 let mut t = Cursor { row: 0, col: 0 };
 
                 loop {
-                    if core.char_at(t) == Some(self.0) {
+                    if core.core_buffer().char_at(t) == Some(self.0) {
                         stack.push(t);
-                    } else if core.char_at(t) == Some(self.1) {
+                    } else if core.core_buffer().char_at(t) == Some(self.1) {
                         if let Some(l) = stack.pop() {
                             if l <= core.cursor() && t >= core.cursor() {
                                 if prefix == TextObjectPrefix::Inner {
-                                    let l = core.next_cursor(l)?;
-                                    let r = core.prev_cursor(t)?;
-                                    return if l < r { Some(CursorRange(l, r)) } else { None };
+                                    return if l < t {
+                                        (Bound::Excluded(l), Bound::Excluded(t))
+                                    } else {
+                                        (
+                                            Bound::Included(Cursor { row: 0, col: 0 }),
+                                            Bound::Excluded(Cursor { row: 0, col: 0 }),
+                                        )
+                                    };
                                 } else {
-                                    return Some(CursorRange(l, t));
+                                    return (Bound::Included(l), Bound::Included(t));
                                 }
                             }
                         }
@@ -119,70 +144,100 @@ impl TextObject for Parens {
 
                     if t > core.cursor() && stack.get(0).map(|&c| c > core.cursor()).unwrap_or(true)
                     {
-                        return None;
+                        return (
+                            Bound::Included(Cursor { row: 0, col: 0 }),
+                            Bound::Excluded(Cursor { row: 0, col: 0 }),
+                        );
                     }
-                    t = core.next_cursor(t)?;
+                    if let Some(next) = core.next_cursor(t) {
+                        t = next;
+                    } else {
+                        return (
+                            Bound::Included(Cursor { row: 0, col: 0 }),
+                            Bound::Excluded(Cursor { row: 0, col: 0 }),
+                        );
+                    }
                 }
             }
-            _ => None,
+            _ => (
+                Bound::Included(Cursor { row: 0, col: 0 }),
+                Bound::Excluded(Cursor { row: 0, col: 0 }),
+            ),
         }
     }
 }
 
-impl TextObject for Word {
+impl<B: CoreBuffer> TextObject<B> for Word {
     fn get_range(
         &self,
         action: Action,
         prefix: TextObjectPrefix,
-        core: &Core,
-    ) -> Option<CursorRange> {
-        Some(match prefix {
+        core: &Core<B>,
+    ) -> (Bound<Cursor>, Bound<Cursor>) {
+        match prefix {
             TextObjectPrefix::None => {
                 let l = core.cursor();
-                let line = core.current_line();
-                let mut i = l.col;
-                while i + 1 < line.len_chars() && line.char(i + 1).is_alphanumeric() {
-                    i += 1;
+                let mut r = l;
+                while r.col < core.core_buffer().len_line(r.row)
+                    && core
+                        .core_buffer()
+                        .char_at(r)
+                        .map(|c| c.is_alphanumeric())
+                        .unwrap_or(false)
+                {
+                    r.col += 1;
                 }
-                if action != Action::Change && prefix != TextObjectPrefix::Inner {
-                    while i + 1 < line.len_chars() && line.char(i + 1) == ' ' {
-                        i += 1;
+                if action != Action::Change {
+                    while r.col < core.core_buffer().len_line(r.row)
+                        && core.core_buffer().char_at(r) == Some(' ')
+                    {
+                        r.col += 1;
                     }
                 }
-                CursorRange(l, Cursor { row: l.row, col: i })
+                (Bound::Included(l), Bound::Excluded(r))
             }
             TextObjectPrefix::A | TextObjectPrefix::Inner => {
-                let pos = core.cursor();
-                let line = core.current_line();
-                let mut l = pos.col;
-                let mut r = pos.col;
+                let mut l = core.cursor();
+                let mut r = l;
 
-                while l > 0 && line.char(l - 1).is_alphanumeric() {
-                    l -= 1;
+                while l.col > 0
+                    && core
+                        .core_buffer()
+                        .char_at(Cursor {
+                            row: l.row,
+                            col: l.col - 1,
+                        })
+                        .map(|c| c.is_alphanumeric())
+                        .unwrap_or(false)
+                {
+                    l.col -= 1;
                 }
 
-                while r + 1 < line.len_chars() && line.char(r + 1).is_alphanumeric() {
-                    r += 1;
+                while r.col < core.core_buffer().len_line(r.row)
+                    && core
+                        .core_buffer()
+                        .char_at(r)
+                        .map(|c| c.is_alphanumeric())
+                        .unwrap_or(false)
+                {
+                    r.col += 1;
                 }
 
                 if action != Action::Change && prefix != TextObjectPrefix::Inner {
-                    while r + 1 < line.len_chars() && line.char(r + 1) == ' ' {
-                        r += 1;
+                    while r.col < core.core_buffer().len_line(r.row)
+                        && core
+                            .core_buffer()
+                            .char_at(r)
+                            .map(|c| c == ' ')
+                            .unwrap_or(false)
+                    {
+                        r.col += 1;
                     }
                 }
 
-                CursorRange(
-                    Cursor {
-                        row: pos.row,
-                        col: l,
-                    },
-                    Cursor {
-                        row: pos.row,
-                        col: r,
-                    },
-                )
+                (Bound::Included(l), Bound::Excluded(r))
             }
-        })
+        }
     }
 }
 
@@ -201,7 +256,11 @@ impl TextObjectParser {
 }
 
 impl TextObjectParser {
-    pub fn parse(&mut self, c: char, core: &Core) -> Option<Option<CursorRange>> {
+    pub fn parse<B: CoreBuffer>(
+        &mut self,
+        c: char,
+        core: &Core<B>,
+    ) -> Option<(Bound<Cursor>, Bound<Cursor>)> {
         if let Prefix::TextObjectPrefix(_) = self.prefix {
             match c {
                 'a' => {
@@ -227,27 +286,21 @@ impl TextObjectParser {
                 let find = c;
                 let l = core.cursor();
                 let mut r = l;
-                let line = core.current_line();
-                while r.col < line.len_chars() && line.char(r.col) != find {
+                while r.col < core.core_buffer().len_line(r.row)
+                    && core.core_buffer().char_at(r) != Some(find)
+                {
                     r.col += 1;
                 }
 
-                if r.col == line.len_chars() {
-                    return Some(None);
+                if r.col == core.core_buffer().len_line(r.row) {
+                    // Nothing
+                    return Some((Bound::Included(l), Bound::Excluded(l)));
                 }
 
-                if !inclusive {
-                    if let Some(prev) = core.prev_cursor(r) {
-                        r = prev;
-                    } else {
-                        return Some(None);
-                    }
-                }
-
-                if r >= l {
-                    Some(Some(CursorRange(l, r)))
+                if inclusive {
+                    Some((Bound::Included(l), Bound::Included(r)))
                 } else {
-                    Some(None)
+                    Some((Bound::Included(l), Bound::Excluded(r)))
                 }
             }
             Prefix::TextObjectPrefix(text_object_prefix) => match c {

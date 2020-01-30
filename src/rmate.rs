@@ -1,4 +1,5 @@
 use crate::core::Core;
+use crate::core::CoreBuffer;
 use crate::storage::Storage;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -32,13 +33,13 @@ impl From<RmateSave> for RmateStorage {
     }
 }
 
-impl Storage for RmateStorage {
-    fn load(&mut self) -> Core {
+impl<B: CoreBuffer> Storage<B> for RmateStorage {
+    fn load(&mut self) -> Core<B> {
         let mut core = Core::default();
         core.set_string(self.rmate_save.rmate.data.clone(), true);
         core
     }
-    fn save(&mut self, core: &Core) -> bool {
+    fn save(&mut self, core: &Core<B>) -> bool {
         let data = core.get_string();
         self.rmate_save
             .sender

@@ -1,6 +1,7 @@
 use super::Mode;
 use super::Transition;
 use crate::buffer::Buffer;
+use crate::core::CoreBuffer;
 use crate::draw;
 use fuzzy_matcher::clangd::fuzzy_indices;
 use rayon::prelude::*;
@@ -156,14 +157,14 @@ impl FuzzyOpen {
     }
 }
 
-impl Mode for FuzzyOpen {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for FuzzyOpen {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Char('\n')) => {
                 if let Some(item) = self.result.iter().nth(self.index) {
                     buf.open(path::PathBuf::from(&item.line));
                 }
-                return super::Normal::default().into();
+                return super::Normal::default().into_transition();
             }
             Event::Key(Key::Char(c)) if !c.is_control() => {
                 self.line_buf.push(c);
@@ -175,7 +176,7 @@ impl Mode for FuzzyOpen {
                 }
             }
             Event::Key(Key::Esc) => {
-                return super::Normal::default().into();
+                return super::Normal::default().into_transition();
             }
             Event::Key(Key::Up) => {
                 if !self.result.is_empty() {
@@ -191,7 +192,7 @@ impl Mode for FuzzyOpen {
         }
         Transition::Nothing
     }
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         while let Ok(line) = self.receiver.try_recv() {
             self.push_line(line);
         }

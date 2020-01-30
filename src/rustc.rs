@@ -5,7 +5,7 @@ use serde_json;
 use serde_json::Value;
 
 use crate::compiler::CompilerOutput;
-use crate::core::{Cursor, CursorRange};
+use crate::core::Cursor;
 
 pub fn parse_rustc_json(json: &str) -> Option<CompilerOutput> {
     let d: Diagnostic = serde_json::from_str(json).ok()?;
@@ -24,7 +24,7 @@ pub fn parse_rustc_json(json: &str) -> Option<CompilerOutput> {
         end.col -= 1;
     }
 
-    let span = CursorRange(start, end);
+    let span = start..=end;
 
     Some(CompilerOutput {
         message: d.message,

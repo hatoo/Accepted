@@ -1,10 +1,11 @@
 use crate::buffer::Buffer;
+use crate::core::CoreBuffer;
 use crate::draw;
 use crate::mode::{Mode, Normal, Transition, TransitionReturn};
 
-pub struct BufferMode<'a> {
-    pub buf: Buffer<'a>,
-    mode: Box<dyn Mode>,
+pub struct BufferMode<'a, B: CoreBuffer> {
+    pub buf: Buffer<'a, B>,
+    mode: Box<dyn Mode<B>>,
     is_recording: bool,
     dot_macro: Vec<termion::event::Event>,
     recording_macro: Vec<termion::event::Event>,
@@ -18,8 +19,8 @@ pub enum TabOperation {
     StartRmate,
 }
 
-impl<'a> BufferMode<'a> {
-    pub fn new(buf: Buffer<'a>) -> Self {
+impl<'a, B: CoreBuffer> BufferMode<'a, B> {
+    pub fn new(buf: Buffer<'a, B>) -> Self {
         Self {
             buf,
             mode: Box::new(Normal::default()),

@@ -1,16 +1,15 @@
 use std;
-use std::borrow::Cow;
 use std::cmp::{max, min};
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
+use std::ops::Bound;
 use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Instant;
 
-use ropey::Rope;
 use shellexpand;
 use termion;
 use termion::event::{Event, Key, MouseButton, MouseEvent};
@@ -20,16 +19,15 @@ use crate::buffer::Yank;
 use crate::clipboard;
 use crate::config::types::keys;
 use crate::core::Core;
+use crate::core::CoreBuffer;
 use crate::core::Cursor;
-use crate::core::CursorRange;
 use crate::core::Id;
 use crate::draw;
 use crate::indent;
 use crate::lsp::LSPCompletion;
 use crate::parenthesis;
-use crate::ropey_util::RopeExt;
-use crate::ropey_util::RopeSliceExt;
 use crate::text_object::{self, Action};
+use failure::_core::ops::RangeBounds;
 
 mod fuzzy;
 
@@ -38,10 +36,10 @@ pub struct TransitionReturn {
     pub is_commit_dot_macro: bool,
 }
 
-pub enum Transition {
+pub enum Transition<B: CoreBuffer> {
     Nothing,
-    Trans(Box<dyn Mode>),
-    RecordMacro(Box<dyn Mode>),
+    Trans(Box<dyn Mode<B>>),
+    RecordMacro(Box<dyn Mode<B>>),
     DoMacro,
     // Message, is commit dot macro?
     Return(TransitionReturn),
@@ -52,16 +50,16 @@ pub enum Transition {
     StartRmate,
 }
 
-impl<T: Mode + 'static> From<T> for Transition {
-    fn from(mode: T) -> Transition {
-        Transition::Trans(Box::new(mode))
+pub trait Mode<B: CoreBuffer> {
+    fn init(&mut self, _buf: &mut Buffer<B>) {}
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B>;
+    fn draw(&mut self, buf: &mut Buffer<B>, view: draw::TermView) -> draw::CursorState;
+    fn into_transition(self) -> Transition<B>
+    where
+        Self: Sized + 'static,
+    {
+        Transition::Trans(Box::new(self))
     }
-}
-
-pub trait Mode {
-    fn init(&mut self, _buf: &mut Buffer) {}
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition;
-    fn draw(&mut self, buf: &mut Buffer, view: draw::TermView) -> draw::CursorState;
 }
 
 pub struct Normal {
@@ -93,7 +91,7 @@ impl Default for Insert {
 
 struct R;
 
-struct S(CursorRange);
+struct S<R: RangeBounds<Cursor> + Clone>(R);
 
 struct Find {
     to_right: bool,
@@ -207,8 +205,8 @@ impl Normal {
     }
 }
 
-impl Mode for Normal {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for Normal {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Char('.')) => {
                 return Transition::DoMacro;
@@ -226,30 +224,30 @@ impl Mode for Normal {
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('I')) => {
-                let mut i = 0;
-                {
-                    let line = buf.core.current_line();
-                    while i < line.len_chars() && line.char(i) == ' ' {
-                        i += 1;
-                    }
+                buf.core.set_cursor(Cursor {
+                    row: buf.core.cursor().row,
+                    col: 0,
+                });
+                while buf.core.char_at_cursor() == Some(' ') {
+                    buf.core.cursor_right();
                 }
-                let mut c = buf.core.cursor();
-                c.col = i;
-                buf.core.set_cursor(c);
                 buf.show_cursor();
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('S')) => {
-                let mut c = buf.core.cursor();
-                c.col = 0;
-                buf.core.set_cursor(c);
-                for _ in 0..buf.core.current_line().len_chars() {
+                buf.core.set_cursor(Cursor {
+                    row: buf.core.cursor().row,
+                    col: 0,
+                });
+                // TODO bulk delete
+                for _ in 0..buf.core.len_current_line() {
                     buf.core.delete()
                 }
                 buf.indent();
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
             Event::Key(Key::Char('C')) => {
+                // TODO bulk delete
                 while buf.core.char_at_cursor().is_some() {
                     buf.core.delete()
                 }
@@ -262,7 +260,7 @@ impl Mode for Normal {
             }
             Event::Key(Key::Char('A')) => {
                 let mut c = buf.core.cursor();
-                c.col = buf.core.current_line().len_chars();
+                c.col = buf.core.len_current_line();
                 buf.core.set_cursor(c);
                 buf.show_cursor();
                 return Transition::RecordMacro(Box::new(Insert::default()));
@@ -317,10 +315,10 @@ impl Mode for Normal {
                 buf.show_cursor();
             }
             Event::Key(Key::Char('f')) => {
-                return Find { to_right: true }.into();
+                return Find { to_right: true }.into_transition();
             }
             Event::Key(Key::Char('F')) => {
-                return Find { to_right: false }.into();
+                return Find { to_right: false }.into_transition();
             }
             Event::Key(Key::Char('0')) => {
                 buf.core.set_cursor(Cursor {
@@ -331,7 +329,7 @@ impl Mode for Normal {
             Event::Key(Key::Char('$')) => {
                 buf.core.set_cursor(Cursor {
                     row: buf.core.cursor().row,
-                    col: buf.core.current_line().len_chars(),
+                    col: buf.core.len_current_line(),
                 });
             }
             Event::Key(Key::Char('g')) => {
@@ -339,8 +337,8 @@ impl Mode for Normal {
                 buf.show_cursor();
             }
             Event::Key(Key::Char('G')) => {
-                let row = buf.core.buffer().len_lines() - 1;
-                let col = buf.core.buffer().l(row).len_chars();
+                let row = buf.core.core_buffer().len_lines() - 1;
+                let col = buf.core.core_buffer().len_line(row);
                 buf.core.set_cursor(Cursor { row, col });
                 buf.show_cursor();
             }
@@ -357,18 +355,16 @@ impl Mode for Normal {
                         pos = Cursor { row: 0, col: 0 };
                     }
 
-                    let idx = buf.core.buffer().line_to_char(pos.row) + pos.col;
-
                     let pos_bytes = if let Some(Ok(m)) = ac
                         .stream_find_iter(iter_read::IterRead::new(
-                            buf.core.buffer().slice(idx..).bytes(),
+                            buf.core.core_buffer().bytes_range(pos..),
                         ))
                         .next()
                     {
-                        Some(buf.core.buffer().char_to_byte(idx) + m.start())
+                        Some(buf.core.core_buffer().cursor_to_bytes(pos) + m.start())
                     } else if let Some(Ok(m)) = ac
                         .stream_find_iter(iter_read::IterRead::new(
-                            buf.core.buffer().slice(..idx).bytes(),
+                            buf.core.core_buffer().bytes_range(..pos),
                         ))
                         .next()
                     {
@@ -378,11 +374,8 @@ impl Mode for Normal {
                     };
 
                     if let Some(start) = pos_bytes {
-                        let row = buf.core.buffer().byte_to_line(start);
-                        let col = buf.core.buffer().byte_to_char(start)
-                            - buf.core.buffer().line_to_char(row);
-
-                        buf.core.set_cursor(Cursor { row, col });
+                        buf.core
+                            .set_cursor(buf.core.core_buffer().bytes_to_cursor(start));
                         buf.show_cursor();
                     }
                 }
@@ -391,35 +384,34 @@ impl Mode for Normal {
                 // TODO: Use aho-corasick. Waiting reverse iterator of ropey.
                 if !buf.search.is_empty() {
                     let search: String = buf.search.iter().collect();
-                    let last_pos = Cursor {
-                        row: buf.core.buffer().len_lines() - 1,
-                        col: buf
-                            .core
-                            .buffer()
-                            .l(buf.core.buffer().len_lines() - 1)
-                            .len_chars(),
-                    };
-                    let orig_pos = buf.core.cursor();
-                    if !buf.core.cursor_dec() {
-                        buf.core.set_cursor(last_pos);
+                    let ac = aho_corasick::AhoCorasick::new(vec![search]);
+
+                    let mut last_before = None;
+                    let mut last = None;
+
+                    for cursor in ac
+                        .stream_find_iter(iter_read::IterRead::new(
+                            buf.core.core_buffer().bytes_range(..),
+                        ))
+                        .filter_map(|m| m.ok())
+                        .map(|m| buf.core.core_buffer().bytes_to_cursor(m.start()))
+                    {
+                        match cursor.cmp(&buf.core.cursor()) {
+                            std::cmp::Ordering::Equal | std::cmp::Ordering::Less => {
+                                last_before = Some(cursor);
+                            }
+                            std::cmp::Ordering::Greater => {
+                                if last_before.is_some() {
+                                    break;
+                                } else {
+                                    last = Some(cursor);
+                                }
+                            }
+                        }
                     }
-
-                    loop {
-                        let matched = buf.core.current_line_after_cursor().len_chars()
-                            >= buf.search.len()
-                            && buf
-                                .core
-                                .current_line_after_cursor()
-                                .slice(..buf.search.len())
-                                == search;
-                        if matched || buf.core.cursor() == orig_pos {
-                            buf.show_cursor();
-                            break;
-                        }
-
-                        if !buf.core.cursor_dec() {
-                            buf.core.set_cursor(last_pos);
-                        }
+                    if let Some(cursor) = last_before.or(last) {
+                        buf.core.set_cursor(cursor);
+                        buf.show_cursor();
                     }
                 }
             }
@@ -428,20 +420,20 @@ impl Mode for Normal {
                 buf.core.commit();
                 buf.show_cursor();
             }
-            Event::Key(Key::Char('/')) => return Search.into(),
+            Event::Key(Key::Char('/')) => return Search.into_transition(),
             Event::Key(Key::Char('v')) => {
                 return Visual {
                     cursor: buf.core.cursor(),
                     line_mode: false,
                 }
-                .into();
+                .into_transition();
             }
             Event::Key(Key::Char('V')) => {
                 return Visual {
                     cursor: buf.core.cursor(),
                     line_mode: true,
                 }
-                .into();
+                .into_transition();
             }
             Event::Key(Key::Char('p')) => {
                 if buf.yank.insert_newline {
@@ -474,12 +466,12 @@ impl Mode for Normal {
                     }
                     buf.core.commit();
                 } else {
-                    self.message = "Failed to paste from clipboard".into();
+                    self.message = "Failed to paste from clipboard".to_string();
                 }
                 buf.show_cursor();
             }
             Event::Key(Key::Char(' ')) => {
-                return Prefix.into();
+                return Prefix.into_transition();
             }
             Event::Key(Key::Char('z')) => {
                 buf.show_cursor_middle();
@@ -505,7 +497,7 @@ impl Mode for Normal {
                             cursor,
                             line_mode: false,
                         }
-                        .into();
+                        .into_transition();
                     } else {
                         buf.core.set_cursor(c);
                     }
@@ -516,7 +508,7 @@ impl Mode for Normal {
                     cursor: buf.core.cursor(),
                     line_mode: false,
                 }
-                .into();
+                .into_transition();
             }
             Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
                 buf.scroll_up();
@@ -540,7 +532,7 @@ impl Mode for Normal {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
         let cursor = buf
@@ -580,7 +572,7 @@ impl Mode for Normal {
                 footer.puts(msg, draw::styles::FOOTER);
             }
             footer.puts(
-                &format!(" {} bytes", buf.core.buffer().len_bytes()),
+                &format!(" {} bytes", buf.core.core_buffer().len_bytes()),
                 draw::styles::FOOTER,
             );
         }
@@ -598,27 +590,67 @@ impl Mode for Normal {
     }
 }
 
-impl Insert {
-    fn token(core: &Core) -> String {
-        let line = core.current_line();
-        let mut i = core.cursor().col;
+#[cfg(test)]
+mod test_insert {
+    use super::Core;
+    use super::Insert;
+    use crate::core::buffer::RopeyCoreBuffer;
+    use crate::core::Cursor;
 
-        while i > 0 && (line.char(i - 1).is_alphanumeric() || line.char(i - 1) == '_') {
-            i -= 1;
-        }
-
-        String::from(line.slice(i..core.cursor().col))
+    #[test]
+    fn test_token() {
+        let mut core = Core::<RopeyCoreBuffer>::from_reader("token".as_bytes()).unwrap();
+        core.set_cursor(Cursor { row: 0, col: 5 });
+        assert_eq!(Insert::token(&core), "token".to_string());
+        let mut core = Core::<RopeyCoreBuffer>::from_reader("tokenblah".as_bytes()).unwrap();
+        core.set_cursor(Cursor { row: 0, col: 5 });
+        assert_eq!(Insert::token(&core), "token".to_string());
     }
 
-    fn remove_token(core: &mut Core) {
-        let mut i = core.cursor().col;
-        while i > 0 && {
-            let c = core.current_line().char(i - 1);
-            c.is_alphanumeric() || c == '_'
+    #[test]
+    fn test_remove_token() {
+        let mut core = Core::<RopeyCoreBuffer>::from_reader("token".as_bytes()).unwrap();
+        core.set_cursor(Cursor { row: 0, col: 5 });
+        Insert::remove_token(&mut core);
+        assert_eq!(core.get_string(), "".to_string());
+    }
+}
+
+impl Insert {
+    fn token<B: CoreBuffer>(core: &Core<B>) -> String {
+        let mut cursor = core.cursor();
+
+        while cursor.col > 0
+            && core
+                .core_buffer()
+                .char_at(Cursor {
+                    row: cursor.row,
+                    col: cursor.col - 1,
+                })
+                .map(|c| c.is_alphabetic() || c == '_')
+                .unwrap_or(false)
+        {
+            cursor.col -= 1;
+        }
+
+        core.get_string_range(cursor..core.cursor())
+    }
+
+    fn remove_token<B: CoreBuffer>(core: &mut Core<B>) {
+        while {
+            let cursor = core.cursor();
+            cursor.col > 0
+                && core
+                    .core_buffer()
+                    .char_at(Cursor {
+                        row: cursor.row,
+                        col: cursor.col - 1,
+                    })
+                    .map(|c| c.is_alphabetic() || c == '_')
+                    .unwrap_or(false)
         } {
             core.cursor_left();
             core.delete();
-            i -= 1;
         }
     }
 
@@ -626,7 +658,7 @@ impl Insert {
         self.completions.len() + self.tabnine_completions.len() + self.snippet_completions.len()
     }
 
-    fn get_completion(&self, buf: &Buffer) -> Option<String> {
+    fn get_completion<B: CoreBuffer>(&self, buf: &Buffer<B>) -> Option<String> {
         let index = self.completion_index?;
         if index < self.completions.len() {
             Some(self.completions[index].keyword.clone())
@@ -645,7 +677,7 @@ impl Insert {
         }
     }
 
-    fn remove_old_prefix(&self, core: &mut Core) {
+    fn remove_old_prefix<B: CoreBuffer>(&self, core: &mut Core<B>) {
         if let Some(index) = self.completion_index {
             if index < self.completions.len() {
                 Self::remove_token(core);
@@ -674,7 +706,7 @@ impl Insert {
         }
     }
 
-    fn poll(&mut self, buf: &Buffer) {
+    fn poll<B: CoreBuffer>(&mut self, buf: &Buffer<B>) {
         if let Some(lsp) = buf.lsp.as_ref() {
             if let Some(mut completions) = lsp.poll() {
                 let token = Self::token(&buf.core);
@@ -696,18 +728,24 @@ impl Insert {
         }
     }
 
-    fn build_completion(&mut self, buf: &mut Buffer) {
+    fn build_completion<B: CoreBuffer>(&mut self, buf: &mut Buffer<B>) {
         if self.buf_update == buf.core.buffer_changed() {
             return;
         }
         self.buf_update = buf.core.buffer_changed();
         let prefix = Self::token(&buf.core);
         let start_completion = {
-            let i = buf.core.cursor().col;
-            i > 0 && {
-                let c = buf.core.current_line().char(i - 1);
-                c == ':' || c == '.'
-            }
+            let cursor = buf.core.cursor();
+            cursor.col > 0
+                && buf
+                    .core
+                    .core_buffer()
+                    .char_at(Cursor {
+                        row: cursor.row,
+                        col: cursor.col - 1,
+                    })
+                    .map(|c| c == ':' || c == '.')
+                    .unwrap_or(false)
         };
         if !prefix.is_empty() || start_completion {
             if let Some(lsp) = buf.lsp.as_ref() {
@@ -736,8 +774,8 @@ impl Insert {
     }
 }
 
-impl Mode for Insert {
-    fn init(&mut self, buf: &mut Buffer) {
+impl<B: CoreBuffer> Mode<B> for Insert {
+    fn init(&mut self, buf: &mut Buffer<B>) {
         // Flush completion
         if let Some(lsp) = buf.lsp.as_ref() {
             lsp.poll();
@@ -747,7 +785,7 @@ impl Mode for Insert {
         }
         self.build_completion(buf);
     }
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 buf.core.commit();
@@ -822,10 +860,16 @@ impl Mode for Insert {
                 } else {
                     let indent_width = buf.indent_width();
                     buf.core.insert('\n');
-                    let indent = indent::next_indent_level(
-                        &Cow::from(buf.core.buffer().l(buf.core.cursor().row - 1)),
-                        indent_width,
+                    let line = buf.core.get_string_range(
+                        Cursor {
+                            row: buf.core.cursor().row - 1,
+                            col: 0,
+                        }..Cursor {
+                            row: buf.core.cursor().row - 1,
+                            col: buf.core.core_buffer().len_line(buf.core.cursor().row - 1),
+                        },
                     );
+                    let indent = indent::next_indent_level(line.as_str(), indent_width);
                     for _ in 0..indent_width * indent {
                         buf.core.insert(' ');
                     }
@@ -865,7 +909,7 @@ impl Mode for Insert {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         self.poll(buf);
         let height = view.height();
         let width = view.width();
@@ -933,8 +977,8 @@ impl Mode for Insert {
     }
 }
 
-impl Mode for R {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for R {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         let core = &mut buf.core;
         match event {
             Event::Key(Key::Esc) => {
@@ -955,7 +999,7 @@ impl Mode for R {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
         buf.draw(view.view((0, 0), height, width))
@@ -964,8 +1008,8 @@ impl Mode for R {
     }
 }
 
-impl Mode for Search {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for Search {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -990,7 +1034,7 @@ impl Mode for Search {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height() - 1;
         let width = view.width();
         let cursor = buf
@@ -1008,8 +1052,8 @@ impl Mode for Search {
     }
 }
 
-impl Mode for Save {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for Save {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1022,14 +1066,14 @@ impl Mode for Save {
             }
             Event::Key(Key::Char(c)) => {
                 if c == '\n' {
-                    let path: String = shellexpand::tilde(&self.path).into();
+                    let path: String = shellexpand::tilde(&self.path).to_string();
                     buf.set_storage(PathBuf::from(path.clone()));
                     let message = if buf.save(false) {
                         format!("Saved to {}", path)
                     } else {
                         format!("Failed to save {}", path)
                     };
-                    return Normal::with_message(message).into();
+                    return Normal::with_message(message).into_transition();
                 }
                 self.path.push(c);
             }
@@ -1038,7 +1082,7 @@ impl Mode for Save {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         if view.height() < 2 {
             return draw::CursorState::Hide;
         }
@@ -1062,8 +1106,8 @@ impl Mode for Save {
     }
 }
 
-impl Mode for Prefix {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for Prefix {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1087,7 +1131,7 @@ impl Mode for Prefix {
                 return Transition::Exit;
             }
             Event::Key(Key::Char('g')) => {
-                return Goto::default().into();
+                return Goto::default().into_transition();
             }
             Event::Key(Key::Char('s')) => {
                 if let Some(path) = buf.path().map(|p| p.to_string_lossy().into_owned()) {
@@ -1105,20 +1149,20 @@ impl Mode for Prefix {
                     return Save {
                         path: String::new(),
                     }
-                    .into();
+                    .into_transition();
                 }
             }
             Event::Key(Key::Char('a')) => {
                 if let Some(path) = buf.path() {
                     return Save {
-                        path: path.to_string_lossy().into(),
+                        path: path.to_string_lossy().to_string(),
                     }
-                    .into();
+                    .into_transition();
                 } else {
                     return Save {
                         path: String::new(),
                     }
-                    .into();
+                    .into_transition();
                 }
             }
             Event::Key(Key::Char('y')) => {
@@ -1130,7 +1174,7 @@ impl Mode for Prefix {
                         } else {
                             "Failed to copy to clipboard"
                         }
-                        .into(),
+                        .to_string(),
                     ),
                     is_commit_dot_macro: false,
                 });
@@ -1144,7 +1188,7 @@ impl Mode for Prefix {
                         } else {
                             "Failed to restart LSP"
                         }
-                        .into(),
+                        .to_string(),
                     ),
                     is_commit_dot_macro: false,
                 });
@@ -1163,7 +1207,12 @@ impl Mode for Prefix {
                         .map(|c| c.clone())
                         .or_else(|e| {
                             // Detect shebang
-                            let first_line = buf.core.buffer().line(0).to_string();
+                            let first_line = buf.core.core_buffer().get_range(
+                                Cursor { row: 0, col: 0 }..Cursor {
+                                    row: 0,
+                                    col: buf.core.core_buffer().len_line(0),
+                                },
+                            );
                             if first_line.starts_with("#!") {
                                 let mut v = first_line
                                     .trim_start_matches("#!")
@@ -1207,13 +1256,14 @@ impl Mode for Prefix {
                 );
                 match result {
                     Err(err) => {
-                        return Normal::with_message(err.to_string()).into();
+                        return Normal::with_message(err.to_string()).into_transition();
                     }
                     Ok((child, title)) => {
                         if let Some(next_state) = ViewProcess::with_process(child, title) {
-                            return next_state.into();
+                            return next_state.into_transition();
                         } else {
-                            return Normal::with_message("Failed to test".into()).into();
+                            return Normal::with_message("Failed to test".to_string())
+                                .into_transition();
                         }
                     }
                 }
@@ -1230,14 +1280,14 @@ impl Mode for Prefix {
                 return Transition::StartRmate;
             }
             Event::Key(Key::Char('f')) => {
-                return fuzzy::FuzzyOpen::default().into();
+                return fuzzy::FuzzyOpen::default().into_transition();
             }
             _ => {}
         }
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height() - 1;
         let width = view.width();
         let cursor = buf
@@ -1257,23 +1307,26 @@ impl Mode for Prefix {
 }
 
 impl Visual {
-    fn get_range(&self, to: Cursor, buf: &Rope) -> CursorRange {
+    fn get_range<B: CoreBuffer>(&self, to: Cursor, buf: &B) -> std::ops::RangeInclusive<Cursor> {
         if self.line_mode {
             let mut l = min(self.cursor, to);
             let mut r = max(self.cursor, to);
 
             l.col = 0;
-            r.col = buf.l(r.row).len_chars();
+            r.col = buf.len_line(r.row);
 
-            CursorRange(l, r)
+            l..=r
         } else {
-            CursorRange(self.cursor, to)
+            let l = min(self.cursor, to);
+            let r = max(self.cursor, to);
+
+            l..=r
         }
     }
 }
 
-impl Mode for Visual {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for Visual {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1314,24 +1367,22 @@ impl Mode for Visual {
                 buf.show_cursor();
             }
             Event::Key(Key::Char('G')) => {
-                let row = buf.core.buffer().len_lines() - 1;
-                let col = buf.core.buffer().l(row).len_chars();
-                buf.core.set_cursor(Cursor { row, col });
+                buf.core.set_cursor(buf.core.core_buffer().end_cursor());
                 buf.show_cursor();
             }
             Event::Key(Key::Char('d'))
             | Event::Key(Key::Char('x'))
             | Event::Key(Key::Char('s')) => {
                 let to_insert = event == Event::Key(Key::Char('s'));
-                let range = self.get_range(buf.core.cursor(), buf.core.buffer());
+                let range = self.get_range(buf.core.cursor(), buf.core.core_buffer());
                 let s = if self.line_mode {
-                    String::from(buf.core.get_slice_by_range(range).trim_end())
+                    buf.core.get_string_range(range.start()..range.end())
                 } else {
-                    String::from(buf.core.get_slice_by_range(range))
+                    buf.core.get_string_range(range.clone())
                 };
-                let delete_to_end = range.r().row == buf.core.buffer().len_lines() - 1;
-                buf.core.delete_range(range);
-                if to_insert && range.l().row != range.r().row {
+                let delete_to_end = range.end().row == buf.core.core_buffer().len_lines() - 1;
+                buf.core.delete_range(range.clone());
+                if to_insert && range.start().row != range.end().row {
                     if !delete_to_end {
                         buf.core.insert_newline_here();
                     }
@@ -1343,17 +1394,17 @@ impl Mode for Visual {
 
                 buf.show_cursor();
                 return if to_insert {
-                    Insert::default().into()
+                    Insert::default().into_transition()
                 } else {
                     Transition::Return(TransitionReturn {
-                        message: Some("Deleted".into()),
+                        message: Some("Deleted".to_string()),
                         is_commit_dot_macro: true,
                     })
                 };
             }
             Event::Key(Key::Char('p')) | Event::Key(Key::Ctrl('p')) => {
                 let is_clipboard = event == Event::Key(Key::Ctrl('p'));
-                let range = self.get_range(buf.core.cursor(), buf.core.buffer());
+                let range = self.get_range(buf.core.cursor(), buf.core.core_buffer());
                 buf.core.delete_range(range);
                 if is_clipboard {
                     if let Ok(s) = clipboard::clipboard_paste() {
@@ -1375,22 +1426,22 @@ impl Mode for Visual {
             }
             Event::Key(Key::Char('y')) | Event::Key(Key::Ctrl('y')) => {
                 let is_clipboard = event == Event::Key(Key::Ctrl('y'));
-                let range = self.get_range(buf.core.cursor(), buf.core.buffer());
+                let range = self.get_range(buf.core.cursor(), buf.core.core_buffer());
                 let s = if self.line_mode {
-                    String::from(buf.core.get_slice_by_range(range).trim_end())
+                    buf.core.get_string_range(range.start()..range.end())
                 } else {
-                    String::from(buf.core.get_slice_by_range(range))
+                    buf.core.get_string_range(range.clone())
                 };
-                buf.core.set_cursor(range.l());
+                buf.core.set_cursor(*range.start());
                 if is_clipboard {
                     if clipboard::clipboard_copy(&s).is_ok() {
                         return Transition::Return(TransitionReturn {
-                            message: Some("Yanked".into()),
+                            message: Some("Yanked".to_string()),
                             is_commit_dot_macro: false,
                         });
                     } else {
                         return Transition::Return(TransitionReturn {
-                            message: Some("Yank failed".into()),
+                            message: Some("Yank failed".to_string()),
                             is_commit_dot_macro: false,
                         });
                     }
@@ -1399,13 +1450,14 @@ impl Mode for Visual {
                     buf.yank.content = s;
                 }
                 return Transition::Return(TransitionReturn {
-                    message: Some("Yanked".into()),
+                    message: Some("Yanked".to_string()),
                     is_commit_dot_macro: false,
                 });
             }
             Event::Key(Key::Char('S')) => {
-                let range = self.get_range(buf.core.cursor(), buf.core.buffer());
-                return S(range).into();
+                // let range = self.get_range(buf.core.cursor(), buf.core.core_buffer());
+                // return S(range).into_transition();
+                return Transition::Nothing;
             }
             Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
                 let col = x as usize - 1;
@@ -1420,7 +1472,7 @@ impl Mode for Visual {
                 if let Some(c) = term.pos(cursor) {
                     buf.core.set_cursor(c);
                 }
-                return Normal::default().into();
+                return Normal::default().into_transition();
             }
             Event::Mouse(MouseEvent::Hold(x, y)) => {
                 let col = x as usize - 1;
@@ -1441,20 +1493,20 @@ impl Mode for Visual {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
-        let range = self.get_range(buf.core.cursor(), buf.core.buffer());
+        let range = self.get_range(buf.core.cursor(), buf.core.core_buffer());
         buf.draw_with_selected(view.view((0, 0), height, width), Some(range))
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide)
     }
 }
 
-impl Mode for ViewProcess {
-    fn event(&mut self, _buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for ViewProcess {
+    fn event(&mut self, _buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
-            Event::Key(Key::Esc) => Normal::default().into(),
+            Event::Key(Key::Esc) => Normal::default().into_transition(),
             Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
                 if self.row_offset <= 3 {
                     self.row_offset = 0;
@@ -1471,7 +1523,7 @@ impl Mode for ViewProcess {
         }
     }
 
-    fn draw(&mut self, _buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, _buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         if self.end.is_none() {
             if let Ok(Some(_)) = self.process.try_wait() {
                 self.end = Some(Instant::now());
@@ -1513,8 +1565,8 @@ impl Mode for ViewProcess {
     }
 }
 
-impl Mode for TextObjectOperation {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         if event == Event::Key(Key::Esc) {
             return Transition::Return(TransitionReturn {
                 message: None,
@@ -1526,21 +1578,26 @@ impl Mode for TextObjectOperation {
                 // Yank current line
                 buf.yank = Yank {
                     insert_newline: true,
-                    content: String::from(buf.core.current_line()),
+                    content: buf.core.get_string_range(
+                        Cursor {
+                            row: buf.core.cursor().row,
+                            col: 0,
+                        }..Cursor {
+                            row: buf.core.cursor().row,
+                            col: buf.core.len_current_line(),
+                        },
+                    ),
                 };
                 match self.parser.action {
                     // dd
                     Action::Delete => {
-                        let range = CursorRange(
-                            Cursor {
-                                row: buf.core.cursor().row,
-                                col: 0,
-                            },
-                            Cursor {
-                                row: buf.core.cursor().row,
-                                col: buf.core.current_line().len_chars(),
-                            },
-                        );
+                        let range = Cursor {
+                            row: buf.core.cursor().row,
+                            col: 0,
+                        }..=Cursor {
+                            row: buf.core.cursor().row,
+                            col: buf.core.len_current_line(),
+                        };
                         buf.core.delete_range(range);
                         buf.core.commit();
                         return Transition::Return(TransitionReturn {
@@ -1560,35 +1617,32 @@ impl Mode for TextObjectOperation {
                             row: pos.row,
                             col: 0,
                         });
-                        for _ in 0..buf.core.current_line().len_chars() {
+                        for _ in 0..buf.core.core_buffer().len_line(pos.row) {
                             buf.core.delete();
                         }
                         buf.core.commit();
                         buf.indent();
-                        return Insert::default().into();
+                        return Insert::default().into_transition();
                     }
                 }
             }
 
             if c == 'j' || c == 'k' {
                 let range = if c == 'j' {
-                    if buf.core.cursor().row == buf.core.buffer().len_lines() - 1 {
+                    if buf.core.cursor().row == buf.core.core_buffer().len_lines() - 1 {
                         return Transition::Return(TransitionReturn {
                             message: None,
                             is_commit_dot_macro: false,
                         });
                     }
-                    let next_line = buf.core.buffer().l(buf.core.cursor().row + 1).len_chars();
-                    CursorRange(
-                        Cursor {
-                            row: buf.core.cursor().row,
-                            col: 0,
-                        },
-                        Cursor {
-                            row: buf.core.cursor().row + 1,
-                            col: next_line,
-                        },
-                    )
+                    let next_line = buf.core.core_buffer().len_line(buf.core.cursor().row + 1);
+                    Cursor {
+                        row: buf.core.cursor().row,
+                        col: 0,
+                    }..=Cursor {
+                        row: buf.core.cursor().row + 1,
+                        col: next_line,
+                    }
                 } else {
                     if buf.core.cursor().row == 0 {
                         return Transition::Return(TransitionReturn {
@@ -1596,21 +1650,19 @@ impl Mode for TextObjectOperation {
                             is_commit_dot_macro: false,
                         });
                     }
-                    CursorRange(
-                        Cursor {
-                            row: buf.core.cursor().row - 1,
-                            col: 0,
-                        },
-                        Cursor {
-                            row: buf.core.cursor().row,
-                            col: buf.core.current_line().len_chars(),
-                        },
-                    )
+
+                    Cursor {
+                        row: buf.core.cursor().row - 1,
+                        col: 0,
+                    }..=Cursor {
+                        row: buf.core.cursor().row,
+                        col: buf.core.len_current_line(),
+                    }
                 };
 
                 buf.yank = Yank {
                     insert_newline: true,
-                    content: String::from(buf.core.get_slice_by_range(range).trim_end()),
+                    content: String::from(buf.core.get_string_range(range.start()..range.end())),
                 };
                 match self.parser.action {
                     // dj or dk
@@ -1633,16 +1685,17 @@ impl Mode for TextObjectOperation {
                         buf.core.insert_newline_here();
                         buf.core.commit();
                         buf.indent();
-                        return Insert::default().into();
+                        return Insert::default().into_transition();
                     }
                 }
             }
 
-            if let Some(half_range) = self.parser.parse(c, &buf.core) {
-                if let Some(range) = half_range {
+            if let Some(range) = self.parser.parse(c, &buf.core) {
+                let range_str = buf.core.get_string_range(range);
+                if !range_str.is_empty() {
                     buf.yank = Yank {
                         insert_newline: false,
-                        content: String::from(buf.core.get_slice_by_range(range)),
+                        content: range_str,
                     };
                     match self.parser.action {
                         Action::Delete => {
@@ -1656,7 +1709,7 @@ impl Mode for TextObjectOperation {
                         Action::Change => {
                             buf.core.delete_range(range);
                             buf.core.commit();
-                            return Insert::default().into();
+                            return Insert::default().into_transition();
                         }
                         Action::Yank => {
                             return Transition::Return(TransitionReturn {
@@ -1676,7 +1729,7 @@ impl Mode for TextObjectOperation {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height() - 1;
         let width = view.width();
         let cursor = buf
@@ -1702,8 +1755,8 @@ impl Mode for TextObjectOperation {
     }
 }
 
-impl Mode for S {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer, R: RangeBounds<Cursor> + Clone> Mode<B> for S<R> {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1712,8 +1765,16 @@ impl Mode for S {
                 });
             }
             Event::Key(Key::Char(c)) if !c.is_control() => {
-                let l = self.0.l();
-                let r = self.0.r();
+                let l = match self.0.start_bound() {
+                    Bound::Excluded(c) => buf.core.next_cursor(*c).unwrap_or(*c),
+                    Bound::Included(c) => *c,
+                    Bound::Unbounded => Cursor { row: 0, col: 0 },
+                };
+                let r = match self.0.end_bound() {
+                    Bound::Excluded(c) => buf.core.prev_cursor(*c).unwrap_or(*c),
+                    Bound::Included(c) => *c,
+                    Bound::Unbounded => Cursor { row: 0, col: 0 },
+                };
 
                 let (cl, cr) = parenthesis::PARENTHESIS_PAIRS
                     .iter()
@@ -1738,18 +1799,18 @@ impl Mode for S {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
-        let range = self.0;
+        let range = self.0.clone();
         buf.draw_with_selected(view.view((0, 0), height, width), Some(range))
             .map(|c| draw::CursorState::Show(c, draw::CursorShape::Block))
             .unwrap_or(draw::CursorState::Hide)
     }
 }
 
-impl Mode for Find {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for Find {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1760,13 +1821,17 @@ impl Mode for Find {
             Event::Key(Key::Char(c)) if !c.is_control() => {
                 let cursor = buf.core.cursor();
                 let range: Box<dyn Iterator<Item = usize>> = if self.to_right {
-                    Box::new(cursor.col + 1..buf.core.current_line().len_chars())
+                    Box::new(cursor.col + 1..buf.core.len_current_line())
                 } else {
                     Box::new((0..cursor.col).rev())
                 };
 
                 for i in range {
-                    if buf.core.current_line().char(i) == c {
+                    if buf.core.core_buffer().char_at(Cursor {
+                        row: cursor.row,
+                        col: i,
+                    }) == Some(c)
+                    {
                         buf.core.set_cursor(Cursor {
                             row: cursor.row,
                             col: i,
@@ -1783,7 +1848,7 @@ impl Mode for Find {
         }
         Transition::Nothing
     }
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height();
         let width = view.width();
         let cursor = buf
@@ -1802,8 +1867,8 @@ impl Mode for Find {
     }
 }
 
-impl Mode for Goto {
-    fn event(&mut self, buf: &mut Buffer, event: termion::event::Event) -> Transition {
+impl<B: CoreBuffer> Mode<B> for Goto {
+    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1820,7 +1885,7 @@ impl Mode for Goto {
                         if row > 0 {
                             row -= 1;
                         }
-                        row = min(row, buf.core.buffer().len_lines() - 1);
+                        row = min(row, buf.core.core_buffer().len_lines() - 1);
 
                         buf.core.set_cursor(Cursor { row, col: 0 });
                         buf.show_cursor();
@@ -1830,7 +1895,7 @@ impl Mode for Goto {
                         });
                     } else {
                         return Transition::Return(TransitionReturn {
-                            message: Some("[Goto] Parse failed".into()),
+                            message: Some("[Goto] Parse failed".to_string()),
                             is_commit_dot_macro: false,
                         });
                     }
@@ -1843,7 +1908,7 @@ impl Mode for Goto {
         Transition::Nothing
     }
 
-    fn draw(&mut self, buf: &mut Buffer, mut view: draw::TermView) -> draw::CursorState {
+    fn draw(&mut self, buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
         let height = view.height() - 1;
         let width = view.width();
         let cursor = buf

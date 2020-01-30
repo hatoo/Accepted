@@ -12,18 +12,18 @@ use crate::compiler::Compiler;
 use crate::config;
 use crate::config::types::keys;
 use crate::core::Core;
+use crate::core::CoreBuffer;
 use crate::core::Cursor;
-use crate::core::CursorRange;
 use crate::core::Id;
 use crate::draw;
 use crate::draw::{styles, CharStyle, LinenumView, TermView};
 use crate::draw_cache::DrawCache;
 use crate::formatter;
 use crate::lsp::LSPClient;
-use crate::ropey_util::RopeExt;
 use crate::storage::Storage;
 use crate::syntax;
 use crate::tabnine::TabNineClient;
+use failure::_core::ops::{RangeBounds, RangeInclusive};
 
 pub struct Yank {
     pub insert_newline: bool,
@@ -61,9 +61,9 @@ enum ShowCursor {
     ShowMiddle,
 }
 
-pub struct Buffer<'a> {
-    storage: Option<Box<dyn Storage>>,
-    pub core: Core,
+pub struct Buffer<'a, B: CoreBuffer> {
+    storage: Option<Box<dyn Storage<B>>>,
+    pub core: Core<B>,
     pub search: Vec<char>,
     syntax_parent: &'a syntax::SyntaxParent,
     config: &'a config::ConfigWithDefault,
@@ -83,7 +83,7 @@ pub struct Buffer<'a> {
     show_cursor_on_draw: ShowCursor,
 }
 
-impl<'a> Buffer<'a> {
+impl<'a, B: CoreBuffer> Buffer<'a, B> {
     pub fn new(
         syntax_parent: &'a syntax::SyntaxParent,
         config: &'a config::ConfigWithDefault,
@@ -124,7 +124,7 @@ impl<'a> Buffer<'a> {
         self.path().and_then(Path::extension)
     }
 
-    pub fn storage(&self) -> Option<&dyn Storage> {
+    pub fn storage(&self) -> Option<&dyn Storage<B>> {
         self.storage.as_ref().map(AsRef::as_ref)
     }
 
@@ -138,7 +138,7 @@ impl<'a> Buffer<'a> {
 
     pub fn extend_cache_duration(&mut self, duration: std::time::Duration) {
         self.cache
-            .extend_cache_duration(self.core.buffer(), duration);
+            .extend_cache_duration(self.core.core_buffer(), duration);
     }
 
     pub fn indent_width(&self) -> usize {
@@ -188,12 +188,12 @@ impl<'a> Buffer<'a> {
         self.core.indent(self.indent_width());
     }
 
-    pub fn set_storage<T: Storage + 'static>(&mut self, storage: T) {
+    pub fn set_storage<T: Storage<B> + 'static>(&mut self, storage: T) {
         self.storage = Some(Box::new(storage));
         self.set_language();
     }
 
-    pub fn open<S: Storage + 'static>(&mut self, mut storage: S) {
+    pub fn open<S: Storage<B> + 'static>(&mut self, mut storage: S) {
         self.core = storage.load();
         self.set_storage(storage);
 
@@ -227,14 +227,40 @@ impl<'a> Buffer<'a> {
         if self.row_offset >= self.core.cursor().row {
             self.row_offset = self.core.cursor().row;
         } else {
-            if cols < LinenumView::prefix_width(self.core.buffer().len_lines()) {
+            if cols < LinenumView::prefix_width(self.core.core_buffer().len_lines()) {
                 return;
             }
-            let cols = cols - LinenumView::prefix_width(self.core.buffer().len_lines());
+            let cols = cols - LinenumView::prefix_width(self.core.core_buffer().len_lines());
             let mut i = self.core.cursor().row + 1;
             let mut sum = 0;
-            while i > 0 && sum + get_rows(&Cow::from(self.core.buffer().l(i - 1)), cols) <= rows {
-                sum += get_rows(&Cow::from(self.core.buffer().l(i - 1)), cols);
+            while i > 0
+                && sum
+                    + get_rows(
+                        self.core
+                            .core_buffer()
+                            .get_range(
+                                Cursor { row: i - 1, col: 0 }..Cursor {
+                                    row: i - 1,
+                                    col: self.core.core_buffer().len_line(i - 1),
+                                },
+                            )
+                            .as_str(),
+                        cols,
+                    )
+                    <= rows
+            {
+                sum += get_rows(
+                    self.core
+                        .core_buffer()
+                        .get_range(
+                            Cursor { row: i - 1, col: 0 }..Cursor {
+                                row: i - 1,
+                                col: self.core.core_buffer().len_line(i - 1),
+                            },
+                        )
+                        .as_str(),
+                    cols,
+                );
                 i -= 1;
             }
             self.row_offset = max(i, self.row_offset);
@@ -258,7 +284,7 @@ impl<'a> Buffer<'a> {
     }
 
     pub fn scroll_down(&mut self) {
-        self.row_offset = min(self.row_offset + 3, self.core.buffer().len_lines() - 1);
+        self.row_offset = min(self.row_offset + 3, self.core.core_buffer().len_lines() - 1);
     }
 
     pub fn format(&mut self) -> Result<(), Cow<'static, str>> {
@@ -307,7 +333,7 @@ impl<'a> Buffer<'a> {
     fn is_annotate(&self, cursor: Cursor) -> bool {
         self.last_compiler_result
             .as_ref()
-            .map(|res| res.messages.iter().any(|r| r.span.contains(cursor)))
+            .map(|res| res.messages.iter().any(|r| r.span.contains(&cursor)))
             .unwrap_or(false)
     }
 
@@ -350,13 +376,13 @@ impl<'a> Buffer<'a> {
 
     pub fn draw(&mut self, view: TermView) -> Option<Cursor> {
         self.poll_compile_message();
-        self.draw_with_selected(view, None)
+        self.draw_with_selected::<RangeInclusive<Cursor>>(view, None)
     }
 
-    pub fn draw_with_selected(
+    pub fn draw_with_selected<R: RangeBounds<Cursor>>(
         &mut self,
         mut view: TermView,
-        selected: Option<CursorRange>,
+        selected: Option<R>,
     ) -> Option<Cursor> {
         match self.show_cursor_on_draw {
             ShowCursor::ShowMiddle => {
@@ -377,7 +403,7 @@ impl<'a> Buffer<'a> {
             .unwrap_or_else(|| &v);
         let mut view = LinenumView::new(
             self.row_offset,
-            self.core.buffer().len_lines(),
+            self.core.core_buffer().len_lines(),
             &compiler_outputs,
             view,
         );
@@ -388,8 +414,8 @@ impl<'a> Buffer<'a> {
             self.cache.dirty_from(self.core.dirty_from);
         }
 
-        'outer: for i in self.row_offset..self.core.buffer().len_lines() {
-            self.cache.cache_line(self.core.buffer(), i);
+        'outer: for i in self.row_offset..self.core.core_buffer().len_lines() {
+            self.cache.cache_line(self.core.core_buffer(), i);
             let line_ref = self.cache.get_line(i).unwrap();
             let mut line = Cow::Borrowed(line_ref);
 
@@ -418,7 +444,7 @@ impl<'a> Buffer<'a> {
                     style.modification = draw::CharModification::UnderLine;
                 }
 
-                let style = if selected.as_ref().map(|r| r.contains(t)) == Some(true) {
+                let style = if selected.as_ref().map(|r| r.contains(&t)) == Some(true) {
                     styles::SELECTED
                 } else {
                     style
@@ -432,14 +458,14 @@ impl<'a> Buffer<'a> {
             }
             let t = Cursor {
                 row: i,
-                col: self.core.buffer().l(i).len_chars(),
+                col: self.core.core_buffer().len_line(i),
             };
 
             if self.core.cursor() == t {
                 cursor = view.cursor();
             }
 
-            if self.core.buffer().l(i).len_chars() == 0 {
+            if self.core.core_buffer().len_line(i) == 0 {
                 if let Some(col) = self.syntax.theme.settings.background {
                     view.put(' ', CharStyle::bg(col.into()), Some(t));
                 } else {
@@ -447,7 +473,7 @@ impl<'a> Buffer<'a> {
                 }
             }
 
-            if i != self.core.buffer().len_lines() - 1 {
+            if i != self.core.core_buffer().len_lines() - 1 {
                 if let Some(col) = self.syntax.theme.settings.background {
                     while !view.cause_newline(' ') {
                         view.put(' ', CharStyle::bg(col.into()), Some(t));

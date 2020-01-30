@@ -2,6 +2,7 @@ use crate::buffer::Buffer;
 use crate::buffer_mode::BufferMode;
 use crate::buffer_mode::TabOperation;
 use crate::config::ConfigWithDefault;
+use crate::core::CoreBuffer;
 use crate::draw;
 use crate::draw::CharStyle;
 use crate::rmate::{start_server, RmateSave, RmateStorage};
@@ -52,16 +53,16 @@ impl TabLine {
     }
 }
 
-pub struct BufferTab<'a> {
+pub struct BufferTab<'a, B: CoreBuffer> {
     syntax_parent: &'a SyntaxParent,
     config: &'a ConfigWithDefault,
 
-    buffers: Vec<BufferMode<'a>>,
+    buffers: Vec<BufferMode<'a, B>>,
     index: usize,
     rmate: Option<mpsc::Receiver<RmateSave>>,
 }
 
-impl<'a> BufferTab<'a> {
+impl<'a, B: CoreBuffer> BufferTab<'a, B> {
     pub fn new(syntax_parent: &'a SyntaxParent, config: &'a ConfigWithDefault) -> Self {
         Self {
             syntax_parent,
@@ -72,11 +73,11 @@ impl<'a> BufferTab<'a> {
         }
     }
 
-    fn new_buffer_mode(&self) -> BufferMode<'a> {
+    fn new_buffer_mode(&self) -> BufferMode<'a, B> {
         BufferMode::new(Buffer::new(self.syntax_parent, self.config))
     }
 
-    pub fn open<S: Storage + 'static>(&mut self, s: S) {
+    pub fn open<S: Storage<B> + 'static>(&mut self, s: S) {
         if self.is_empty() {
             self.buffers.clear();
         }
@@ -86,11 +87,11 @@ impl<'a> BufferTab<'a> {
         self.buffers.push(buffer_mode);
     }
 
-    pub fn buffer_mode(&self) -> &BufferMode<'a> {
+    pub fn buffer_mode(&self) -> &BufferMode<'a, B> {
         &self.buffers[self.index]
     }
 
-    pub fn buffer_mode_mut(&mut self) -> &mut BufferMode<'a> {
+    pub fn buffer_mode_mut(&mut self) -> &mut BufferMode<'a, B> {
         &mut self.buffers[self.index]
     }
 
