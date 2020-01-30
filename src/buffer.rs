@@ -228,14 +228,40 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
         if self.row_offset >= self.core.cursor().row {
             self.row_offset = self.core.cursor().row;
         } else {
-            if cols < LinenumView::prefix_width(self.core.buffer().len_lines()) {
+            if cols < LinenumView::prefix_width(self.core.core_buffer().len_lines()) {
                 return;
             }
-            let cols = cols - LinenumView::prefix_width(self.core.buffer().len_lines());
+            let cols = cols - LinenumView::prefix_width(self.core.core_buffer().len_lines());
             let mut i = self.core.cursor().row + 1;
             let mut sum = 0;
-            while i > 0 && sum + get_rows(&Cow::from(self.core.buffer().l(i - 1)), cols) <= rows {
-                sum += get_rows(&Cow::from(self.core.buffer().l(i - 1)), cols);
+            while i > 0
+                && sum
+                    + get_rows(
+                        self.core
+                            .core_buffer()
+                            .get_range(
+                                Cursor { row: i - 1, col: 0 }..Cursor {
+                                    row: i - 1,
+                                    col: self.core.core_buffer().len_line(i - 1),
+                                },
+                            )
+                            .as_str(),
+                        cols,
+                    )
+                    <= rows
+            {
+                sum += get_rows(
+                    self.core
+                        .core_buffer()
+                        .get_range(
+                            Cursor { row: i - 1, col: 0 }..Cursor {
+                                row: i - 1,
+                                col: self.core.core_buffer().len_line(i - 1),
+                            },
+                        )
+                        .as_str(),
+                    cols,
+                );
                 i -= 1;
             }
             self.row_offset = max(i, self.row_offset);
@@ -259,7 +285,7 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
     }
 
     pub fn scroll_down(&mut self) {
-        self.row_offset = min(self.row_offset + 3, self.core.buffer().len_lines() - 1);
+        self.row_offset = min(self.row_offset + 3, self.core.core_buffer().len_lines() - 1);
     }
 
     pub fn format(&mut self) -> Result<(), Cow<'static, str>> {
