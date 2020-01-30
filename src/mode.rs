@@ -1210,7 +1210,12 @@ impl<B: CoreBuffer> Mode<B> for Prefix {
                         .map(|c| c.clone())
                         .or_else(|e| {
                             // Detect shebang
-                            let first_line = buf.core.buffer().line(0).to_string();
+                            let first_line = buf.core.core_buffer().get_range(
+                                Cursor { row: 0, col: 0 }..Cursor {
+                                    row: 0,
+                                    col: buf.core.core_buffer().len_line(0),
+                                },
+                            );
                             if first_line.starts_with("#!") {
                                 let mut v = first_line
                                     .trim_start_matches("#!")

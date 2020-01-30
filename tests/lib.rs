@@ -150,4 +150,11 @@ fn test_simples() {
     // search
     assert_eq!(simple_run("123\nabc\n456", "/abc\nniz"), "123\nzabc\n456");
     assert_eq!(simple_run("123\nabc\n456", "G/abc\nNiz"), "123\nzabc\n456");
+
+    // Run
+    // Not crash
+    assert_eq!(
+        simple_run("#!/bin/sh\n\necho Hello", " tgG"),
+        "#!/bin/sh\n\necho Hello"
+    );
 }
