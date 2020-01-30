@@ -135,7 +135,6 @@ mod test {
     use crate::core::operation::{DeleteRange, Set};
     use crate::core::Cursor;
     use crate::core::{Core, CoreBuffer};
-    use crate::text_object::Action::Delete;
 
     #[test]
     fn test_operation_insert_char() {
