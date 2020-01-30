@@ -1,10 +1,8 @@
-use std::cmp::min;
 use std::fmt::Debug;
 
 use crate::core::CoreBuffer;
 
 use crate::core::Cursor;
-use crate::ropey_util::{is_line_end, RopeExt};
 use failure::_core::ops::{Bound, RangeBounds};
 
 pub struct OperationArg<'a, B: CoreBuffer> {

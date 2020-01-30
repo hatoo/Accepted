@@ -1,8 +1,5 @@
 use super::Cursor;
 use std::io;
-use std::io::Error;
-
-use ropey::Rope;
 
 mod ropey_core_buffer;
 

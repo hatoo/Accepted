@@ -1,5 +1,4 @@
 use std;
-use std::borrow::Cow;
 use std::cmp::{max, min};
 use std::io::BufRead;
 use std::io::BufReader;
@@ -11,7 +10,6 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Instant;
 
-use ropey::Rope;
 use shellexpand;
 use termion;
 use termion::event::{Event, Key, MouseButton, MouseEvent};
@@ -28,8 +26,6 @@ use crate::draw;
 use crate::indent;
 use crate::lsp::LSPCompletion;
 use crate::parenthesis;
-use crate::ropey_util::RopeExt;
-use crate::ropey_util::RopeSliceExt;
 use crate::text_object::{self, Action};
 use failure::_core::ops::RangeBounds;
 

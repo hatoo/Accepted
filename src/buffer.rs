@@ -20,7 +20,6 @@ use crate::draw::{styles, CharStyle, LinenumView, TermView};
 use crate::draw_cache::DrawCache;
 use crate::formatter;
 use crate::lsp::LSPClient;
-use crate::ropey_util::RopeExt;
 use crate::storage::Storage;
 use crate::syntax;
 use crate::tabnine::TabNineClient;
