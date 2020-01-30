@@ -4,6 +4,7 @@ use std::io;
 
 use super::CoreBuffer;
 use super::Cursor;
+use std::io::Error;
 use std::ops::{Bound, RangeBounds};
 
 #[derive(Default)]
@@ -80,6 +81,10 @@ impl CoreBuffer for RopeyCoreBuffer {
         let col = self.0.byte_to_char(bytes_idx) - self.0.line_to_char(row);
 
         Cursor { row, col }
+    }
+
+    fn write_to<W: io::Write>(&self, write: &mut W) -> Result<(), Error> {
+        self.0.write_to(write)
     }
 }
 

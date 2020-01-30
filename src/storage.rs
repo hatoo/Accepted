@@ -20,7 +20,7 @@ impl<B: CoreBuffer> Storage<B> for PathBuf {
 
     fn save(&mut self, core: &Core<B>) -> bool {
         if let Ok(f) = fs::File::create(self) {
-            core.buffer().write_to(BufWriter::new(f)).is_ok()
+            core.core_buffer().write_to(&mut BufWriter::new(f)).is_ok()
         } else {
             false
         }
