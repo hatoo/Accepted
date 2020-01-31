@@ -1591,13 +1591,30 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                 match self.parser.action {
                     // dd
                     Action::Delete => {
-                        let range = Cursor {
-                            row: buf.core.cursor().row,
-                            col: 0,
-                        }..=Cursor {
-                            row: buf.core.cursor().row,
-                            col: buf.core.len_current_line(),
-                        };
+                        let range =
+                            if buf.core.cursor().row == buf.core.core_buffer().len_lines() - 1 {
+                                (
+                                    Bound::Included(Cursor {
+                                        row: buf.core.cursor().row,
+                                        col: 0,
+                                    }),
+                                    Bound::Excluded(Cursor {
+                                        row: buf.core.cursor().row,
+                                        col: buf.core.len_current_line(),
+                                    }),
+                                )
+                            } else {
+                                (
+                                    Bound::Included(Cursor {
+                                        row: buf.core.cursor().row,
+                                        col: 0,
+                                    }),
+                                    Bound::Included(Cursor {
+                                        row: buf.core.cursor().row,
+                                        col: buf.core.len_current_line(),
+                                    }),
+                                )
+                            };
                         buf.core.delete_range(range);
                         buf.core.commit();
                         return Transition::Return(TransitionReturn {
@@ -1628,7 +1645,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
             }
 
             if c == 'j' || c == 'k' {
-                let range = if c == 'j' {
+                let (l, r) = if c == 'j' {
                     if buf.core.cursor().row == buf.core.core_buffer().len_lines() - 1 {
                         return Transition::Return(TransitionReturn {
                             message: None,
@@ -1636,13 +1653,16 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                         });
                     }
                     let next_line = buf.core.core_buffer().len_line(buf.core.cursor().row + 1);
-                    Cursor {
-                        row: buf.core.cursor().row,
-                        col: 0,
-                    }..=Cursor {
-                        row: buf.core.cursor().row + 1,
-                        col: next_line,
-                    }
+                    (
+                        Cursor {
+                            row: buf.core.cursor().row,
+                            col: 0,
+                        },
+                        Cursor {
+                            row: buf.core.cursor().row + 1,
+                            col: next_line,
+                        },
+                    )
                 } else {
                     if buf.core.cursor().row == 0 {
                         return Transition::Return(TransitionReturn {
@@ -1651,18 +1671,27 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                         });
                     }
 
-                    Cursor {
-                        row: buf.core.cursor().row - 1,
-                        col: 0,
-                    }..=Cursor {
-                        row: buf.core.cursor().row,
-                        col: buf.core.len_current_line(),
-                    }
+                    (
+                        Cursor {
+                            row: buf.core.cursor().row - 1,
+                            col: 0,
+                        },
+                        Cursor {
+                            row: buf.core.cursor().row,
+                            col: buf.core.len_current_line(),
+                        },
+                    )
+                };
+
+                let range = if r.row == buf.core.core_buffer().len_lines() - 1 {
+                    (Bound::Included(l), Bound::Excluded(r))
+                } else {
+                    (Bound::Included(l), Bound::Included(r))
                 };
 
                 buf.yank = Yank {
                     insert_newline: true,
-                    content: buf.core.get_string_range(range.start()..range.end()),
+                    content: buf.core.get_string_range(l..r),
                 };
                 match self.parser.action {
                     // dj or dk
