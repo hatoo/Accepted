@@ -330,8 +330,10 @@ impl<B: buffer::CoreBuffer> Core<B> {
     }
 
     pub fn delete(&mut self) {
-        let op = operation::DeleteRange::new(self.cursor..=self.cursor);
-        self.perform(op);
+        if self.cursor != self.core_buffer.end_cursor() {
+            let op = operation::DeleteRange::new(self.cursor..=self.cursor);
+            self.perform(op);
+        }
     }
 
     pub fn delete_range<R: RangeBounds<Cursor>>(&mut self, range: R) {

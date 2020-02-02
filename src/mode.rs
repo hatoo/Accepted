@@ -1307,7 +1307,7 @@ impl<B: CoreBuffer> Mode<B> for Prefix {
 }
 
 impl Visual {
-    fn get_range<B: CoreBuffer>(&self, to: Cursor, buf: &B) -> std::ops::RangeInclusive<Cursor> {
+    fn get_range<B: CoreBuffer>(&self, to: Cursor, buf: &B) -> (Bound<Cursor>, Bound<Cursor>) {
         if self.line_mode {
             let mut l = min(self.cursor, to);
             let mut r = max(self.cursor, to);
@@ -1315,12 +1315,20 @@ impl Visual {
             l.col = 0;
             r.col = buf.len_line(r.row);
 
-            l..=r
+            if r.row == buf.len_lines() - 1 {
+                (Bound::Included(l), Bound::Excluded(r))
+            } else {
+                (Bound::Included(l), Bound::Included(r))
+            }
         } else {
             let l = min(self.cursor, to);
             let r = max(self.cursor, to);
 
-            l..=r
+            if r >= buf.end_cursor() {
+                (Bound::Included(l), Bound::Excluded(r))
+            } else {
+                (Bound::Included(l), Bound::Included(r))
+            }
         }
     }
 }
@@ -1376,16 +1384,16 @@ impl<B: CoreBuffer> Mode<B> for Visual {
                 let to_insert = event == Event::Key(Key::Char('s'));
                 let range = self.get_range(buf.core.cursor(), buf.core.core_buffer());
                 let s = if self.line_mode {
-                    buf.core.get_string_range(range.start()..range.end())
+                    buf.core
+                        .get_string_range(range.clone())
+                        .trim_end()
+                        .to_string()
                 } else {
                     buf.core.get_string_range(range.clone())
                 };
-                let delete_to_end = range.end().row == buf.core.core_buffer().len_lines() - 1;
                 buf.core.delete_range(range.clone());
-                if to_insert && range.start().row != range.end().row {
-                    if !delete_to_end {
-                        buf.core.insert_newline_here();
-                    }
+                if to_insert && self.line_mode {
+                    buf.core.insert_newline_here();
                     buf.indent();
                 }
                 buf.core.commit();
@@ -1428,11 +1436,14 @@ impl<B: CoreBuffer> Mode<B> for Visual {
                 let is_clipboard = event == Event::Key(Key::Ctrl('y'));
                 let range = self.get_range(buf.core.cursor(), buf.core.core_buffer());
                 let s = if self.line_mode {
-                    buf.core.get_string_range(range.start()..range.end())
+                    buf.core
+                        .get_string_range(range.clone())
+                        .trim_end()
+                        .to_string()
                 } else {
                     buf.core.get_string_range(range.clone())
                 };
-                buf.core.set_cursor(*range.start());
+                buf.core.set_cursor(min(self.cursor, buf.core.cursor()));
                 if is_clipboard {
                     if clipboard::clipboard_copy(&s).is_ok() {
                         return Transition::Return(TransitionReturn {

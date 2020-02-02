@@ -69,6 +69,9 @@ fn test_simples() {
     assert_eq!(simple_run("123", "oHello World"), "123\nHello World");
     assert_eq!(simple_run("123", "OHello World"), "Hello World\n123");
 
+    // x
+    assert_eq!(simple_run("", "x"), "");
+
     // r
     assert_eq!(simple_run("123", "r8"), "823");
 
@@ -78,6 +81,7 @@ fn test_simples() {
     assert_eq!(simple_run("123 456 789", "wCabc"), "123 abc");
 
     // dd
+    assert_eq!(simple_run("", "dd"), "");
     assert_eq!(simple_run("1", "ddP"), "1\n");
     assert_eq!(simple_run("1\n2\n3", "dd"), "2\n3");
     assert_eq!(simple_run("1\n2\n3", "ddp"), "2\n1\n3");
@@ -162,6 +166,8 @@ fn test_simples() {
     );
 
     // Visual
+    assert_eq!(simple_run("", "vx"), "");
+    assert_eq!(simple_run("", "Vx"), "");
     assert_eq!(simple_run("123 456 789", "ved"), " 456 789");
     assert_eq!(simple_run("123 456 789", "vesabc"), "abc 456 789");
     assert_eq!(simple_run("123\n456\n789", "Vd"), "456\n789");
