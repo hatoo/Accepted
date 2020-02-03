@@ -1,0 +1,25 @@
+
+[package]
+name = "accepted-fuzz"
+version = "0.0.0"
+authors = ["Automatically generated"]
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.3"
+termion = "1.5"
+
+[dependencies.accepted]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "main"
+path = "fuzz_targets/main.rs"
