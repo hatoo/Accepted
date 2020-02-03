@@ -241,7 +241,7 @@ impl<B: CoreBuffer> Mode<B> for Normal {
                 });
                 // TODO bulk delete
                 for _ in 0..buf.core.len_current_line() {
-                    buf.core.delete()
+                    buf.core.delete();
                 }
                 buf.indent();
                 return Transition::RecordMacro(Box::new(Insert::default()));
@@ -249,7 +249,7 @@ impl<B: CoreBuffer> Mode<B> for Normal {
             Event::Key(Key::Char('C')) => {
                 // TODO bulk delete
                 while buf.core.char_at_cursor().is_some() {
-                    buf.core.delete()
+                    buf.core.delete();
                 }
                 return Transition::RecordMacro(Box::new(Insert::default()));
             }
