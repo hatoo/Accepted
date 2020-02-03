@@ -73,6 +73,7 @@ fn test_simples() {
     assert_eq!(simple_run("", "x"), "");
 
     // r
+    assert_eq!(simple_run("", "ra"), "a");
     assert_eq!(simple_run("123", "r8"), "823");
 
     // s, S, C
