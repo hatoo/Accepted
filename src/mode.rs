@@ -1466,9 +1466,8 @@ impl<B: CoreBuffer> Mode<B> for Visual {
                 });
             }
             Event::Key(Key::Char('S')) => {
-                // let range = self.get_range(buf.core.cursor(), buf.core.core_buffer());
-                // return S(range).into_transition();
-                return Transition::Nothing;
+                let range = self.get_range(buf.core.cursor(), buf.core.core_buffer());
+                return S(range).into_transition();
             }
             Event::Mouse(MouseEvent::Press(MouseButton::Left, x, y)) => {
                 let col = x as usize - 1;

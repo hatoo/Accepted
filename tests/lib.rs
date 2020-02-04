@@ -174,6 +174,8 @@ fn test_simples() {
     assert_eq!(simple_run("123\n456\n789", "Vd"), "456\n789");
     assert_eq!(simple_run("123\n456\n789", "Vjd"), "789");
     assert_eq!(simple_run("123\n456\n789", "Vyp"), "123\n123\n456\n789");
+    // Visual S
+    assert_eq!(simple_run("abc", "veS)"), "(abc)");
 
     // Goto
     assert_eq!(simple_run("123\n456\n789", " g2\nix"), "123\nx456\n789");
