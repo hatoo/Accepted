@@ -4,6 +4,9 @@ indent_width = 4
 # Set true if you are running in legacy terminal which has no true color
 ansi_color = false
 tabnine = ["TabNine"]
+# Set theme
+# You can set either theme name which is supported by `syntect` and file path for .tmTheme
+theme = "Solarized (dark)"
 
 # Configure for *.rs files
 [file.rs]

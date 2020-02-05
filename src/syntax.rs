@@ -1,3 +1,4 @@
+use std::io::BufReader;
 use syntect;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::ThemeSet;
@@ -52,13 +53,22 @@ impl Default for SyntaxParent {
 }
 
 impl SyntaxParent {
-    pub fn load_syntax(&self, extension: &str, _theme: Option<&str>) -> Option<Syntax> {
+    pub fn load_syntax(&self, extension: &str, theme: Option<&str>) -> Option<Syntax> {
         let syntax = self.syntax_set.find_syntax_by_extension(extension)?;
+
+        let theme = theme
+            .and_then(|s| {
+                self.theme_set.themes.get(s).cloned().or_else(|| {
+                    let file = std::fs::File::open(s).ok()?;
+                    ThemeSet::load_from_reader(&mut BufReader::new(file)).ok()
+                })
+            })
+            .unwrap_or_else(|| self.theme_set.themes["Solarized (dark)"].clone());
         // let theme = ThemeSet::load_from_reader(&mut Cursor::new(theme::ONE_DARK.as_bytes())).unwrap();
         Some(Syntax {
             syntax_set: &self.syntax_set,
             syntax,
-            theme: self.theme_set.themes["Solarized (dark)"].clone(),
+            theme,
         })
     }
 
