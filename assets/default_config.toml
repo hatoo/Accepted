@@ -5,7 +5,7 @@ indent_width = 4
 ansi_color = false
 tabnine = ["TabNine"]
 # Set theme
-# You can set either theme name which is supported by `syntect` and file path for .tmTheme
+# You can set either theme name which is bundled by `syntect` and file path for .tmTheme
 theme = "Solarized (dark)"
 
 # Configure for *.rs files
