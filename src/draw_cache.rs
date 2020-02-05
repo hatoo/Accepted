@@ -155,7 +155,6 @@ impl DrawState {
 pub struct DrawCache<'a> {
     syntax: &'a syntect::parsing::SyntaxReference,
     syntax_set: &'a syntect::parsing::SyntaxSet,
-    // highlighter: Highlighter<'a>,
     bg: Color,
     state_cache: Vec<DrawState>,
     draw_cache: HashMap<usize, Vec<(char, CharStyle)>>,
@@ -166,12 +165,10 @@ impl<'a> DrawCache<'a> {
     const CACHE_WIDTH: usize = 100;
 
     pub fn new(syntax: &syntax::Syntax<'a>) -> Self {
-        // let highlighter = Highlighter::new(syntax.theme);
         let bg = syntax.theme.settings.background.unwrap().into();
         Self {
             syntax: syntax.syntax,
             syntax_set: syntax.syntax_set,
-            // highlighter,
             state_cache: Vec::new(),
             draw_cache: HashMap::new(),
             draw_cache_pseudo: HashMap::new(),
