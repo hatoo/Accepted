@@ -32,6 +32,7 @@ struct LanguageConfigToml {
     compiler: Option<CompilerConfig>,
     test_command: Option<Vec<String>>,
     tabnine: Option<Vec<String>>,
+    theme: Option<String>,
 }
 
 pub struct LanguageConfig(typemap::TypeMap);
@@ -104,6 +105,8 @@ impl Into<LanguageConfig> for LanguageConfigToml {
                 .map(Vec::as_slice)
                 .and_then(Command::new),
         );
+
+        language_config.insert_option::<keys::Theme>(self.theme);
 
         language_config
     }

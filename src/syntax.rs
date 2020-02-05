@@ -52,7 +52,7 @@ impl Default for SyntaxParent {
 }
 
 impl SyntaxParent {
-    pub fn load_syntax(&self, extension: &str) -> Option<Syntax> {
+    pub fn load_syntax(&self, extension: &str, _theme: Option<&str>) -> Option<Syntax> {
         let syntax = self.syntax_set.find_syntax_by_extension(extension)?;
         // let theme = ThemeSet::load_from_reader(&mut Cursor::new(theme::ONE_DARK.as_bytes())).unwrap();
         Some(Syntax {
@@ -62,9 +62,9 @@ impl SyntaxParent {
         })
     }
 
-    pub fn load_syntax_or_txt(&self, extension: &str) -> Syntax {
-        self.load_syntax(extension)
-            .unwrap_or_else(|| self.load_syntax("txt").unwrap())
+    pub fn load_syntax_or_txt(&self, extension: &str, theme: Option<&str>) -> Syntax {
+        self.load_syntax(extension, theme)
+            .unwrap_or_else(|| self.load_syntax("txt", theme).unwrap())
     }
 }
 

@@ -88,7 +88,7 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
         syntax_parent: &'a syntax::SyntaxParent,
         config: &'a config::ConfigWithDefault,
     ) -> Self {
-        let syntax = syntax_parent.load_syntax_or_txt("txt");
+        let syntax = syntax_parent.load_syntax_or_txt("txt", None);
 
         let mut res = Self {
             storage: None,
@@ -113,6 +113,7 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
         };
         res.restart_completer();
         res.reset_snippet();
+        res.reset_syntax();
         res
     }
 
@@ -173,7 +174,10 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
                 })
             })
             .unwrap_or_default();
-        self.syntax = self.syntax_parent.load_syntax_or_txt(&syntax_extension);
+        self.syntax = self.syntax_parent.load_syntax_or_txt(
+            &syntax_extension,
+            self.get_config::<keys::Theme>().map(|s| s.as_str()),
+        );
         self.cache = DrawCache::new(&self.syntax);
     }
 
