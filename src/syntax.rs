@@ -7,7 +7,7 @@ use syntect::parsing::SyntaxSet;
 pub struct Syntax<'a> {
     pub syntax_set: &'a syntect::parsing::SyntaxSet,
     pub syntax: &'a syntect::parsing::SyntaxReference,
-    pub theme: &'a syntect::highlighting::Theme,
+    pub theme: syntect::highlighting::Theme,
 }
 
 pub struct SyntaxParent {
@@ -58,7 +58,7 @@ impl SyntaxParent {
         Some(Syntax {
             syntax_set: &self.syntax_set,
             syntax,
-            theme: &self.theme_set.themes["Solarized (dark)"],
+            theme: self.theme_set.themes["Solarized (dark)"].clone(),
         })
     }
 
@@ -69,7 +69,7 @@ impl SyntaxParent {
 }
 
 impl<'a> Syntax<'a> {
-    pub fn highlight_lines(&self) -> HighlightLines<'a> {
-        HighlightLines::new(self.syntax, self.theme)
+    pub fn highlight_lines(&'a self) -> HighlightLines<'a> {
+        HighlightLines::new(self.syntax, &self.theme)
     }
 }

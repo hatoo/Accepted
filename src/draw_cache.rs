@@ -155,7 +155,7 @@ impl DrawState {
 pub struct DrawCache<'a> {
     syntax: &'a syntect::parsing::SyntaxReference,
     syntax_set: &'a syntect::parsing::SyntaxSet,
-    highlighter: Highlighter<'a>,
+    // highlighter: Highlighter<'a>,
     bg: Color,
     state_cache: Vec<DrawState>,
     draw_cache: HashMap<usize, Vec<(char, CharStyle)>>,
@@ -166,12 +166,12 @@ impl<'a> DrawCache<'a> {
     const CACHE_WIDTH: usize = 100;
 
     pub fn new(syntax: &syntax::Syntax<'a>) -> Self {
-        let highlighter = Highlighter::new(syntax.theme);
+        // let highlighter = Highlighter::new(syntax.theme);
         let bg = syntax.theme.settings.background.unwrap().into();
         Self {
             syntax: syntax.syntax,
             syntax_set: syntax.syntax_set,
-            highlighter,
+            // highlighter,
             state_cache: Vec::new(),
             draw_cache: HashMap::new(),
             draw_cache_pseudo: HashMap::new(),
@@ -179,18 +179,23 @@ impl<'a> DrawCache<'a> {
         }
     }
 
-    fn start_state(&self) -> DrawState {
-        DrawState::new(self.syntax, &self.highlighter)
+    fn start_state(&self, highlighter: &syntect::highlighting::Highlighter) -> DrawState {
+        DrawState::new(self.syntax, highlighter)
     }
 
-    pub fn extend_cache_duration<B: CoreBuffer>(&mut self, buffer: &B, duration: Duration) {
+    pub fn extend_cache_duration<B: CoreBuffer>(
+        &mut self,
+        buffer: &B,
+        duration: Duration,
+        highlighter: &syntect::highlighting::Highlighter,
+    ) {
         let start = Instant::now();
         while self.state_cache.len() < buffer.len_lines() / Self::CACHE_WIDTH {
             let mut state = self
                 .state_cache
                 .last()
                 .cloned()
-                .unwrap_or_else(|| self.start_state());
+                .unwrap_or_else(|| self.start_state(&highlighter));
 
             for line in self.state_cache.len() * Self::CACHE_WIDTH
                 ..(self.state_cache.len() + 1) * Self::CACHE_WIDTH
@@ -206,7 +211,7 @@ impl<'a> DrawCache<'a> {
                         )
                         .as_str(),
                     self.syntax_set,
-                    &self.highlighter,
+                    &highlighter,
                 );
             }
 
@@ -218,17 +223,26 @@ impl<'a> DrawCache<'a> {
         }
     }
 
-    fn near_state(&mut self, i: usize) -> Option<DrawState> {
+    fn near_state(
+        &mut self,
+        i: usize,
+        highlighter: &syntect::highlighting::Highlighter,
+    ) -> Option<DrawState> {
         if i / Self::CACHE_WIDTH == 0 {
-            return Some(self.start_state());
+            return Some(self.start_state(highlighter));
         }
 
         self.state_cache.get(i / Self::CACHE_WIDTH - 1).cloned()
     }
 
-    pub fn cache_line<B: CoreBuffer>(&mut self, buffer: &B, i: usize) {
+    pub fn cache_line<B: CoreBuffer>(
+        &mut self,
+        buffer: &B,
+        i: usize,
+        highlighter: &syntect::highlighting::Highlighter,
+    ) {
         if !self.draw_cache.contains_key(&i) {
-            if let Some(mut state) = self.near_state(i) {
+            if let Some(mut state) = self.near_state(i, highlighter) {
                 for i in i - (i % Self::CACHE_WIDTH)
                     ..min(
                         buffer.len_lines(),
@@ -245,7 +259,7 @@ impl<'a> DrawCache<'a> {
                             )
                             .as_str(),
                         self.syntax_set,
-                        &self.highlighter,
+                        &highlighter,
                         self.bg,
                     );
 
@@ -255,7 +269,7 @@ impl<'a> DrawCache<'a> {
         }
 
         if !self.draw_cache.contains_key(&i) && !self.draw_cache_pseudo.contains_key(&i) {
-            let mut state = self.start_state();
+            let mut state = self.start_state(&highlighter);
             for i in i - (i % Self::CACHE_WIDTH)
                 ..min(
                     buffer.len_lines(),
@@ -272,7 +286,7 @@ impl<'a> DrawCache<'a> {
                         )
                         .as_str(),
                     self.syntax_set,
-                    &self.highlighter,
+                    &highlighter,
                     self.bg,
                 );
 

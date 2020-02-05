@@ -138,8 +138,9 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
     }
 
     pub fn extend_cache_duration(&mut self, duration: std::time::Duration) {
+        let highlighter = syntect::highlighting::Highlighter::new(&self.syntax.theme);
         self.cache
-            .extend_cache_duration(self.core.core_buffer(), duration);
+            .extend_cache_duration(self.core.core_buffer(), duration, &highlighter);
     }
 
     pub fn indent_width(&self) -> usize {
@@ -397,6 +398,7 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
             }
             ShowCursor::None => {}
         }
+        let highlighter = syntect::highlighting::Highlighter::new(&self.syntax.theme);
         self.show_cursor_on_draw = ShowCursor::None;
         view.bg = self.syntax.theme.settings.background.map(Into::into);
         let v = Vec::new();
@@ -419,7 +421,8 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
         }
 
         'outer: for i in self.row_offset..self.core.core_buffer().len_lines() {
-            self.cache.cache_line(self.core.core_buffer(), i);
+            self.cache
+                .cache_line(self.core.core_buffer(), i, &highlighter);
             let line_ref = self.cache.get_line(i).unwrap();
             let mut line = Cow::Borrowed(line_ref);
 
