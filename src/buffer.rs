@@ -88,7 +88,7 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
         syntax_parent: &'a syntax::SyntaxParent,
         config: &'a config::ConfigWithDefault,
     ) -> Self {
-        let syntax = syntax_parent.load_syntax_or_txt("txt");
+        let syntax = syntax_parent.load_syntax_or_txt("txt", None);
 
         let mut res = Self {
             storage: None,
@@ -113,6 +113,7 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
         };
         res.restart_completer();
         res.reset_snippet();
+        res.reset_syntax();
         res
     }
 
@@ -137,8 +138,9 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
     }
 
     pub fn extend_cache_duration(&mut self, duration: std::time::Duration) {
+        let highlighter = syntect::highlighting::Highlighter::new(&self.syntax.theme);
         self.cache
-            .extend_cache_duration(self.core.core_buffer(), duration);
+            .extend_cache_duration(self.core.core_buffer(), duration, &highlighter);
     }
 
     pub fn indent_width(&self) -> usize {
@@ -173,7 +175,10 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
                 })
             })
             .unwrap_or_default();
-        self.syntax = self.syntax_parent.load_syntax_or_txt(&syntax_extension);
+        self.syntax = self.syntax_parent.load_syntax_or_txt(
+            &syntax_extension,
+            self.get_config::<keys::Theme>().map(|s| s.as_str()),
+        );
         self.cache = DrawCache::new(&self.syntax);
     }
 
@@ -393,6 +398,7 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
             }
             ShowCursor::None => {}
         }
+        let highlighter = syntect::highlighting::Highlighter::new(&self.syntax.theme);
         self.show_cursor_on_draw = ShowCursor::None;
         view.bg = self.syntax.theme.settings.background.map(Into::into);
         let v = Vec::new();
@@ -415,7 +421,8 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
         }
 
         'outer: for i in self.row_offset..self.core.core_buffer().len_lines() {
-            self.cache.cache_line(self.core.core_buffer(), i);
+            self.cache
+                .cache_line(self.core.core_buffer(), i, &highlighter);
             let line_ref = self.cache.get_line(i).unwrap();
             let mut line = Cow::Borrowed(line_ref);
 

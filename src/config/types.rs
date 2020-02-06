@@ -124,4 +124,9 @@ pub mod keys {
     impl Key for TabNineCommand {
         type Value = Command;
     }
+
+    pub struct Theme;
+    impl Key for Theme {
+        type Value = String;
+    }
 }

@@ -1,3 +1,4 @@
+use std::io::BufReader;
 use syntect;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::ThemeSet;
@@ -7,7 +8,7 @@ use syntect::parsing::SyntaxSet;
 pub struct Syntax<'a> {
     pub syntax_set: &'a syntect::parsing::SyntaxSet,
     pub syntax: &'a syntect::parsing::SyntaxReference,
-    pub theme: &'a syntect::highlighting::Theme,
+    pub theme: syntect::highlighting::Theme,
 }
 
 pub struct SyntaxParent {
@@ -52,24 +53,33 @@ impl Default for SyntaxParent {
 }
 
 impl SyntaxParent {
-    pub fn load_syntax(&self, extension: &str) -> Option<Syntax> {
+    pub fn load_syntax(&self, extension: &str, theme: Option<&str>) -> Option<Syntax> {
         let syntax = self.syntax_set.find_syntax_by_extension(extension)?;
+
+        let theme = theme
+            .and_then(|s| {
+                self.theme_set.themes.get(s).cloned().or_else(|| {
+                    let file = std::fs::File::open(s).ok()?;
+                    ThemeSet::load_from_reader(&mut BufReader::new(file)).ok()
+                })
+            })
+            .unwrap_or_else(|| self.theme_set.themes["Solarized (dark)"].clone());
         // let theme = ThemeSet::load_from_reader(&mut Cursor::new(theme::ONE_DARK.as_bytes())).unwrap();
         Some(Syntax {
             syntax_set: &self.syntax_set,
             syntax,
-            theme: &self.theme_set.themes["Solarized (dark)"],
+            theme,
         })
     }
 
-    pub fn load_syntax_or_txt(&self, extension: &str) -> Syntax {
-        self.load_syntax(extension)
-            .unwrap_or_else(|| self.load_syntax("txt").unwrap())
+    pub fn load_syntax_or_txt(&self, extension: &str, theme: Option<&str>) -> Syntax {
+        self.load_syntax(extension, theme)
+            .unwrap_or_else(|| self.load_syntax("txt", theme).unwrap())
     }
 }
 
 impl<'a> Syntax<'a> {
-    pub fn highlight_lines(&self) -> HighlightLines<'a> {
-        HighlightLines::new(self.syntax, self.theme)
+    pub fn highlight_lines(&'a self) -> HighlightLines<'a> {
+        HighlightLines::new(self.syntax, &self.theme)
     }
 }
