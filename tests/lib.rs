@@ -87,6 +87,7 @@ fn test_simples() {
     assert_eq!(simple_run("1\n2\n3", "dd"), "2\n3");
     assert_eq!(simple_run("1\n2\n3", "ddp"), "2\n1\n3");
     assert_eq!(simple_run("1\n2\n3", "jdd"), "1\n3");
+    assert_eq!(simple_run("1\n2", "jdd"), "1");
     // cc
     assert_eq!(simple_run("1", "cca"), "a");
     assert_eq!(simple_run("1\n2\n3", "cca"), "a\n2\n3");

@@ -1603,16 +1603,29 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
                     Action::Delete => {
                         let range =
                             if buf.core.cursor().row == buf.core.core_buffer().len_lines() - 1 {
-                                (
-                                    Bound::Included(Cursor {
-                                        row: buf.core.cursor().row,
-                                        col: 0,
-                                    }),
-                                    Bound::Excluded(Cursor {
-                                        row: buf.core.cursor().row,
-                                        col: buf.core.len_current_line(),
-                                    }),
-                                )
+                                if let Some(c) = buf.core.prev_cursor(Cursor {
+                                    col: 0,
+                                    row: buf.core.cursor().row,
+                                }) {
+                                    (
+                                        Bound::Included(c),
+                                        Bound::Excluded(Cursor {
+                                            row: buf.core.cursor().row,
+                                            col: buf.core.len_current_line(),
+                                        }),
+                                    )
+                                } else {
+                                    (
+                                        Bound::Included(Cursor {
+                                            row: buf.core.cursor().row,
+                                            col: 0,
+                                        }),
+                                        Bound::Excluded(Cursor {
+                                            row: buf.core.cursor().row,
+                                            col: buf.core.len_current_line(),
+                                        }),
+                                    )
+                                }
                             } else {
                                 (
                                     Bound::Included(Cursor {
