@@ -54,6 +54,21 @@ fn test_run(init: &str, commands: &[&str]) -> (String, Cursor) {
     })
 }
 
+fn test_from_fuzz(data: &[u8]) {
+    use accepted::buffer_tab::BufferTab;
+    use termion::input::TermRead;
+
+    let syntax_parent = accepted::syntax::SyntaxParent::default();
+    let config = config::ConfigWithDefault::default();
+    let mut buf = BufferTab::<RopeyCoreBuffer>::new(&syntax_parent, &config);
+
+    for ev in data.events() {
+        if let Ok(ev) = ev {
+            buf.event(ev);
+        }
+    }
+}
+
 #[test]
 fn test_simples() {
     // Insertions
@@ -180,4 +195,9 @@ fn test_simples() {
 
     // Goto
     assert_eq!(simple_run("123\n456\n789", " g2\nix"), "123\nx456\n789");
+}
+
+#[test]
+fn fuzz_1() {
+    test_from_fuzz(&[0x62, 0x25, 0xff, 0x29, 0x41, 0xff]);
 }
