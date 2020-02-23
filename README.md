@@ -108,6 +108,8 @@ You can override with your own configure.
 ```TOML
 # Configure to defaults
 [file_default]
+# Put spaces instead of '\t' when tab key is pressed
+hard_tab = false
 indent_width = 4
 # Set true if you are running in legacy terminal which has no true color
 ansi_color = false
@@ -150,6 +152,7 @@ indent_width = 2
 
 [file.go]
 formatter = ["gofmt"]
+hard_tab = true
 ```
 
 ## Contribution
