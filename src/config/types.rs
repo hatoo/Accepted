@@ -63,8 +63,6 @@ pub struct CompilerConfig {
     pub output_type: Option<CompilerType>,
 }
 
-//
-
 pub mod keys {
     use std::collections::BTreeMap;
 
@@ -72,6 +70,8 @@ pub mod keys {
 
     use crate::config::types::Command;
     use crate::config::types::CompilerConfig;
+
+    // TODO Those generate impls from macro
 
     pub struct ANSIColor;
 
@@ -128,5 +128,10 @@ pub mod keys {
     pub struct Theme;
     impl Key for Theme {
         type Value = String;
+    }
+
+    pub struct HardTab;
+    impl Key for HardTab {
+        type Value = bool;
     }
 }

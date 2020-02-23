@@ -147,6 +147,10 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
         self.get_config::<keys::IndentWidth>().cloned().unwrap_or(4)
     }
 
+    pub fn hard_tab(&self) -> bool {
+        self.get_config::<keys::HardTab>().cloned().unwrap_or(false)
+    }
+
     pub fn restart_completer(&mut self) {
         let ext = self
             .extension()

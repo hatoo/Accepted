@@ -198,6 +198,18 @@ fn test_simples() {
 }
 
 #[test]
+fn test_hard_tab_setting() {
+    use accepted::config::types::keys::HardTab;
+    let syntax_parent = accepted::syntax::SyntaxParent::default();
+    let mut config = config::ConfigWithDefault::default();
+    config.set::<HardTab>(true);
+    let buf: Buffer<RopeyCoreBuffer> = Buffer::new(&syntax_parent, &config);
+    let state = BufferMode::new(buf);
+
+    assert_eq!(state.buf.hard_tab(), true);
+}
+
+#[test]
 fn fuzz_1() {
     test_from_fuzz(&[0x62, 0x25, 0xff, 0x29, 0x41, 0xff]);
 }
