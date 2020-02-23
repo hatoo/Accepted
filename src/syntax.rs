@@ -59,8 +59,10 @@ impl SyntaxParent {
         let theme = theme
             .and_then(|s| {
                 self.theme_set.themes.get(s).cloned().or_else(|| {
-                    let file = std::fs::File::open(s).ok()?;
-                    ThemeSet::load_from_reader(&mut BufReader::new(file)).ok()
+                    shellexpand::full(s).ok().and_then(|s| {
+                        let file = std::fs::File::open(s.as_ref()).ok()?;
+                        ThemeSet::load_from_reader(&mut BufReader::new(file)).ok()
+                    })
                 })
             })
             .unwrap_or_else(|| self.theme_set.themes["Solarized (dark)"].clone());
