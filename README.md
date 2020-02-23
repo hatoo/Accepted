@@ -21,7 +21,7 @@ Currently Accepted supports Rust and C++.
 
 * Preconfigured for Rust and C++
 * Autoformat with [Rustfmt](https://github.com/rust-lang-nursery/rustfmt) / [ClangFormat](https://clang.llvm.org/docs/ClangFormat.html) / or specify with configuration
-* Completion with [RLS](https://github.com/rust-lang-nursery/rls) / [Clangd](https://clang.llvm.org/extra/clangd.html) / or Other LSP servers
+* Completion with [TabNine](https://tabnine.com/) / [RLS](https://github.com/rust-lang-nursery/rls) / [Clangd](https://clang.llvm.org/extra/clangd.html) / or Other LSP servers
 * Auto compile and show compiler messages (Supports rustc / gcc / clang)
 * Easy to test a single a code
 * VScode style snippet support
@@ -111,6 +111,11 @@ You can override with your own configure.
 indent_width = 4
 # Set true if you are running in legacy terminal which has no true color
 ansi_color = false
+# Command for TabNine
+tabnine = ["TabNine"]
+# Set theme
+# You can set either theme name which is bundled by `syntect` and file path for .tmTheme
+theme = "Solarized (dark)"
 
 # Configure for *.rs files
 [file.rs]
@@ -132,21 +137,19 @@ lsp = ["clangd"]
 formatter = ["clang-format"]
 test_command = ["./$FILE_STEM"]
 
+[file.c]
+# Same as cpp
+indent_width = 2
+compiler = { command=["clang", "$FILE_PATH", "-o", "$FILE_STEM"], type="gcc", optimize_option=["-O2"] }
+lsp = ["clangd"]
+formatter = ["clang-format"]
+test_command = ["./$FILE_STEM"]
+
 [file.rb]
 indent_width = 2
-```
 
-### Snippet Support
-
-This supports vscode style snippet.
-
-You can specify snippet files in configure
-
-```toml
-# On *.rs files
-[file.rs]
-# Use a snippet in this path
-snippets=["~/.config/acc/snippet.json"]
+[file.go]
+formatter = ["gofmt"]
 ```
 
 ## Contribution
