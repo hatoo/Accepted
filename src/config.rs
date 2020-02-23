@@ -33,6 +33,7 @@ struct LanguageConfigToml {
     test_command: Option<Vec<String>>,
     tabnine: Option<Vec<String>>,
     theme: Option<String>,
+    hard_tab: Option<bool>,
 }
 
 pub struct LanguageConfig(typemap::TypeMap);
@@ -107,6 +108,8 @@ impl Into<LanguageConfig> for LanguageConfigToml {
         );
 
         language_config.insert_option::<keys::Theme>(self.theme);
+
+        language_config.insert_option::<keys::HardTab>(self.hard_tab);
 
         language_config
     }
@@ -189,6 +192,17 @@ impl Config {
                 .unwrap_or_default()
         }
     }
+
+    pub fn set<A: Key>(&mut self, value: A::Value) {
+        if self.file_default.is_none() {
+            self.file_default = Some(Default::default());
+        }
+
+        self.file_default
+            .as_mut()
+            .unwrap()
+            .insert_option::<A>(Some(value));
+    }
 }
 
 impl ConfigWithDefault {
@@ -200,5 +214,9 @@ impl ConfigWithDefault {
 
     pub fn snippets(&self, path: Option<&path::Path>) -> BTreeMap<String, String> {
         self.config.snippets(path)
+    }
+
+    pub fn set<A: Key>(&mut self, value: A::Value) {
+        self.config.set::<A>(value);
     }
 }

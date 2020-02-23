@@ -147,6 +147,10 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
         self.get_config::<keys::IndentWidth>().cloned().unwrap_or(4)
     }
 
+    pub fn hard_tab(&self) -> bool {
+        self.get_config::<keys::HardTab>().cloned().unwrap_or(false)
+    }
+
     pub fn restart_completer(&mut self) {
         let ext = self
             .extension()
@@ -414,6 +418,7 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
             view,
         );
         let mut cursor = None;
+        let tab_size = self.indent_width();
 
         if self.buffer_update != self.core.buffer_changed() {
             self.buffer_update = self.core.buffer_changed();
@@ -457,10 +462,27 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
                     style
                 };
 
-                if self.core.cursor() == t {
-                    cursor = view.put(c, style, Some(t));
-                } else if view.put(c, style, Some(t)).is_none() {
-                    break 'outer;
+                if c == '\t' {
+                    if self.core.cursor() == t {
+                        cursor = view.put(' ', style, Some(t));
+                    } else if view.put(' ', style, Some(t)).is_none() {
+                        break 'outer;
+                    }
+                    for _ in 1..tab_size {
+                        if view.cause_newline(' ') {
+                            break;
+                        } else {
+                            if view.put(' ', style, Some(t)).is_none() {
+                                break 'outer;
+                            }
+                        }
+                    }
+                } else {
+                    if self.core.cursor() == t {
+                        cursor = view.put(c, style, Some(t));
+                    } else if view.put(c, style, Some(t)).is_none() {
+                        break 'outer;
+                    }
                 }
             }
             let t = Cursor {

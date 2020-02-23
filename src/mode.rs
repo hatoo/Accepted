@@ -829,9 +829,13 @@ impl<B: CoreBuffer> Mode<B> for Insert {
                         self.completion_index = Some(0);
                     }
                 } else {
-                    buf.core.insert(' ');
-                    while buf.core.cursor().col % buf.indent_width() != 0 {
+                    if buf.hard_tab() {
+                        buf.core.insert('\t');
+                    } else {
                         buf.core.insert(' ');
+                        while buf.core.cursor().col % buf.indent_width() != 0 {
+                            buf.core.insert(' ');
+                        }
                     }
                 }
                 return Transition::Nothing;
@@ -870,8 +874,14 @@ impl<B: CoreBuffer> Mode<B> for Insert {
                         },
                     );
                     let indent = indent::next_indent_level(line.as_str(), indent_width);
-                    for _ in 0..indent_width * indent {
-                        buf.core.insert(' ');
+                    if buf.hard_tab() {
+                        for _ in 0..indent {
+                            buf.core.insert('\t');
+                        }
+                    } else {
+                        for _ in 0..indent_width * indent {
+                            buf.core.insert(' ');
+                        }
                     }
                     let pos = buf.core.cursor();
                     if ['}', ']', ')']

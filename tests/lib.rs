@@ -38,8 +38,27 @@ fn with_buffer_mode_from<T, F: FnOnce(BufferMode<RopeyCoreBuffer>) -> T>(init: &
     func(state)
 }
 
+fn with_buffer_mode_from_config<T, F: FnOnce(BufferMode<RopeyCoreBuffer>) -> T>(
+    config: &config::ConfigWithDefault,
+    init: &str,
+    func: F,
+) -> T {
+    let syntax_parent = accepted::syntax::SyntaxParent::default();
+    let mut buf = Buffer::new(&syntax_parent, config);
+    buf.core.set_string(init.into(), true);
+    let state = BufferMode::new(buf);
+    func(state)
+}
+
 fn simple_run(init: &str, commands: &str) -> String {
     with_buffer_mode_from(init, |mut state| {
+        state.command_esc(commands);
+        state.buf.core.get_string()
+    })
+}
+
+fn simple_run_config(config: &config::ConfigWithDefault, init: &str, commands: &str) -> String {
+    with_buffer_mode_from_config(config, init, |mut state| {
         state.command_esc(commands);
         state.buf.core.get_string()
     })
@@ -195,6 +214,21 @@ fn test_simples() {
 
     // Goto
     assert_eq!(simple_run("123\n456\n789", " g2\nix"), "123\nx456\n789");
+}
+
+#[test]
+fn test_hard_tab_setting() {
+    use accepted::config::types::keys::HardTab;
+    let syntax_parent = accepted::syntax::SyntaxParent::default();
+    let mut config = config::ConfigWithDefault::default();
+    config.set::<HardTab>(true);
+    let buf: Buffer<RopeyCoreBuffer> = Buffer::new(&syntax_parent, &config);
+    let state = BufferMode::new(buf);
+
+    assert_eq!(state.buf.hard_tab(), true);
+
+    assert_eq!(simple_run_config(&config, "", "i\t"), "\t");
+    assert_eq!(simple_run_config(&config, "", "i{\nabc"), "{\n\tabc\n}");
 }
 
 #[test]
