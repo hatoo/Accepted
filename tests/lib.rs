@@ -228,6 +228,7 @@ fn test_hard_tab_setting() {
     assert_eq!(state.buf.hard_tab(), true);
 
     assert_eq!(simple_run_config(&config, "", "i\t"), "\t");
+    assert_eq!(simple_run_config(&config, "", "i{\nabc"), "{\n\tabc\n}");
 }
 
 #[test]

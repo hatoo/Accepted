@@ -874,8 +874,14 @@ impl<B: CoreBuffer> Mode<B> for Insert {
                         },
                     );
                     let indent = indent::next_indent_level(line.as_str(), indent_width);
-                    for _ in 0..indent_width * indent {
-                        buf.core.insert(' ');
+                    if buf.hard_tab() {
+                        for _ in 0..indent {
+                            buf.core.insert('\t');
+                        }
+                    } else {
+                        for _ in 0..indent_width * indent {
+                            buf.core.insert(' ');
+                        }
                     }
                     let pos = buf.core.cursor();
                     if ['}', ']', ')']
