@@ -38,8 +38,27 @@ fn with_buffer_mode_from<T, F: FnOnce(BufferMode<RopeyCoreBuffer>) -> T>(init: &
     func(state)
 }
 
+fn with_buffer_mode_from_config<T, F: FnOnce(BufferMode<RopeyCoreBuffer>) -> T>(
+    config: &config::ConfigWithDefault,
+    init: &str,
+    func: F,
+) -> T {
+    let syntax_parent = accepted::syntax::SyntaxParent::default();
+    let mut buf = Buffer::new(&syntax_parent, config);
+    buf.core.set_string(init.into(), true);
+    let state = BufferMode::new(buf);
+    func(state)
+}
+
 fn simple_run(init: &str, commands: &str) -> String {
     with_buffer_mode_from(init, |mut state| {
+        state.command_esc(commands);
+        state.buf.core.get_string()
+    })
+}
+
+fn simple_run_config(config: &config::ConfigWithDefault, init: &str, commands: &str) -> String {
+    with_buffer_mode_from_config(config, init, |mut state| {
         state.command_esc(commands);
         state.buf.core.get_string()
     })
@@ -207,6 +226,8 @@ fn test_hard_tab_setting() {
     let state = BufferMode::new(buf);
 
     assert_eq!(state.buf.hard_tab(), true);
+
+    assert_eq!(simple_run_config(&config, "", "i\t"), "\t");
 }
 
 #[test]

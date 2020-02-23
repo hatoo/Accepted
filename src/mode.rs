@@ -829,9 +829,13 @@ impl<B: CoreBuffer> Mode<B> for Insert {
                         self.completion_index = Some(0);
                     }
                 } else {
-                    buf.core.insert(' ');
-                    while buf.core.cursor().col % buf.indent_width() != 0 {
+                    if buf.hard_tab() {
+                        buf.core.insert('\t');
+                    } else {
                         buf.core.insert(' ');
+                        while buf.core.cursor().col % buf.indent_width() != 0 {
+                            buf.core.insert(' ');
+                        }
                     }
                 }
                 return Transition::Nothing;
