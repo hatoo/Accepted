@@ -30,7 +30,7 @@ struct Snippet {
     body: Vec<String>,
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let config_path = dirs::config_dir().map(|mut p| {
         p.push("acc");
         p.push("config.toml");
@@ -50,11 +50,13 @@ fn main() {
         .about("A text editor to be ACCEPTED")
         .after_help(after_help.as_str())
         .bin_name("acc")
+        .arg(Arg::with_name("config").long("config"))
         .arg(Arg::with_name("file").multiple(true))
         .get_matches();
 
     let config = config_path
-        .and_then(|config_path| fs::read_to_string(&config_path).ok())
+        .as_ref()
+        .and_then(|config_path| fs::read_to_string(config_path).ok())
         .and_then(|s| {
             let result = config::parse_config_with_default(s.as_str());
             match result {
@@ -91,6 +93,17 @@ fn main() {
     let mut state: BufferTab<accepted::core::buffer::RopeyCoreBuffer> =
         BufferTab::new(&syntax_parent, &config);
 
+    if matches.is_present("config") {
+        if let Some(config_path) = config_path.as_ref() {
+            if let Some(parent) = config_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            state.open(config_path.clone());
+        } else {
+            anyhow::bail!("No config path detected in this system");
+        }
+    }
+
     let files = matches.values_of_os("file");
     if let Some(files) = files {
         for path in files {
@@ -118,7 +131,7 @@ fn main() {
                 draw.redraw();
             }
             if state.event(evt) {
-                return;
+                return Ok(());
             }
         }
 
