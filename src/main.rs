@@ -17,6 +17,7 @@ use termion::screen::AlternateScreen;
 use accepted::buffer_tab::BufferTab;
 use accepted::config;
 use accepted::draw::DoubleBuffer;
+use anyhow::Context;
 
 #[derive(BuildInfo)]
 struct BuildTag;
@@ -94,14 +95,11 @@ fn main() -> anyhow::Result<()> {
         BufferTab::new(&syntax_parent, &config);
 
     if matches.is_present("config") {
-        if let Some(config_path) = config_path.as_ref() {
-            if let Some(parent) = config_path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            state.open(config_path.clone());
-        } else {
-            anyhow::bail!("No config path detected in this system");
+        let config_path = config_path.as_ref().context("Get config path")?;
+        if let Some(parent) = config_path.parent() {
+            std::fs::create_dir_all(parent)?;
         }
+        state.open(config_path.clone());
     }
 
     let files = matches.values_of_os("file");
