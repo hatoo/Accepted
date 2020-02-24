@@ -100,6 +100,8 @@ SPACE -> r to Start rmate server
 
 You can configure this by toml file placed in `[config_dir]/acc/config.toml`
 
+You can open config file via `$ acc --config` easily.
+
 `config_dir` is defined in [here](https://docs.rs/dirs/1.0.3/dirs/fn.config_dir.html).
 
 Below is default configure.
