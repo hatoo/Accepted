@@ -62,7 +62,15 @@ impl CoreBuffer for RopeyCoreBuffer {
     fn delete_range<R: RangeBounds<Cursor>>(&mut self, range: R) {
         let ropey_range = map_range(range, |c| self.0.line_to_char(c.row) + c.col);
 
-        self.0.remove(ropey_range);
+        if let (l, Bound::Included(r)) = ropey_range {
+            if self.0.char(r) == '\r' && r + 1 < self.0.len_chars() {
+                self.0.remove((l, Bound::Included(r + 1)));
+            } else {
+                self.0.remove(ropey_range);
+            }
+        } else {
+            self.0.remove(ropey_range);
+        }
     }
 
     fn bytes_range<'a, R: RangeBounds<Cursor>>(

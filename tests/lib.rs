@@ -232,6 +232,13 @@ fn test_hard_tab_setting() {
 }
 
 #[test]
+fn test_crlf() {
+    assert_eq!(simple_run("a\r\na", "xxx"), "");
+    assert_eq!(simple_run("a\r\na", "dd"), "a");
+    assert_eq!(simple_run("ab\r\na", "vlld"), "a");
+}
+
+#[test]
 fn fuzz_1() {
     test_from_fuzz(&[0x62, 0x25, 0xff, 0x29, 0x41, 0xff]);
 }
