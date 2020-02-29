@@ -4,6 +4,7 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
 use std::ops::Bound;
+use std::ops::RangeBounds;
 use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::mpsc;
@@ -27,7 +28,6 @@ use crate::indent;
 use crate::lsp::LSPCompletion;
 use crate::parenthesis;
 use crate::text_object::{self, Action};
-use failure::_core::ops::RangeBounds;
 
 mod fuzzy;
 

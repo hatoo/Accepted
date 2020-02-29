@@ -4,6 +4,7 @@ use std::process;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 
+use anyhow::Context;
 use jsonrpc_core;
 use jsonrpc_core::Output;
 use lsp_types;
@@ -34,10 +35,7 @@ const ID_INIT: u64 = 0;
 const ID_COMPLETION: u64 = 1;
 
 impl LSPClient {
-    pub fn start(
-        mut lsp_command: process::Command,
-        extension: String,
-    ) -> Result<Self, failure::Error> {
+    pub fn start(mut lsp_command: process::Command, extension: String) -> anyhow::Result<Self> {
         let mut lsp = lsp_command
             .stdin(process::Stdio::piped())
             .stdout(process::Stdio::piped())
@@ -48,7 +46,7 @@ impl LSPClient {
         let init = lsp_types::InitializeParams {
             process_id: Some(u64::from(process::id())),
             root_path: None,
-            root_uri: Some(lsp_types::Url::parse("file://localhost/").unwrap()),
+            root_uri: Some(lsp_types::Url::parse("file://localhost/")?),
             initialization_options: None,
             capabilities: lsp_types::ClientCapabilities::default(),
             trace: None,
@@ -56,15 +54,8 @@ impl LSPClient {
             client_info: None,
         };
 
-        let mut stdin: process::ChildStdin = lsp
-            .stdin
-            .take()
-            .ok_or_else(|| failure::err_msg("Take stdin"))?;
-        let mut reader = BufReader::new(
-            lsp.stdout
-                .take()
-                .ok_or_else(|| failure::err_msg("Take stdout"))?,
-        );
+        let mut stdin: process::ChildStdin = lsp.stdin.take().context("take stdin")?;
+        let mut reader = BufReader::new(lsp.stdout.take().context("take stdout")?);
 
         send_request::<_, lsp_types::request::Initialize>(&mut stdin, ID_INIT, init)?;
 
@@ -73,7 +64,7 @@ impl LSPClient {
 
         let (c_tx, c_rx) = channel::<(String, Cursor)>();
         thread::spawn(move || {
-            let _ = || -> Result<(), failure::Error> {
+            let _ = || -> anyhow::Result<()> {
                 // Wait initialize
                 init_rx.recv()?;
                 let file_url =
@@ -112,7 +103,7 @@ impl LSPClient {
         });
 
         thread::spawn(move || {
-            || -> Result<(), failure::Error> {
+            || -> anyhow::Result<()> {
                 let mut headers = HashMap::new();
                 loop {
                     headers.clear();
@@ -174,7 +165,7 @@ fn send_request<T: Write, R: lsp_types::request::Request>(
     t: &mut T,
     id: u64,
     params: R::Params,
-) -> Result<(), failure::Error>
+) -> anyhow::Result<()>
 where
     R::Params: serde::Serialize,
 {
@@ -189,14 +180,14 @@ where
         write!(t, "Content-Length: {}\r\n\r\n{}", request.len(), request)?;
         Ok(())
     } else {
-        Err(failure::err_msg("Invalid params"))
+        anyhow::bail!("Invalid params");
     }
 }
 
 fn send_notify<T: Write, R: lsp_types::notification::Notification>(
     t: &mut T,
     params: R::Params,
-) -> Result<(), failure::Error>
+) -> anyhow::Result<()>
 where
     R::Params: serde::Serialize,
 {
@@ -210,7 +201,7 @@ where
         write!(t, "Content-Length: {}\r\n\r\n{}", request.len(), request)?;
         Ok(())
     } else {
-        Err(failure::err_msg("Invalid params"))
+        anyhow::bail!("Invalid params")
     }
 }
 

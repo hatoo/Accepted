@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use crate::core::CoreBuffer;
 
 use crate::core::Cursor;
-use failure::_core::ops::{Bound, RangeBounds};
+use std::ops::{Bound, RangeBounds};
 
 pub struct OperationArg<'a, B: CoreBuffer> {
     pub core_buffer: &'a mut B,

@@ -51,11 +51,11 @@ impl<B: CoreBuffer> Storage<B> for RmateStorage {
     }
 }
 
-pub fn start_server(sender: mpsc::Sender<RmateSave>) -> Result<(), failure::Error> {
+pub fn start_server(sender: mpsc::Sender<RmateSave>) -> anyhow::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:52698")?;
 
     for stream in listener.incoming() {
-        let _ = || -> Result<(), failure::Error> {
+        let _ = || -> anyhow::Result<()> {
             let stream_reader = stream?;
             let mut stream = stream_reader.try_clone()?;
             writeln!(stream, "Accepted")?;
@@ -79,7 +79,7 @@ pub fn start_server(sender: mpsc::Sender<RmateSave>) -> Result<(), failure::Erro
 fn write_thread(
     mut stream: TcpStream,
     save_rx: mpsc::Receiver<(String, String)>,
-) -> Result<(), failure::Error> {
+) -> Result<(), std::io::Error> {
     for (token, data) in save_rx {
         writeln!(stream, "save")?;
         writeln!(stream, "token: {}", token)?;

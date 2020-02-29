@@ -1,9 +1,9 @@
 use super::Cursor;
 use std::io;
+use std::ops::RangeBounds;
 
 mod ropey_core_buffer;
 
-use failure::_core::ops::RangeBounds;
 pub use ropey_core_buffer::RopeyCoreBuffer;
 
 pub trait CoreBuffer: Default + ToString {
