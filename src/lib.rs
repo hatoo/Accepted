@@ -22,6 +22,7 @@ mod rustc;
 pub mod storage;
 pub mod syntax;
 mod tabnine;
+mod tabnine_async;
 mod text_object;
 pub mod theme;
 

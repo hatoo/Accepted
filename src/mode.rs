@@ -27,6 +27,7 @@ use crate::draw;
 use crate::indent;
 use crate::lsp::LSPCompletion;
 use crate::parenthesis;
+use crate::tabnine_async::TabNineCompletion;
 use crate::text_object::{self, Action};
 
 mod fuzzy;
@@ -73,7 +74,7 @@ struct Insert {
     completion_index: Option<usize>,
     buf_update: Id,
     completions: Vec<LSPCompletion>,
-    tabnine_completions: Vec<crate::tabnine::TabNineCompletion>,
+    tabnine_completions: Vec<TabNineCompletion>,
     snippet_completions: Vec<String>,
 }
 
@@ -706,7 +707,7 @@ impl Insert {
         }
     }
 
-    fn poll<B: CoreBuffer>(&mut self, buf: &Buffer<B>) {
+    fn poll<B: CoreBuffer>(&mut self, buf: &mut Buffer<B>) {
         if let Some(lsp) = buf.lsp.as_ref() {
             if let Some(mut completions) = lsp.poll() {
                 let token = Self::token(&buf.core);
@@ -715,7 +716,7 @@ impl Insert {
             }
         }
 
-        if let Some(tabnine) = buf.tabnine.as_ref() {
+        if let Some(tabnine) = buf.tabnine.as_mut() {
             if let Some(completion) = tabnine.poll() {
                 self.tabnine_completions = completion;
             }
@@ -780,7 +781,7 @@ impl<B: CoreBuffer> Mode<B> for Insert {
         if let Some(lsp) = buf.lsp.as_ref() {
             lsp.poll();
         }
-        if let Some(tabnine) = buf.tabnine.as_ref() {
+        if let Some(tabnine) = buf.tabnine.as_mut() {
             tabnine.poll();
         }
         self.build_completion(buf);

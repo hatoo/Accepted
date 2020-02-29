@@ -31,7 +31,8 @@ struct Snippet {
     body: Vec<String>,
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let config_path = dirs::config_dir().map(|mut p| {
         p.push("acc");
         p.push("config.toml");
@@ -76,8 +77,8 @@ fn main() -> anyhow::Result<()> {
         .unwrap_or_default();
 
     let stdin = stdin();
-    let mut stdout = MouseTerminal::from(AlternateScreen::from(stdout()).into_raw_mode().unwrap());
-    // let mut stdout = MouseTerminal::from(stdout().into_raw_mode().unwrap());
+    // let mut stdout = MouseTerminal::from(AlternateScreen::from(stdout()).into_raw_mode().unwrap());
+    let mut stdout = MouseTerminal::from(stdout().into_raw_mode().unwrap());
 
     let (tx, rx) = channel();
 

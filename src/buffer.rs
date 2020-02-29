@@ -23,7 +23,8 @@ use crate::formatter;
 use crate::lsp::LSPClient;
 use crate::storage::Storage;
 use crate::syntax;
-use crate::tabnine::TabNineClient;
+// use crate::tabnine::TabNineClient;
+use crate::tabnine_async::TabNineClient;
 
 pub struct Yank {
     pub insert_newline: bool,
