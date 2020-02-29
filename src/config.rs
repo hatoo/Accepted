@@ -36,16 +36,19 @@ struct LanguageConfigToml {
     hard_tab: Option<bool>,
 }
 
-pub struct LanguageConfig(typemap::TypeMap);
+pub struct LanguageConfig(typemap::ShareMap);
 
 impl Default for LanguageConfig {
     fn default() -> Self {
-        Self(typemap::TypeMap::new())
+        Self(typemap::ShareMap::custom())
     }
 }
 
 impl LanguageConfig {
-    fn insert_option<Key: typemap::Key>(&mut self, value: Option<Key::Value>) {
+    fn insert_option<Key: typemap::Key + Send + Sync>(&mut self, value: Option<Key::Value>)
+    where
+        <Key as typemap::Key>::Value: Send + Sync,
+    {
         if let Some(value) = value {
             self.0.insert::<Key>(value);
         }
@@ -158,7 +161,10 @@ impl Default for ConfigWithDefault {
 }
 
 impl Config {
-    fn get<A: Key>(&self, path: Option<&path::Path>) -> Option<&A::Value> {
+    fn get<A: Key + Send + Sync>(&self, path: Option<&path::Path>) -> Option<&A::Value>
+    where
+        <A as typemap::Key>::Value: Send + Sync,
+    {
         path.and_then(|path| path.extension().or_else(|| path.file_name()))
             .and_then(|k| self.file.get(k).and_then(|c| c.0.get::<A>()))
             .or_else(|| self.file_default.as_ref().and_then(|c| c.0.get::<A>()))
@@ -193,7 +199,10 @@ impl Config {
         }
     }
 
-    pub fn set<A: Key>(&mut self, value: A::Value) {
+    pub fn set<A: Key + Send + Sync>(&mut self, value: A::Value)
+    where
+        <A as typemap::Key>::Value: Send + Sync,
+    {
         if self.file_default.is_none() {
             self.file_default = Some(Default::default());
         }
@@ -206,7 +215,10 @@ impl Config {
 }
 
 impl ConfigWithDefault {
-    pub fn get<A: Key>(&self, path: Option<&path::Path>) -> Option<&A::Value> {
+    pub fn get<A: Key + Send + Sync>(&self, path: Option<&path::Path>) -> Option<&A::Value>
+    where
+        <A as typemap::Key>::Value: Send + Sync,
+    {
         self.config
             .get::<A>(path)
             .or_else(|| self.default.get::<A>(path))
@@ -216,7 +228,10 @@ impl ConfigWithDefault {
         self.config.snippets(path)
     }
 
-    pub fn set<A: Key>(&mut self, value: A::Value) {
+    pub fn set<A: Key + Send + Sync>(&mut self, value: A::Value)
+    where
+        <A as typemap::Key>::Value: Send + Sync,
+    {
         self.config.set::<A>(value);
     }
 }
