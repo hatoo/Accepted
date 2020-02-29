@@ -65,8 +65,8 @@ pub struct Buffer<'a, B: CoreBuffer> {
     storage: Option<Box<dyn Storage<B>>>,
     pub core: Core<B>,
     pub search: Vec<char>,
-    syntax_parent: &'a syntax::SyntaxParent,
     config: &'a config::ConfigWithDefault,
+    syntax_parent: &'a syntax::SyntaxParent,
     syntax: syntax::Syntax<'a>,
     pub snippet: BTreeMap<String, String>,
     pub yank: Yank,
@@ -129,7 +129,10 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
         self.storage.as_ref().map(AsRef::as_ref)
     }
 
-    pub fn get_config<A: typemap::Key>(&self) -> Option<&'a A::Value> {
+    pub fn get_config<A: typemap::Key + Send + Sync>(&self) -> Option<&'a A::Value>
+    where
+        <A as typemap::Key>::Value: Send + Sync,
+    {
         self.config.get::<A>(self.path())
     }
 
