@@ -53,6 +53,10 @@ impl TabLine {
     }
 }
 
+fn test<B: CoreBuffer>(b: BufferTab<B>) {
+    let a: Box<dyn Send> = Box::new(b);
+}
+
 pub struct BufferTab<'a, B: CoreBuffer> {
     syntax_parent: &'a SyntaxParent,
     config: &'a ConfigWithDefault,
