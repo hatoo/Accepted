@@ -1,4 +1,5 @@
 use crate::core::CoreBuffer;
+use anyhow::Context;
 use lsp_types::{CompletionItemKind, Documentation};
 use serde_derive::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader, Write};
@@ -19,14 +20,14 @@ pub struct TabNineCompletion {
 }
 
 impl TabNineClient {
-    pub fn new(mut command: process::Command) -> Result<Self, failure::Error> {
+    pub fn new(mut command: process::Command) -> anyhow::Result<Self> {
         let mut proc = command
             .stdin(process::Stdio::piped())
             .stderr(process::Stdio::piped())
             .stdout(process::Stdio::piped())
             .spawn()?;
 
-        let stdout = BufReader::new(proc.stdout.take().unwrap());
+        let stdout = BufReader::new(proc.stdout.take().context("take stdout")?);
         let mut stdin = proc.stdin.take().unwrap();
 
         let (args_sender, args_receiver) = mpsc::channel::<AutocompleteArgs>();

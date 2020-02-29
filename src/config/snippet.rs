@@ -14,9 +14,7 @@ pub struct SnippetJson {
     body: Vec<String>,
 }
 
-pub fn load_snippet<P: AsRef<path::Path>>(
-    path: P,
-) -> Result<BTreeMap<String, String>, failure::Error> {
+pub fn load_snippet<P: AsRef<path::Path>>(path: P) -> anyhow::Result<BTreeMap<String, String>> {
     let snippet_set: SnippetSetJson =
         serde_json::from_reader(BufReader::new(fs::File::open(path)?))?;
     let mut snippets = BTreeMap::new();

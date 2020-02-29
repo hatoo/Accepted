@@ -129,12 +129,12 @@ impl Into<Config> for ConfigToml {
     }
 }
 
-fn parse_config(s: &str) -> Result<Config, failure::Error> {
+fn parse_config(s: &str) -> Result<Config, toml::de::Error> {
     let config_toml: ConfigToml = toml::from_str(&s)?;
     Ok(config_toml.into())
 }
 
-pub fn parse_config_with_default(s: &str) -> Result<ConfigWithDefault, failure::Error> {
+pub fn parse_config_with_default(s: &str) -> Result<ConfigWithDefault, toml::de::Error> {
     let default = toml::from_str::<ConfigToml>(DEFAULT_CONFIG)
         .map(Into::into)
         .unwrap();

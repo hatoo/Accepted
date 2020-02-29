@@ -11,8 +11,8 @@ use crate::core::Cursor;
 use crate::core::Id;
 use crate::job_queue::JobQueue;
 use crate::rustc;
-use failure::_core::ops::RangeInclusive;
 use std::ffi::OsString;
+use std::ops::RangeInclusive;
 
 pub struct CompilerOutput {
     pub message: String,

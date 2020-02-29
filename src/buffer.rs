@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::cmp::{max, min};
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
+use std::ops::{RangeBounds, RangeInclusive};
 use std::path::Path;
 
 use unicode_width::UnicodeWidthChar;
@@ -23,7 +24,6 @@ use crate::lsp::LSPClient;
 use crate::storage::Storage;
 use crate::syntax;
 use crate::tabnine::TabNineClient;
-use failure::_core::ops::{RangeBounds, RangeInclusive};
 
 pub struct Yank {
     pub insert_newline: bool,

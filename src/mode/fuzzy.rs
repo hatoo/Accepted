@@ -77,7 +77,7 @@ impl Default for FuzzyOpen {
         let (tx, rx) = mpsc::channel();
 
         thread::spawn(move || {
-            let _ = || -> Result<(), failure::Error> {
+            let _ = || -> anyhow::Result<()> {
                 let mut child = process::Command::new("find")
                     .arg(".")
                     .stdout(process::Stdio::piped())
