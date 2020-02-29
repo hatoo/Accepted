@@ -50,7 +50,7 @@ pub enum Transition<B: CoreBuffer> {
     StartRmate,
 }
 
-pub trait Mode<B: CoreBuffer> {
+pub trait Mode<B: CoreBuffer>: Send {
     fn init(&mut self, _buf: &mut Buffer<B>) {}
     fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B>;
     fn draw(&mut self, buf: &mut Buffer<B>, view: draw::TermView) -> draw::CursorState;
@@ -1817,7 +1817,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
     }
 }
 
-impl<B: CoreBuffer, R: RangeBounds<Cursor> + Clone> Mode<B> for S<R> {
+impl<B: CoreBuffer, R: RangeBounds<Cursor> + Clone + Send> Mode<B> for S<R> {
     fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {

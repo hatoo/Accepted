@@ -10,7 +10,7 @@ pub struct OperationArg<'a, B: CoreBuffer> {
     pub cursor: &'a mut Cursor,
 }
 
-pub trait Operation<B: CoreBuffer>: Debug {
+pub trait Operation<B: CoreBuffer>: Debug + Send {
     fn perform(&mut self, arg: OperationArg<B>) -> Option<usize>;
     fn undo(&mut self, arg: OperationArg<B>) -> Option<usize>;
 }

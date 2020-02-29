@@ -5,7 +5,7 @@ use std::io::{BufReader, BufWriter};
 use std::path::Path;
 use std::path::PathBuf;
 
-pub trait Storage<B: CoreBuffer> {
+pub trait Storage<B: CoreBuffer>: Send {
     fn load(&mut self) -> Core<B>;
     fn save(&mut self, core: &Core<B>) -> bool;
     fn path(&self) -> &Path;

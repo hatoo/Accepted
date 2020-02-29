@@ -84,7 +84,7 @@ pub struct CompileResult {
     pub messages: Vec<CompilerOutput>,
 }
 
-trait CompilerWorker {
+trait CompilerWorker: Send {
     // Must be async
     fn compile(&self, _command: process::Command, _compile_id: CompileId) {}
     // Do not Block
