@@ -53,7 +53,7 @@ pub enum Transition<B: CoreBuffer> {
     StartRmate,
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 pub trait Mode<B: CoreBuffer>: Sync {
     fn init(&mut self, _buf: &mut Buffer<B>) {}
     fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B>;
@@ -64,7 +64,7 @@ pub trait Mode<B: CoreBuffer>: Sync {
     {
         Transition::Trans(Box::new(self))
     }
-    async fn foo(&self) {}
+    async fn event2(&mut self, buf: &mut Buffer<'_, B>, event: termion::event::Event) {}
 }
 
 pub struct Normal {
