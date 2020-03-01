@@ -77,8 +77,8 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_default();
 
     let stdin = stdin();
-    // let mut stdout = MouseTerminal::from(AlternateScreen::from(stdout()).into_raw_mode().unwrap());
-    let mut stdout = MouseTerminal::from(stdout().into_raw_mode().unwrap());
+    let mut stdout = MouseTerminal::from(AlternateScreen::from(stdout()).into_raw_mode().unwrap());
+    // let mut stdout = MouseTerminal::from(stdout().into_raw_mode().unwrap());
 
     let (tx, rx) = channel();
 
