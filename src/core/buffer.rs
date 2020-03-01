@@ -6,7 +6,7 @@ mod ropey_core_buffer;
 
 pub use ropey_core_buffer::RopeyCoreBuffer;
 
-pub trait CoreBuffer: Default + ToString {
+pub trait CoreBuffer: Default + ToString + 'static {
     fn from_reader<T: io::Read>(reader: T) -> io::Result<Self>;
     fn len_bytes(&self) -> usize;
     fn len_lines(&self) -> usize;

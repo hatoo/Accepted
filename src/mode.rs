@@ -32,6 +32,8 @@ use crate::text_object::{self, Action};
 
 mod fuzzy;
 
+use async_trait::async_trait;
+
 pub struct TransitionReturn {
     pub message: Option<String>,
     pub is_commit_dot_macro: bool,
@@ -51,7 +53,8 @@ pub enum Transition<B: CoreBuffer> {
     StartRmate,
 }
 
-pub trait Mode<B: CoreBuffer> {
+#[async_trait]
+pub trait Mode<B: CoreBuffer>: Sync {
     fn init(&mut self, _buf: &mut Buffer<B>) {}
     fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B>;
     fn draw(&mut self, buf: &mut Buffer<B>, view: draw::TermView) -> draw::CursorState;
@@ -61,6 +64,7 @@ pub trait Mode<B: CoreBuffer> {
     {
         Transition::Trans(Box::new(self))
     }
+    async fn foo(&self) {}
 }
 
 pub struct Normal {
@@ -124,7 +128,7 @@ struct Visual {
 struct ViewProcess {
     row_offset: usize,
     pub buf: Vec<String>,
-    pub reader: mpsc::Receiver<String>,
+    pub reader: tokio::sync::mpsc::UnboundedReceiver<String>,
     pub process: process::Child,
     pub start: Instant,
     pub end: Option<Instant>,
@@ -147,7 +151,7 @@ impl ViewProcess {
         let now = Instant::now();
         let stdout = child.stdout.take()?;
         let stderr = child.stderr.take()?;
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         let tx1 = tx.clone();
         let tx2 = tx;
 
@@ -1290,9 +1294,11 @@ impl<B: CoreBuffer> Mode<B> for Prefix {
             Event::Key(Key::Char('r')) => {
                 return Transition::StartRmate;
             }
+            /*
             Event::Key(Key::Char('f')) => {
                 return fuzzy::FuzzyOpen::default().into_transition();
             }
+            */
             _ => {}
         }
         Transition::Nothing
@@ -1818,7 +1824,7 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
     }
 }
 
-impl<B: CoreBuffer, R: RangeBounds<Cursor> + Clone> Mode<B> for S<R> {
+impl<B: CoreBuffer, R: RangeBounds<Cursor> + Clone + Sync> Mode<B> for S<R> {
     fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {

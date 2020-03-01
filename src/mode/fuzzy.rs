@@ -1,3 +1,4 @@
+/*
 use super::Mode;
 use super::Transition;
 use crate::buffer::Buffer;
@@ -157,7 +158,7 @@ impl FuzzyOpen {
     }
 }
 
-impl<B: CoreBuffer> Mode<B> for FuzzyOpen {
+impl<B: CoreBuffer + 'static> Mode<B> for FuzzyOpen {
     fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
         match event {
             Event::Key(Key::Char('\n')) => {
@@ -255,3 +256,5 @@ impl<B: CoreBuffer> Mode<B> for FuzzyOpen {
         }
     }
 }
+
+*/
