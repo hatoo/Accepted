@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::{stdin, stdout, Write};
 use std::path::PathBuf;
-use std::sync::mpsc::channel;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -80,7 +79,7 @@ async fn main() -> anyhow::Result<()> {
     let mut stdout = MouseTerminal::from(AlternateScreen::from(stdout()).into_raw_mode().unwrap());
     // let mut stdout = MouseTerminal::from(stdout().into_raw_mode().unwrap());
 
-    let (tx, rx) = channel();
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
 
     thread::spawn(move || {
         for c in stdin.events() {
@@ -122,7 +121,10 @@ async fn main() -> anyhow::Result<()> {
         let evt = if (now - start_frame) > frame {
             rx.try_recv().ok()
         } else {
-            rx.recv_timeout(frame - (now - start_frame)).ok()
+            tokio::time::timeout(frame - (now - start_frame), rx.recv())
+                .await
+                .ok()
+                .flatten()
         };
 
         if let Some(evt) = evt {
