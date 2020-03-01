@@ -30,11 +30,11 @@ impl<'a, B: CoreBuffer> BufferMode<'a, B> {
         }
     }
 
-    pub fn event(&mut self, event: termion::event::Event) -> TabOperation {
+    pub async fn event(&mut self, event: termion::event::Event) -> TabOperation {
         if self.is_recording {
             self.recording_macro.push(event.clone());
         }
-        match self.mode.event(&mut self.buf, event.clone()) {
+        match self.mode.event(&mut self.buf, event.clone()).await {
             Transition::Exit => {
                 return TabOperation::Close;
             }

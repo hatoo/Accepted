@@ -56,7 +56,11 @@ pub enum Transition<B: CoreBuffer> {
 #[async_trait(?Send)]
 pub trait Mode<B: CoreBuffer>: Sync {
     fn init(&mut self, _buf: &mut Buffer<B>) {}
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B>;
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B>;
     fn draw(&mut self, buf: &mut Buffer<B>, view: draw::TermView) -> draw::CursorState;
     fn into_transition(self) -> Transition<B>
     where
@@ -64,7 +68,6 @@ pub trait Mode<B: CoreBuffer>: Sync {
     {
         Transition::Trans(Box::new(self))
     }
-    async fn event2(&mut self, buf: &mut Buffer<'_, B>, event: termion::event::Event) {}
 }
 
 pub struct Normal {
@@ -210,8 +213,13 @@ impl Normal {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Normal {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Char('.')) => {
                 return Transition::DoMacro;
@@ -779,6 +787,7 @@ impl Insert {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Insert {
     fn init(&mut self, buf: &mut Buffer<B>) {
         // Flush completion
@@ -790,7 +799,11 @@ impl<B: CoreBuffer> Mode<B> for Insert {
         }
         self.build_completion(buf);
     }
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 buf.core.commit();
@@ -992,8 +1005,13 @@ impl<B: CoreBuffer> Mode<B> for Insert {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for R {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         let core = &mut buf.core;
         match event {
             Event::Key(Key::Esc) => {
@@ -1023,8 +1041,13 @@ impl<B: CoreBuffer> Mode<B> for R {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Search {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1067,8 +1090,13 @@ impl<B: CoreBuffer> Mode<B> for Search {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Save {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1121,8 +1149,13 @@ impl<B: CoreBuffer> Mode<B> for Save {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Prefix {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1350,8 +1383,13 @@ impl Visual {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Visual {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1530,8 +1568,13 @@ impl<B: CoreBuffer> Mode<B> for Visual {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for ViewProcess {
-    fn event(&mut self, _buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        _buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => Normal::default().into_transition(),
             Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
@@ -1592,8 +1635,13 @@ impl<B: CoreBuffer> Mode<B> for ViewProcess {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         if event == Event::Key(Key::Esc) {
             return Transition::Return(TransitionReturn {
                 message: None,
@@ -1824,8 +1872,13 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer, R: RangeBounds<Cursor> + Clone + Sync> Mode<B> for S<R> {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1878,8 +1931,13 @@ impl<B: CoreBuffer, R: RangeBounds<Cursor> + Clone + Sync> Mode<B> for S<R> {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Find {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1936,8 +1994,13 @@ impl<B: CoreBuffer> Mode<B> for Find {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Goto {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
