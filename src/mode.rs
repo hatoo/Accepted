@@ -27,7 +27,7 @@ use crate::draw;
 use crate::indent;
 use crate::lsp::LSPCompletion;
 use crate::parenthesis;
-use crate::tabnine_async::TabNineCompletion;
+use crate::tabnine::TabNineCompletion;
 use crate::text_object::{self, Action};
 
 mod fuzzy;

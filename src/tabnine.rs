@@ -2,15 +2,14 @@ use crate::core::CoreBuffer;
 use anyhow::Context;
 use lsp_types::{CompletionItemKind, Documentation};
 use serde_derive::{Deserialize, Serialize};
-use std::io::{BufRead, BufReader, Write};
 use std::process;
-use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
+use tokio::prelude::*;
+use tokio::stream::StreamExt;
 
 pub struct TabNineClient {
-    proc: process::Child,
-    args_sender: Sender<AutocompleteArgs>,
-    results_receiver: Receiver<AutocompleteResponse>,
+    _proc: tokio::process::Child,
+    results_receiver: tokio::sync::mpsc::UnboundedReceiver<AutocompleteResponse>,
+    args_sender: tokio::sync::mpsc::UnboundedSender<AutocompleteArgs>,
 }
 
 pub struct TabNineCompletion {
@@ -20,54 +19,53 @@ pub struct TabNineCompletion {
 }
 
 impl TabNineClient {
-    pub fn new(mut command: process::Command) -> anyhow::Result<Self> {
-        let mut proc = command
+    pub fn new(command: std::process::Command) -> anyhow::Result<Self> {
+        let mut proc: tokio::process::Child = tokio::process::Command::from(command)
             .stdin(process::Stdio::piped())
             .stderr(process::Stdio::piped())
             .stdout(process::Stdio::piped())
+            .kill_on_drop(true)
             .spawn()?;
 
-        let stdout = BufReader::new(proc.stdout.take().context("take stdout")?);
-        let mut stdin = proc.stdin.take().unwrap();
+        let stdout = proc.stdout.take().context("get stdout")?;
+        let mut stdin = proc.stdin.take().context("get stdin")?;
 
-        let (args_sender, args_receiver) = mpsc::channel::<AutocompleteArgs>();
-        let (results_sender, results_receiver) = mpsc::channel::<AutocompleteResponse>();
+        let (args_sender, mut args_receiver) = tokio::sync::mpsc::unbounded_channel();
+        let (results_sender, results_receiver) = tokio::sync::mpsc::unbounded_channel();
 
-        std::thread::spawn(move || -> std::io::Result<()> {
-            for args in args_receiver {
+        tokio::spawn(async move {
+            while let Some(args) = args_receiver.recv().await {
                 let req = Request {
                     version: "1.0.0".to_string(),
                     request: AutoComplete { autocomplete: args },
                 };
                 if let Ok(json) = serde_json::to_string(&req) {
-                    let json = json.replace('\n', "");
-                    writeln!(stdin, "{}", json)?;
+                    let json = json.replace('\n', "") + "\n";
+                    let _ = stdin.write_all(json.as_bytes()).await;
+                    let _ = stdin.flush().await;
                 }
             }
-            Ok(())
         });
 
-        std::thread::spawn(move || {
-            for line in stdout.lines() {
-                if let Ok(line) = line {
-                    if let Ok(result) = serde_json::from_str::<AutocompleteResponse>(line.as_str())
-                    {
-                        if results_sender.send(result).is_err() {
-                            return;
-                        }
+        tokio::spawn(async move {
+            let mut lines = tokio::io::BufReader::new(stdout).lines();
+            while let Some(Ok(line)) = lines.next().await {
+                if let Ok(res) = serde_json::from_str::<AutocompleteResponse>(line.as_str()) {
+                    if results_sender.send(res).is_err() {
+                        return;
                     }
                 }
             }
         });
 
         Ok(TabNineClient {
-            proc,
-            args_sender,
+            _proc: proc,
             results_receiver,
+            args_sender,
         })
     }
 
-    pub fn poll(&self) -> Option<Vec<TabNineCompletion>> {
+    pub fn poll(&mut self) -> Option<Vec<TabNineCompletion>> {
         let mut ret = None;
         while let Ok(res) = self.results_receiver.try_recv() {
             let old_prefix = res.old_prefix.clone();
@@ -96,7 +94,7 @@ impl TabNineClient {
         let before = buf.core.core_buffer().get_range(..buf.core.cursor());
         let after = buf.core.core_buffer().get_range(buf.core.cursor()..);
 
-        let req = AutocompleteArgs {
+        let args = AutocompleteArgs {
             before,
             after,
             filename: buf.path().map(|p| p.to_string_lossy().into_owned()),
@@ -104,14 +102,7 @@ impl TabNineClient {
             region_includes_end: true,
             max_num_results: None,
         };
-
-        let _ = self.args_sender.send(req);
-    }
-}
-
-impl Drop for TabNineClient {
-    fn drop(&mut self) {
-        let _ = self.proc.kill();
+        let _ = self.args_sender.send(args);
     }
 }
 
