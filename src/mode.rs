@@ -25,7 +25,7 @@ use crate::core::Cursor;
 use crate::core::Id;
 use crate::draw;
 use crate::indent;
-use crate::lsp_async::LSPCompletion;
+use crate::lsp::LSPCompletion;
 use crate::parenthesis;
 use crate::tabnine::TabNineCompletion;
 use crate::text_object::{self, Action};

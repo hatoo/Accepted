@@ -1,8 +1,6 @@
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Write;
 use std::process;
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::thread;
 
 use anyhow::Context;
 use jsonrpc_core;
@@ -10,6 +8,7 @@ use jsonrpc_core::Output;
 use lsp_types;
 use serde;
 use serde_json;
+use tokio::prelude::*;
 
 use crate::core::Cursor;
 
@@ -20,9 +19,9 @@ pub struct LSPCompletion {
 }
 
 pub struct LSPClient {
-    process: process::Child,
-    completion_req: Sender<(String, Cursor)>,
-    completion_recv: Receiver<Vec<LSPCompletion>>,
+    process: tokio::process::Child,
+    completion_req: tokio::sync::mpsc::UnboundedSender<(String, Cursor)>,
+    completion_recv: tokio::sync::mpsc::UnboundedReceiver<Vec<LSPCompletion>>,
 }
 
 impl Drop for LSPClient {
@@ -35,11 +34,12 @@ const ID_INIT: u64 = 0;
 const ID_COMPLETION: u64 = 1;
 
 impl LSPClient {
-    pub fn start(mut lsp_command: process::Command, extension: String) -> anyhow::Result<Self> {
-        let mut lsp = lsp_command
+    pub fn start(lsp_command: process::Command, extension: String) -> anyhow::Result<Self> {
+        let mut lsp = tokio::process::Command::from(lsp_command)
             .stdin(process::Stdio::piped())
             .stdout(process::Stdio::piped())
             .stderr(process::Stdio::piped())
+            .kill_on_drop(true)
             .spawn()?;
 
         #[allow(deprecated)]
@@ -54,91 +54,90 @@ impl LSPClient {
             client_info: None,
         };
 
-        let mut stdin: process::ChildStdin = lsp.stdin.take().context("take stdin")?;
-        let mut reader = BufReader::new(lsp.stdout.take().context("take stdout")?);
+        let mut stdin = lsp.stdin.take().context("take stdin")?;
+        let mut reader = tokio::io::BufReader::new(lsp.stdout.take().context("take stdout")?);
 
-        send_request::<_, lsp_types::request::Initialize>(&mut stdin, ID_INIT, init)?;
+        // send_request::<_, lsp_types::request::Initialize>(&mut stdin, ID_INIT, init)?;
 
-        let (init_tx, init_rx) = channel::<()>();
-        let (tx, rx) = channel();
+        let (init_tx, mut init_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
-        let (c_tx, c_rx) = channel::<(String, Cursor)>();
-        thread::spawn(move || {
-            let _ = || -> anyhow::Result<()> {
-                // Wait initialize
-                init_rx.recv()?;
-                let file_url =
-                    lsp_types::Url::parse(&format!("file://localhost/main.{}", extension))?;
+        let (c_tx, mut c_rx) = tokio::sync::mpsc::unbounded_channel::<(String, Cursor)>();
+        tokio::spawn(async move {
+            send_request_async::<_, lsp_types::request::Initialize>(&mut stdin, ID_INIT, init)
+                .await?;
+            // Wait initialize
+            init_rx.recv().await.unwrap();
+            let file_url =
+                lsp_types::Url::parse(&format!("file://localhost/main.{}", extension)).unwrap();
 
-                while let Ok((src, cursor)) = c_rx.recv() {
-                    let open = lsp_types::DidOpenTextDocumentParams {
-                        text_document: lsp_types::TextDocumentItem {
+            while let Some((src, cursor)) = c_rx.recv().await {
+                let open = lsp_types::DidOpenTextDocumentParams {
+                    text_document: lsp_types::TextDocumentItem {
+                        uri: file_url.clone(),
+                        language_id: extension.clone(),
+                        version: 0,
+                        text: src,
+                    },
+                };
+                send_notify_async::<_, lsp_types::notification::DidOpenTextDocument>(
+                    &mut stdin, open,
+                )
+                .await?;
+                let completion = lsp_types::CompletionParams {
+                    text_document_position: lsp_types::TextDocumentPositionParams {
+                        text_document: lsp_types::TextDocumentIdentifier {
                             uri: file_url.clone(),
-                            language_id: extension.clone(),
-                            version: 0,
-                            text: src,
                         },
-                    };
-                    send_notify::<_, lsp_types::notification::DidOpenTextDocument>(
-                        &mut stdin, open,
-                    )?;
-                    let completion = lsp_types::CompletionParams {
-                        text_document_position: lsp_types::TextDocumentPositionParams {
-                            text_document: lsp_types::TextDocumentIdentifier {
-                                uri: file_url.clone(),
-                            },
-                            position: lsp_types::Position {
-                                line: cursor.row as u64,
-                                character: cursor.col as u64,
-                            },
+                        position: lsp_types::Position {
+                            line: cursor.row as u64,
+                            character: cursor.col as u64,
                         },
-                        work_done_progress_params: Default::default(),
-                        partial_result_params: Default::default(),
-                        context: None,
-                    };
-                    send_request::<_, lsp_types::request::Completion>(&mut stdin, 1, completion)?;
-                }
-                Ok(())
-            }();
+                    },
+                    work_done_progress_params: Default::default(),
+                    partial_result_params: Default::default(),
+                    context: None,
+                };
+                send_request_async::<_, lsp_types::request::Completion>(&mut stdin, 1, completion)
+                    .await?;
+            }
+            Ok::<(), anyhow::Error>(())
         });
 
-        thread::spawn(move || {
-            || -> anyhow::Result<()> {
-                let mut headers = HashMap::new();
+        tokio::spawn(async move {
+            let mut headers = HashMap::new();
+            loop {
+                headers.clear();
                 loop {
-                    headers.clear();
-                    loop {
-                        let mut header = String::new();
-                        if reader.read_line(&mut header)? == 0 {
-                            return Ok(());
-                        }
-                        let header = header.trim();
-                        if header.is_empty() {
-                            break;
-                        }
-                        let parts: Vec<&str> = header.split(": ").collect();
-                        assert_eq!(parts.len(), 2);
-                        headers.insert(parts[0].to_string(), parts[1].to_string());
+                    let mut header = String::new();
+                    if reader.read_line(&mut header).await? == 0 {
+                        return Ok::<(), anyhow::Error>(());
                     }
-                    let content_len = headers["Content-Length"].parse()?;
-                    let mut content = vec![0; content_len];
-                    reader.read_exact(&mut content)?;
-                    let msg = String::from_utf8(content)?;
-                    let output: serde_json::Result<Output> = serde_json::from_str(&msg);
-                    if let Ok(Output::Success(suc)) = output {
-                        if suc.id == jsonrpc_core::id::Id::Num(ID_INIT) {
-                            init_tx.send(())?;
-                        } else if suc.id == jsonrpc_core::id::Id::Num(ID_COMPLETION) {
-                            let completion = serde_json::from_value::<lsp_types::CompletionResponse>(
-                                suc.result,
-                            )?;
+                    let header = header.trim();
+                    if header.is_empty() {
+                        break;
+                    }
+                    let parts: Vec<&str> = header.split(": ").collect();
+                    assert_eq!(parts.len(), 2);
+                    headers.insert(parts[0].to_string(), parts[1].to_string());
+                }
+                let content_len = headers["Content-Length"].parse()?;
+                let mut content = vec![0; content_len];
+                reader.read_exact(&mut content).await?;
+                let msg = String::from_utf8(content)?;
+                let output: serde_json::Result<Output> = serde_json::from_str(&msg);
+                if let Ok(Output::Success(suc)) = output {
+                    if suc.id == jsonrpc_core::id::Id::Num(ID_INIT) {
+                        init_tx.send(())?;
+                    } else if suc.id == jsonrpc_core::id::Id::Num(ID_COMPLETION) {
+                        let completion =
+                            serde_json::from_value::<lsp_types::CompletionResponse>(suc.result)?;
 
-                            let completion = extract_completion(completion);
-                            tx.send(completion)?;
-                        }
+                        let completion = extract_completion(completion);
+                        tx.send(completion)?;
                     }
                 }
-            }()
+            }
         });
 
         Ok(Self {
@@ -152,7 +151,7 @@ impl LSPClient {
         let _ = self.completion_req.send((src, cursor));
     }
 
-    pub fn poll(&self) -> Option<Vec<LSPCompletion>> {
+    pub fn poll(&mut self) -> Option<Vec<LSPCompletion>> {
         let mut res = None;
         while let Ok(completion) = self.completion_recv.try_recv() {
             res = Some(completion);
@@ -161,7 +160,7 @@ impl LSPClient {
     }
 }
 
-fn send_request<T: Write, R: lsp_types::request::Request>(
+async fn send_request_async<T: AsyncWrite + std::marker::Unpin, R: lsp_types::request::Request>(
     t: &mut T,
     id: u64,
     params: R::Params,
@@ -177,14 +176,24 @@ where
             id: jsonrpc_core::Id::Num(id),
         });
         let request = serde_json::to_string(&req)?;
-        write!(t, "Content-Length: {}\r\n\r\n{}", request.len(), request)?;
+        let mut buffer: Vec<u8> = Vec::new();
+        write!(
+            &mut buffer,
+            "Content-Length: {}\r\n\r\n{}",
+            request.len(),
+            request
+        )?;
+        t.write_all(&buffer).await?;
         Ok(())
     } else {
         anyhow::bail!("Invalid params");
     }
 }
 
-fn send_notify<T: Write, R: lsp_types::notification::Notification>(
+async fn send_notify_async<
+    T: AsyncWrite + std::marker::Unpin,
+    R: lsp_types::notification::Notification,
+>(
     t: &mut T,
     params: R::Params,
 ) -> anyhow::Result<()>
@@ -198,7 +207,14 @@ where
             params: jsonrpc_core::Params::Map(params),
         };
         let request = serde_json::to_string(&req)?;
-        write!(t, "Content-Length: {}\r\n\r\n{}", request.len(), request)?;
+        let mut buf: Vec<u8> = Vec::new();
+        write!(
+            &mut buf,
+            "Content-Length: {}\r\n\r\n{}",
+            request.len(),
+            request
+        )?;
+        t.write_all(&buf).await?;
         Ok(())
     } else {
         anyhow::bail!("Invalid params")

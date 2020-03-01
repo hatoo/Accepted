@@ -15,7 +15,6 @@ mod formatter;
 mod indent;
 mod job_queue;
 mod lsp;
-mod lsp_async;
 mod mode;
 pub mod parenthesis;
 mod rmate;
