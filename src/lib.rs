@@ -24,6 +24,7 @@ pub mod syntax;
 mod tabnine;
 mod text_object;
 pub mod theme;
+mod buffer_screen;
 
 pub use buffer::Buffer;
 pub use buffer_mode::BufferMode;

@@ -55,7 +55,7 @@ fn get_rows(s: &str, width: usize) -> usize {
     y
 }
 
-enum ShowCursor {
+pub enum ShowCursor {
     None,
     Show,
     ShowMiddle,
