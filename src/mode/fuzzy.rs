@@ -1,4 +1,3 @@
-/*
 use super::Mode;
 use super::Transition;
 use crate::buffer::Buffer;
@@ -12,9 +11,9 @@ use std::collections::{BTreeSet, HashSet};
 use std::io::{BufRead, BufReader};
 use std::path;
 use std::process;
-use std::sync::mpsc;
-use std::thread;
 use termion::event::{Event, Key};
+
+use async_trait::async_trait;
 
 #[derive(Eq)]
 struct MatchedItem {
@@ -49,7 +48,7 @@ impl Ord for MatchedItem {
 }
 
 pub struct FuzzyOpen {
-    receiver: mpsc::Receiver<String>,
+    receiver: tokio::sync::mpsc::UnboundedReceiver<String>,
     finds: Vec<String>,
     line_buf: Vec<char>,
 
@@ -75,28 +74,26 @@ fn fuzzy_match(line: &str, query: &str) -> Option<(i64, HashSet<usize>)> {
 
 impl Default for FuzzyOpen {
     fn default() -> Self {
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
-        thread::spawn(move || {
-            let _ = || -> anyhow::Result<()> {
-                let mut child = process::Command::new("find")
-                    .arg(".")
-                    .stdout(process::Stdio::piped())
-                    .stderr(process::Stdio::piped())
-                    .spawn()?;
-                if let Some(stdout) = child.stdout.take() {
-                    let reader = BufReader::new(stdout);
-                    for line in reader.lines() {
-                        if let Ok(line) = line {
-                            if tx.send(line.trim_end().to_string()).is_err() {
-                                child.kill()?;
-                                break;
-                            }
+        tokio::spawn(async move {
+            let mut child = process::Command::new("find")
+                .arg(".")
+                .stdout(process::Stdio::piped())
+                .stderr(process::Stdio::piped())
+                .spawn()?;
+            if let Some(stdout) = child.stdout.take() {
+                let reader = BufReader::new(stdout);
+                for line in reader.lines() {
+                    if let Ok(line) = line {
+                        if tx.send(line.trim_end().to_string()).is_err() {
+                            child.kill()?;
+                            break;
                         }
                     }
                 }
-                Ok(())
-            }();
+            }
+            Ok::<(), anyhow::Error>(())
         });
 
         Self {
@@ -158,8 +155,13 @@ impl FuzzyOpen {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer + 'static> Mode<B> for FuzzyOpen {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Char('\n')) => {
                 if let Some(item) = self.result.iter().nth(self.index) {
@@ -256,5 +258,3 @@ impl<B: CoreBuffer + 'static> Mode<B> for FuzzyOpen {
         }
     }
 }
-
-*/

@@ -1326,11 +1326,9 @@ impl<B: CoreBuffer> Mode<B> for Prefix {
             Event::Key(Key::Char('r')) => {
                 return Transition::StartRmate;
             }
-            /*
             Event::Key(Key::Char('f')) => {
                 return fuzzy::FuzzyOpen::default().into_transition();
             }
-            */
             _ => {}
         }
         Transition::Nothing
