@@ -25,7 +25,7 @@ use crate::core::Cursor;
 use crate::core::Id;
 use crate::draw;
 use crate::indent;
-use crate::lsp::LSPCompletion;
+use crate::lsp_async::LSPCompletion;
 use crate::parenthesis;
 use crate::tabnine::TabNineCompletion;
 use crate::text_object::{self, Action};
@@ -708,7 +708,7 @@ impl Insert {
     }
 
     fn poll<B: CoreBuffer>(&mut self, buf: &mut Buffer<B>) {
-        if let Some(lsp) = buf.lsp.as_ref() {
+        if let Some(lsp) = buf.lsp.as_mut() {
             if let Some(mut completions) = lsp.poll() {
                 let token = Self::token(&buf.core);
                 completions.retain(|s| s.keyword != token);
@@ -778,7 +778,7 @@ impl Insert {
 impl<B: CoreBuffer> Mode<B> for Insert {
     fn init(&mut self, buf: &mut Buffer<B>) {
         // Flush completion
-        if let Some(lsp) = buf.lsp.as_ref() {
+        if let Some(lsp) = buf.lsp.as_mut() {
             lsp.poll();
         }
         if let Some(tabnine) = buf.tabnine.as_mut() {
