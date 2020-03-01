@@ -37,3 +37,4 @@ ansi_colours = "1"
 typemap = "0.3"
 fuzzy-matcher = "0.3"
 rayon = "1"
+tokio = {version = "0.2", features = ["full"]}

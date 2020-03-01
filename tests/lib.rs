@@ -88,8 +88,8 @@ fn test_from_fuzz(data: &[u8]) {
     }
 }
 
-#[test]
-fn test_simples() {
+#[tokio::test]
+async fn test_simples() {
     // Insertions
     assert_eq!(simple_run("123", "iHello World"), "Hello World123");
     assert_eq!(simple_run("123", "iHello\nWorld"), "Hello\nWorld123");
@@ -216,8 +216,8 @@ fn test_simples() {
     assert_eq!(simple_run("123\n456\n789", " g2\nix"), "123\nx456\n789");
 }
 
-#[test]
-fn test_hard_tab_setting() {
+#[tokio::test]
+async fn test_hard_tab_setting() {
     use accepted::config::types::keys::HardTab;
     let syntax_parent = accepted::syntax::SyntaxParent::default();
     let mut config = config::ConfigWithDefault::default();
@@ -231,14 +231,14 @@ fn test_hard_tab_setting() {
     assert_eq!(simple_run_config(&config, "", "i{\nabc"), "{\n\tabc\n}");
 }
 
-#[test]
-fn test_crlf() {
+#[tokio::test]
+async fn test_crlf() {
     assert_eq!(simple_run("a\r\na", "xxx"), "");
     assert_eq!(simple_run("a\r\na", "dd"), "a");
     assert_eq!(simple_run("ab\r\na", "vlld"), "a");
 }
 
-#[test]
-fn fuzz_1() {
+#[tokio::test]
+async fn fuzz_1() {
     test_from_fuzz(&[0x62, 0x25, 0xff, 0x29, 0x41, 0xff]);
 }
