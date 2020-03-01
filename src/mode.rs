@@ -1242,10 +1242,10 @@ impl<B: CoreBuffer> Mode<B> for Prefix {
             }
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
-                let result: Result<(process::Child, Option<String>), &'static str> = (|| {
+                let result: Result<(process::Child, Option<String>), &'static str> = async {
                     let _ = buf.format();
                     buf.save(is_optimize);
-                    buf.wait_compile_message();
+                    buf.wait_compile_message().await;
                     let path = buf.path().ok_or("Save First")?;
                     crate::env::set_env(path);
                     let test_command = buf
@@ -1299,8 +1299,8 @@ impl<B: CoreBuffer> Mode<B> for Prefix {
                         let _ = write!(stdin, "{}", input);
                     }
                     Ok((child, buf.path().and_then(|p| test_command.summary(p).ok())))
-                })(
-                );
+                }
+                .await;
                 match result {
                     Err(err) => {
                         return Normal::with_message(err.to_string()).into_transition();

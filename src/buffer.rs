@@ -357,7 +357,7 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
     }
 
     pub fn poll_compile_message(&mut self) {
-        if let Some(compiler) = self.compiler.as_ref() {
+        if let Some(compiler) = self.compiler.as_mut() {
             while let Some((id, res)) = compiler.try_recv_compile_result() {
                 self.last_compiler_compiled = id;
                 self.last_compiler_result = Some(res);
@@ -365,10 +365,10 @@ impl<'a, B: CoreBuffer> Buffer<'a, B> {
         }
     }
 
-    pub fn wait_compile_message(&mut self) {
+    pub async fn wait_compile_message(&mut self) {
         while self.is_compiling() {
-            if let Some(compiler) = self.compiler.as_ref() {
-                if let Some((id, res)) = compiler.recv_compile_result() {
+            if let Some(compiler) = self.compiler.as_mut() {
+                if let Some((id, res)) = compiler.recv_compile_result().await {
                     self.last_compiler_compiled = id;
                     self.last_compiler_result = Some(res);
                 }

@@ -14,6 +14,9 @@ use crate::rustc;
 use std::ffi::OsString;
 use std::ops::RangeInclusive;
 
+use async_trait::async_trait;
+
+use futures::prelude::*;
 pub struct CompilerOutput {
     pub message: String,
     pub line: usize,
@@ -60,12 +63,12 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    pub fn try_recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
+    pub fn try_recv_compile_result(&mut self) -> Option<(CompileId, CompileResult)> {
         self.worker.try_recv_compile_result()
     }
     // Block
-    pub fn recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
-        self.worker.recv_compile_result()
+    pub async fn recv_compile_result(&mut self) -> Option<(CompileId, CompileResult)> {
+        self.worker.recv_compile_result().await
     }
     pub fn is_compiling(&self) -> bool {
         self.worker.is_compiling()
@@ -84,17 +87,19 @@ pub struct CompileResult {
     pub messages: Vec<CompilerOutput>,
 }
 
-trait CompilerWorker {
+#[async_trait]
+trait CompilerWorker: Sync + Send + 'static {
     // Must be async
     fn compile(&self, _command: process::Command, _compile_id: CompileId) {}
     // Do not Block
-    fn try_recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
+    fn try_recv_compile_result(&mut self) -> Option<(CompileId, CompileResult)> {
         None
     }
     // Block
-    fn recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
+    async fn recv_compile_result(&mut self) -> Option<(CompileId, CompileResult)> {
         None
     }
+
     fn is_compiling(&self) -> bool {
         false
     }
@@ -115,13 +120,16 @@ pub struct Unknown {
 impl Default for Unknown {
     fn default() -> Self {
         let job_queue = JobQueue::new(|(mut cmd, req): (process::Command, CompileId)| {
-            let messages = Vec::new();
-            let mut success = false;
+            async move {
+                let messages = Vec::new();
+                let mut success = false;
 
-            if let Ok(cmd) = cmd.stderr(process::Stdio::piped()).output() {
-                success = cmd.status.success();
+                if let Ok(cmd) = cmd.stderr(process::Stdio::piped()).output() {
+                    success = cmd.status.success();
+                }
+                (req, CompileResult { messages, success })
             }
-            (req, CompileResult { messages, success })
+            .boxed()
         });
 
         Self { job_queue }
@@ -131,25 +139,28 @@ impl Default for Unknown {
 impl Default for Rust {
     fn default() -> Self {
         let job_queue = JobQueue::new(|(mut rustc, req): (process::Command, CompileId)| {
-            let mut messages = Vec::new();
-            let mut success = false;
+            async move {
+                let mut messages = Vec::new();
+                let mut success = false;
 
-            if let Ok(rustc) = rustc.stderr(process::Stdio::piped()).output() {
-                success = rustc.status.success();
-                let buf = rustc.stderr;
-                let mut reader = io::Cursor::new(buf);
-                let mut line = String::new();
+                if let Ok(rustc) = rustc.stderr(process::Stdio::piped()).output() {
+                    success = rustc.status.success();
+                    let buf = rustc.stderr;
+                    let mut reader = io::Cursor::new(buf);
+                    let mut line = String::new();
 
-                while {
-                    line.clear();
-                    reader.read_line(&mut line).is_ok() && !line.is_empty()
-                } {
-                    if let Some(rustc_output) = rustc::parse_rustc_json(&line) {
-                        messages.push(rustc_output);
+                    while {
+                        line.clear();
+                        reader.read_line(&mut line).is_ok() && !line.is_empty()
+                    } {
+                        if let Some(rustc_output) = rustc::parse_rustc_json(&line) {
+                            messages.push(rustc_output);
+                        }
                     }
                 }
+                (req, CompileResult { messages, success })
             }
-            (req, CompileResult { messages, success })
+            .boxed()
         });
 
         Self { job_queue }
@@ -159,84 +170,91 @@ impl Default for Rust {
 impl Default for Cpp {
     fn default() -> Self {
         let job_queue = JobQueue::new(|(mut clang, req): (process::Command, CompileId)| {
-            let mut messages = Vec::new();
-            let mut success = false;
+            async move {
+                let mut messages = Vec::new();
+                let mut success = false;
 
-            if let Ok(clang) = clang.stderr(process::Stdio::piped()).output() {
-                success = clang.status.success();
-                let buf = clang.stderr;
-                let mut reader = io::Cursor::new(buf);
-                let mut line = String::new();
+                if let Ok(clang) = clang.stderr(process::Stdio::piped()).output() {
+                    success = clang.status.success();
+                    let buf = clang.stderr;
+                    let mut reader = io::Cursor::new(buf);
+                    let mut line = String::new();
 
-                let re = regex::Regex::new(
-                    r"^[^:]*:(?P<line>\d*):(?P<col>\d*): (?P<level>[^:]*): (?P<msg>.*)",
-                )
-                .unwrap();
+                    let re = regex::Regex::new(
+                        r"^[^:]*:(?P<line>\d*):(?P<col>\d*): (?P<level>[^:]*): (?P<msg>.*)",
+                    )
+                    .unwrap();
 
-                while {
-                    line.clear();
-                    reader.read_line(&mut line).is_ok() && !line.is_empty()
-                } {
-                    if let Some(caps) = re.captures(&line) {
-                        let line = caps["line"].parse::<usize>().unwrap() - 1;
-                        let col = caps["col"].parse::<usize>().unwrap() - 1;
-                        let out = CompilerOutput {
-                            message: caps["msg"].into(),
-                            line,
-                            level: caps["level"].into(),
-                            span: Cursor { row: line, col }..=Cursor { row: line, col },
-                        };
+                    while {
+                        line.clear();
+                        reader.read_line(&mut line).is_ok() && !line.is_empty()
+                    } {
+                        if let Some(caps) = re.captures(&line) {
+                            let line = caps["line"].parse::<usize>().unwrap() - 1;
+                            let col = caps["col"].parse::<usize>().unwrap() - 1;
+                            let out = CompilerOutput {
+                                message: caps["msg"].into(),
+                                line,
+                                level: caps["level"].into(),
+                                span: Cursor { row: line, col }..=Cursor { row: line, col },
+                            };
 
-                        messages.push(out);
+                            messages.push(out);
+                        }
                     }
                 }
+                (req, CompileResult { success, messages })
             }
-            (req, CompileResult { success, messages })
+            .boxed()
         });
 
         Self { job_queue }
     }
 }
 
+#[async_trait]
 impl CompilerWorker for Unknown {
     fn compile(&self, command: process::Command, compile_id: CompileId) {
         self.job_queue.send((command, compile_id)).unwrap();
     }
-    fn try_recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
+    fn try_recv_compile_result(&mut self) -> Option<(CompileId, CompileResult)> {
         self.job_queue.rx().try_recv().ok()
     }
-    fn recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
-        self.job_queue.rx().recv().ok()
+    async fn recv_compile_result(&mut self) -> Option<(CompileId, CompileResult)> {
+        self.job_queue.rx().recv().await
     }
     fn is_compiling(&self) -> bool {
         self.job_queue.is_running()
     }
 }
 
+#[async_trait]
 impl CompilerWorker for Cpp {
     fn compile(&self, command: process::Command, compile_id: CompileId) {
         self.job_queue.send((command, compile_id)).unwrap();
     }
-    fn try_recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
+    fn try_recv_compile_result(&mut self) -> Option<(CompileId, CompileResult)> {
         self.job_queue.rx().try_recv().ok()
     }
-    fn recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
-        self.job_queue.rx().recv().ok()
+    async fn recv_compile_result(&mut self) -> Option<(CompileId, CompileResult)> {
+        self.job_queue.rx().recv().await
     }
     fn is_compiling(&self) -> bool {
         self.job_queue.is_running()
     }
 }
 
+#[async_trait]
 impl CompilerWorker for Rust {
     fn compile(&self, command: process::Command, compile_id: CompileId) {
         self.job_queue.send((command, compile_id)).unwrap();
     }
-    fn try_recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
+    fn try_recv_compile_result(&mut self) -> Option<(CompileId, CompileResult)> {
         self.job_queue.rx().try_recv().ok()
     }
-    fn recv_compile_result(&self) -> Option<(CompileId, CompileResult)> {
-        self.job_queue.rx().recv().ok()
+
+    async fn recv_compile_result(&mut self) -> Option<(CompileId, CompileResult)> {
+        self.job_queue.rx().recv().await
     }
     fn is_compiling(&self) -> bool {
         self.job_queue.is_running()
