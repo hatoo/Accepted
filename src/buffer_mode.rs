@@ -2,6 +2,7 @@ use crate::buffer::Buffer;
 use crate::core::CoreBuffer;
 use crate::draw;
 use crate::mode::{Mode, Normal, Transition, TransitionReturn};
+use futures::future::{FutureExt, LocalBoxFuture};
 
 pub struct BufferMode<'a, B: CoreBuffer> {
     pub buf: Buffer<'a, B>,
@@ -30,62 +31,66 @@ impl<'a, B: CoreBuffer> BufferMode<'a, B> {
         }
     }
 
-    pub async fn event(&mut self, event: termion::event::Event) -> TabOperation {
-        if self.is_recording {
-            self.recording_macro.push(event.clone());
-        }
-        match self.mode.event(&mut self.buf, event.clone()).await {
-            Transition::Exit => {
-                return TabOperation::Close;
+    pub fn event(&mut self, event: termion::event::Event) -> LocalBoxFuture<'_, TabOperation> {
+        async move {
+            if self.is_recording {
+                self.recording_macro.push(event.clone());
             }
-            Transition::Trans(mut t) => {
-                t.init(&mut self.buf);
-                self.mode = t;
-            }
-            Transition::DoMacro => {
-                for event in self.dot_macro.clone() {
-                    self.event(event);
+            match self.mode.event(&mut self.buf, event.clone()).await {
+                Transition::Exit => {
+                    return TabOperation::Close;
                 }
-            }
-            Transition::Return(TransitionReturn {
-                message,
-                is_commit_dot_macro,
-            }) => {
-                if self.is_recording && !self.recording_macro.is_empty() && is_commit_dot_macro {
-                    std::mem::swap(&mut self.dot_macro, &mut self.recording_macro);
+                Transition::Trans(mut t) => {
+                    t.init(&mut self.buf);
+                    self.mode = t;
+                }
+                Transition::DoMacro => {
+                    for event in self.dot_macro.clone() {
+                        self.event(event).await;
+                    }
+                }
+                Transition::Return(TransitionReturn {
+                    message,
+                    is_commit_dot_macro,
+                }) => {
+                    if self.is_recording && !self.recording_macro.is_empty() && is_commit_dot_macro
+                    {
+                        std::mem::swap(&mut self.dot_macro, &mut self.recording_macro);
+                        self.recording_macro.clear();
+                    }
+                    self.is_recording = false;
+                    let mut t = if let Some(s) = message {
+                        Box::new(Normal::with_message(s))
+                    } else {
+                        Box::new(Normal::default())
+                    };
+                    t.init(&mut self.buf);
+                    self.mode = t;
+                }
+                Transition::RecordMacro(mut t) => {
+                    self.is_recording = true;
                     self.recording_macro.clear();
+                    self.recording_macro.push(event);
+                    t.init(&mut self.buf);
+                    self.mode = t;
                 }
-                self.is_recording = false;
-                let mut t = if let Some(s) = message {
-                    Box::new(Normal::with_message(s))
-                } else {
-                    Box::new(Normal::default())
-                };
-                t.init(&mut self.buf);
-                self.mode = t;
+                Transition::CreateNewTab => {
+                    self.mode = Box::new(Normal::default());
+                    return TabOperation::NewTab;
+                }
+                Transition::ChangeTab(i) => {
+                    self.mode = Box::new(Normal::default());
+                    return TabOperation::ChangeTab(i);
+                }
+                Transition::StartRmate => {
+                    self.mode = Box::new(Normal::default());
+                    return TabOperation::StartRmate;
+                }
+                Transition::Nothing => {}
             }
-            Transition::RecordMacro(mut t) => {
-                self.is_recording = true;
-                self.recording_macro.clear();
-                self.recording_macro.push(event);
-                t.init(&mut self.buf);
-                self.mode = t;
-            }
-            Transition::CreateNewTab => {
-                self.mode = Box::new(Normal::default());
-                return TabOperation::NewTab;
-            }
-            Transition::ChangeTab(i) => {
-                self.mode = Box::new(Normal::default());
-                return TabOperation::ChangeTab(i);
-            }
-            Transition::StartRmate => {
-                self.mode = Box::new(Normal::default());
-                return TabOperation::StartRmate;
-            }
-            Transition::Nothing => {}
+            TabOperation::Nothing
         }
-        TabOperation::Nothing
+        .boxed_local()
     }
 
     pub fn draw(&mut self, view: draw::TermView) -> draw::CursorState {

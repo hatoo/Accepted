@@ -7,7 +7,6 @@ use std::ops::Bound;
 use std::ops::RangeBounds;
 use std::path::{Path, PathBuf};
 use std::process;
-use std::sync::mpsc;
 use std::thread;
 use std::time::Instant;
 
