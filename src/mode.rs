@@ -126,13 +126,13 @@ struct Visual {
 
 struct ViewProcess {
     row_offset: usize,
-    pub buf: Vec<String>,
-    pub reader: tokio::sync::mpsc::UnboundedReceiver<String>,
-    pub timer_rx: tokio::sync::oneshot::Receiver<(
+    buf: Vec<String>,
+    reader: tokio::sync::mpsc::UnboundedReceiver<String>,
+    timer_rx: tokio::sync::oneshot::Receiver<(
         tokio::io::Result<std::process::ExitStatus>,
         std::time::Duration,
     )>,
-    pub exit_status: Option<(
+    exit_status: Option<(
         tokio::io::Result<std::process::ExitStatus>,
         std::time::Duration,
     )>,
