@@ -13,6 +13,7 @@ use std::time::Instant;
 use shellexpand;
 use termion;
 use termion::event::{Event, Key, MouseButton, MouseEvent};
+use tokio::prelude::*;
 
 use crate::buffer::Buffer;
 use crate::buffer::Yank;
@@ -131,7 +132,7 @@ struct ViewProcess {
     row_offset: usize,
     pub buf: Vec<String>,
     pub reader: tokio::sync::mpsc::UnboundedReceiver<String>,
-    pub process: process::Child,
+    pub process: tokio::process::Child,
     pub start: Instant,
     pub end: Option<Instant>,
     title: Option<String>,
@@ -149,7 +150,7 @@ struct Goto {
 }
 
 impl ViewProcess {
-    fn with_process(mut child: process::Child, title: Option<String>) -> Option<Self> {
+    fn with_process(mut child: tokio::process::Child, title: Option<String>) -> Option<Self> {
         let now = Instant::now();
         let stdout = child.stdout.take()?;
         let stderr = child.stderr.take()?;
@@ -157,12 +158,12 @@ impl ViewProcess {
         let tx1 = tx.clone();
         let tx2 = tx;
 
-        thread::spawn(move || {
+        tokio::spawn(async move {
             let mut line = String::new();
-            let mut stdout = BufReader::new(stdout);
+            let mut stdout = tokio::io::BufReader::new(stdout);
             loop {
                 line.clear();
-                if stdout.read_line(&mut line).is_ok() && !line.is_empty() {
+                if stdout.read_line(&mut line).await.is_ok() && !line.is_empty() {
                     if tx1.send(line.trim_end().to_string()).is_err() {
                         return;
                     }
@@ -171,12 +172,12 @@ impl ViewProcess {
                 }
             }
         });
-        thread::spawn(move || {
+        tokio::spawn(async move {
             let mut line = String::new();
-            let mut stderr = BufReader::new(stderr);
+            let mut stderr = tokio::io::BufReader::new(stderr);
             loop {
                 line.clear();
-                if stderr.read_line(&mut line).is_ok() && !line.is_empty() {
+                if stderr.read_line(&mut line).await.is_ok() && !line.is_empty() {
                     if tx2.send(line.trim_end().to_string()).is_err() {
                         return;
                     }
@@ -1242,7 +1243,7 @@ impl<B: CoreBuffer> Mode<B> for Prefix {
             }
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
-                let result: Result<(process::Child, Option<String>), &'static str> = async {
+                let result: Result<(tokio::process::Child, Option<String>), &'static str> = async {
                     let _ = buf.format();
                     buf.save(is_optimize);
                     buf.wait_compile_message().await;
@@ -1288,15 +1289,16 @@ impl<B: CoreBuffer> Mode<B> for Prefix {
                         .map_err(|_| "Failed to Expand test_command")?;
                     let input = clipboard::clipboard_paste()
                         .map_err(|_| "Failed to paste from clipboard")?;
-                    let mut child = process::Command::new(prog.into_owned())
+                    let mut child = tokio::process::Command::new(prog.into_owned())
                         .args(args.iter())
                         .stdout(process::Stdio::piped())
                         .stderr(process::Stdio::piped())
                         .stdin(process::Stdio::piped())
+                        .kill_on_drop(true)
                         .spawn()
                         .map_err(|_| "Failed to spawn")?;
                     if let Some(mut stdin) = child.stdin.take() {
-                        let _ = write!(stdin, "{}", input);
+                        let _ = stdin.write_all(input.as_bytes()).await;
                     }
                     Ok((child, buf.path().and_then(|p| test_command.summary(p).ok())))
                 }
@@ -1591,11 +1593,13 @@ impl<B: CoreBuffer> Mode<B> for ViewProcess {
     }
 
     fn draw(&mut self, _buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
+        /*
         if self.end.is_none() {
             if let Ok(Some(_)) = self.process.try_wait() {
                 self.end = Some(Instant::now());
             }
         }
+        */
         let mut read_cnt = 32;
         while let Ok(line) = self.reader.try_recv() {
             if read_cnt == 0 {
