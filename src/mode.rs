@@ -1,19 +1,15 @@
 use std;
 use std::cmp::{max, min};
-use std::io::BufRead;
-use std::io::BufReader;
-use std::io::Write;
 use std::ops::Bound;
 use std::ops::RangeBounds;
 use std::path::{Path, PathBuf};
 use std::process;
-use std::sync::mpsc;
-use std::thread;
 use std::time::Instant;
 
 use shellexpand;
 use termion;
 use termion::event::{Event, Key, MouseButton, MouseEvent};
+use tokio::prelude::*;
 
 use crate::buffer::Buffer;
 use crate::buffer::Yank;
@@ -31,6 +27,8 @@ use crate::tabnine::TabNineCompletion;
 use crate::text_object::{self, Action};
 
 mod fuzzy;
+
+use async_trait::async_trait;
 
 pub struct TransitionReturn {
     pub message: Option<String>,
@@ -51,9 +49,14 @@ pub enum Transition<B: CoreBuffer> {
     StartRmate,
 }
 
-pub trait Mode<B: CoreBuffer> {
+#[async_trait(?Send)]
+pub trait Mode<B: CoreBuffer>: Sync {
     fn init(&mut self, _buf: &mut Buffer<B>) {}
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B>;
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B>;
     fn draw(&mut self, buf: &mut Buffer<B>, view: draw::TermView) -> draw::CursorState;
     fn into_transition(self) -> Transition<B>
     where
@@ -123,17 +126,25 @@ struct Visual {
 
 struct ViewProcess {
     row_offset: usize,
-    pub buf: Vec<String>,
-    pub reader: mpsc::Receiver<String>,
-    pub process: process::Child,
-    pub start: Instant,
-    pub end: Option<Instant>,
+    buf: Vec<String>,
+    reader: tokio::sync::mpsc::UnboundedReceiver<String>,
+    timer_rx: tokio::sync::oneshot::Receiver<(
+        tokio::io::Result<std::process::ExitStatus>,
+        std::time::Duration,
+    )>,
+    exit_status: Option<(
+        tokio::io::Result<std::process::ExitStatus>,
+        std::time::Duration,
+    )>,
     title: Option<String>,
+    kill_tx: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
 impl Drop for ViewProcess {
     fn drop(&mut self) {
-        let _ = self.process.kill();
+        if let Some(kill_tx) = self.kill_tx.take() {
+            let _ = kill_tx.send(());
+        }
     }
 }
 
@@ -143,20 +154,22 @@ struct Goto {
 }
 
 impl ViewProcess {
-    fn with_process(mut child: process::Child, title: Option<String>) -> Option<Self> {
-        let now = Instant::now();
+    fn with_process(mut child: tokio::process::Child, title: Option<String>) -> Option<Self> {
         let stdout = child.stdout.take()?;
         let stderr = child.stderr.take()?;
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         let tx1 = tx.clone();
         let tx2 = tx;
 
-        thread::spawn(move || {
+        let (time_tx, timer_rx) = tokio::sync::oneshot::channel();
+        let (kill_tx, kill_rx) = tokio::sync::oneshot::channel();
+
+        tokio::spawn(async move {
             let mut line = String::new();
-            let mut stdout = BufReader::new(stdout);
+            let mut stdout = tokio::io::BufReader::new(stdout);
             loop {
                 line.clear();
-                if stdout.read_line(&mut line).is_ok() && !line.is_empty() {
+                if stdout.read_line(&mut line).await.is_ok() && !line.is_empty() {
                     if tx1.send(line.trim_end().to_string()).is_err() {
                         return;
                     }
@@ -165,12 +178,12 @@ impl ViewProcess {
                 }
             }
         });
-        thread::spawn(move || {
+        tokio::spawn(async move {
             let mut line = String::new();
-            let mut stderr = BufReader::new(stderr);
+            let mut stderr = tokio::io::BufReader::new(stderr);
             loop {
                 line.clear();
-                if stderr.read_line(&mut line).is_ok() && !line.is_empty() {
+                if stderr.read_line(&mut line).await.is_ok() && !line.is_empty() {
                     if tx2.send(line.trim_end().to_string()).is_err() {
                         return;
                     }
@@ -179,14 +192,25 @@ impl ViewProcess {
                 }
             }
         });
+        tokio::spawn(async move {
+            let now = Instant::now();
+            tokio::select! {
+                status = child => {
+                    let duration = Instant::now() - now;
+                    let _ = time_tx.send((status, duration));
+                }
+                _ = kill_rx => {}
+            }
+        });
+
         Some(Self {
             row_offset: 0,
             buf: Vec::new(),
             reader: rx,
-            process: child,
-            start: now,
-            end: None,
+            timer_rx,
+            exit_status: None,
             title,
+            kill_tx: Some(kill_tx),
         })
     }
 }
@@ -206,8 +230,13 @@ impl Normal {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Normal {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Char('.')) => {
                 return Transition::DoMacro;
@@ -775,6 +804,7 @@ impl Insert {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Insert {
     fn init(&mut self, buf: &mut Buffer<B>) {
         // Flush completion
@@ -786,7 +816,11 @@ impl<B: CoreBuffer> Mode<B> for Insert {
         }
         self.build_completion(buf);
     }
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 buf.core.commit();
@@ -988,8 +1022,13 @@ impl<B: CoreBuffer> Mode<B> for Insert {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for R {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         let core = &mut buf.core;
         match event {
             Event::Key(Key::Esc) => {
@@ -1019,8 +1058,13 @@ impl<B: CoreBuffer> Mode<B> for R {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Search {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1063,8 +1107,13 @@ impl<B: CoreBuffer> Mode<B> for Search {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Save {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1117,8 +1166,13 @@ impl<B: CoreBuffer> Mode<B> for Save {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Prefix {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1206,10 +1260,10 @@ impl<B: CoreBuffer> Mode<B> for Prefix {
             }
             Event::Key(Key::Char('t')) | Event::Key(Key::Char('T')) => {
                 let is_optimize = event == Event::Key(Key::Char('T'));
-                let result: Result<(process::Child, Option<String>), &'static str> = (|| {
+                let result: Result<(tokio::process::Child, Option<String>), &'static str> = async {
                     let _ = buf.format();
                     buf.save(is_optimize);
-                    buf.wait_compile_message();
+                    buf.wait_compile_message().await;
                     let path = buf.path().ok_or("Save First")?;
                     crate::env::set_env(path);
                     let test_command = buf
@@ -1252,19 +1306,20 @@ impl<B: CoreBuffer> Mode<B> for Prefix {
                         .map_err(|_| "Failed to Expand test_command")?;
                     let input = clipboard::clipboard_paste()
                         .map_err(|_| "Failed to paste from clipboard")?;
-                    let mut child = process::Command::new(prog.into_owned())
+                    let mut child = tokio::process::Command::new(prog.into_owned())
                         .args(args.iter())
                         .stdout(process::Stdio::piped())
                         .stderr(process::Stdio::piped())
                         .stdin(process::Stdio::piped())
+                        .kill_on_drop(true)
                         .spawn()
                         .map_err(|_| "Failed to spawn")?;
                     if let Some(mut stdin) = child.stdin.take() {
-                        let _ = write!(stdin, "{}", input);
+                        let _ = stdin.write_all(input.as_bytes()).await;
                     }
                     Ok((child, buf.path().and_then(|p| test_command.summary(p).ok())))
-                })(
-                );
+                }
+                .await;
                 match result {
                     Err(err) => {
                         return Normal::with_message(err.to_string()).into_transition();
@@ -1344,8 +1399,13 @@ impl Visual {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Visual {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1524,8 +1584,13 @@ impl<B: CoreBuffer> Mode<B> for Visual {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for ViewProcess {
-    fn event(&mut self, _buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        _buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => Normal::default().into_transition(),
             Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, _, _)) => {
@@ -1545,9 +1610,9 @@ impl<B: CoreBuffer> Mode<B> for ViewProcess {
     }
 
     fn draw(&mut self, _buf: &mut Buffer<B>, mut view: draw::TermView) -> draw::CursorState {
-        if self.end.is_none() {
-            if let Ok(Some(_)) = self.process.try_wait() {
-                self.end = Some(Instant::now());
+        if self.exit_status.is_none() {
+            if let Ok(status) = self.timer_rx.try_recv() {
+                self.exit_status = Some(status);
             }
         }
         let mut read_cnt = 32;
@@ -1574,8 +1639,8 @@ impl<B: CoreBuffer> Mode<B> for ViewProcess {
                     break;
                 }
             }
-            if let Some(end) = self.end {
-                view.puts(&format!("{:?}", end - self.start), draw::styles::HIGHLIGHT);
+            if let Some(duration) = self.exit_status.as_ref().map(|t| t.1) {
+                view.puts(&format!("{:?}", duration), draw::styles::HIGHLIGHT);
             }
         }
         {
@@ -1586,8 +1651,13 @@ impl<B: CoreBuffer> Mode<B> for ViewProcess {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         if event == Event::Key(Key::Esc) {
             return Transition::Return(TransitionReturn {
                 message: None,
@@ -1818,8 +1888,13 @@ impl<B: CoreBuffer> Mode<B> for TextObjectOperation {
     }
 }
 
-impl<B: CoreBuffer, R: RangeBounds<Cursor> + Clone> Mode<B> for S<R> {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+#[async_trait(?Send)]
+impl<B: CoreBuffer, R: RangeBounds<Cursor> + Clone + Sync> Mode<B> for S<R> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1872,8 +1947,13 @@ impl<B: CoreBuffer, R: RangeBounds<Cursor> + Clone> Mode<B> for S<R> {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Find {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {
@@ -1930,8 +2010,13 @@ impl<B: CoreBuffer> Mode<B> for Find {
     }
 }
 
+#[async_trait(?Send)]
 impl<B: CoreBuffer> Mode<B> for Goto {
-    fn event(&mut self, buf: &mut Buffer<B>, event: termion::event::Event) -> Transition<B> {
+    async fn event(
+        &mut self,
+        buf: &mut Buffer<'_, B>,
+        event: termion::event::Event,
+    ) -> Transition<B> {
         match event {
             Event::Key(Key::Esc) => {
                 return Transition::Return(TransitionReturn {

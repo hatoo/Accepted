@@ -102,7 +102,7 @@ impl<'a, B: CoreBuffer> BufferTab<'a, B> {
             && self.buffer_mode().buf.core.get_string() == ""
     }
 
-    pub fn event(&mut self, event: Event) -> bool {
+    pub async fn event(&mut self, event: Event) -> bool {
         if let Event::Mouse(MouseEvent::Press(button, col, row)) = event {
             let (width, height) = termion::terminal_size().unwrap();
             if row == height {
@@ -128,7 +128,7 @@ impl<'a, B: CoreBuffer> BufferTab<'a, B> {
             }
         }
 
-        match self.buffer_mode_mut().event(event) {
+        match self.buffer_mode_mut().event(event).await {
             TabOperation::Close => {
                 if self.buffers.len() <= 1 {
                     return true;

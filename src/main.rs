@@ -131,7 +131,7 @@ async fn main() -> anyhow::Result<()> {
             if evt == Event::Key(Key::Ctrl('l')) {
                 draw.redraw();
             }
-            if state.event(evt) {
+            if state.event(evt).await {
                 return Ok(());
             }
         }
