@@ -23,52 +23,52 @@ struct DrawState {
 
 impl DrawState {
     const RAINBOW: [Color; 10] = [
-        Color {
+        Color::Rgb {
             r: 0xE6,
             g: 0x0,
             b: 0x12,
         },
-        Color {
+        Color::Rgb {
             r: 0xf3,
             g: 0x98,
             b: 0x00,
         },
-        Color {
+        Color::Rgb {
             r: 0xff,
             g: 0xf1,
             b: 0x00,
         },
-        Color {
+        Color::Rgb {
             r: 0x8f,
             g: 0xc3,
             b: 0x1f,
         },
-        Color {
+        Color::Rgb {
             r: 0x00,
             g: 0x99,
             b: 0x44,
         },
-        Color {
+        Color::Rgb {
             r: 0x00,
             g: 0xa0,
             b: 0xe9,
         },
-        Color {
+        Color::Rgb {
             r: 0x00,
             g: 0x68,
             b: 0xb7,
         },
-        Color {
+        Color::Rgb {
             r: 0x92,
             g: 0x07,
             b: 0x83,
         },
-        Color {
+        Color::Rgb {
             r: 0xe4,
             g: 0x00,
             b: 0x7f,
         },
-        Color {
+        Color::Rgb {
             r: 0xe5,
             g: 0x00,
             b: 0x4f,

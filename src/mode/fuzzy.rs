@@ -233,7 +233,7 @@ impl<B: CoreBuffer + 'static> Mode<B> for FuzzyOpen {
                     };
 
                     if i == self.index {
-                        style.bg = draw::Color {
+                        style.bg = draw::Color::Rgb {
                             r: 0x44,
                             g: 0x44,
                             b: 0x44,
