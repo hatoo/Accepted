@@ -95,7 +95,6 @@ trait CompilerWorker: Sync + Send + 'static {
     fn try_recv_compile_result(&mut self) -> Option<(CompileId, CompileResult)> {
         None
     }
-    // Block
     async fn recv_compile_result(&mut self) -> Option<(CompileId, CompileResult)> {
         None
     }
