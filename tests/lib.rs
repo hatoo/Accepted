@@ -1,7 +1,7 @@
 use termion::event::{Event, Key};
 
-use accepted::core::Cursor;
 use accepted::{config, core::buffer::RopeyCoreBuffer, core::CoreBuffer, Buffer, BufferMode};
+
 use async_trait::async_trait;
 
 #[async_trait(?Send)]
@@ -22,26 +22,6 @@ impl<'a, B: CoreBuffer> BufferModeExt for BufferMode<'a, B> {
         self.event(Event::Key(Key::Esc)).await;
     }
 }
-
-/*
-fn buffer_mode_from(init: &str) -> BufferMode<RopeyCoreBuffer> {
-    let syntax_parent = accepted::syntax::SyntaxParent::default();
-    let config = config::ConfigWithDefault::default();
-    let mut buf = Buffer::new(&syntax_parent, &config);
-    buf.core.set_string(init.into(), true);
-    BufferMode::new(buf)
-}
-
-fn buffer_mode_from_config(
-    config: &config::ConfigWithDefault,
-    init: &str,
-) -> BufferMode<RopeyCoreBuffer> {
-    let syntax_parent = accepted::syntax::SyntaxParent::default();
-    let mut buf = Buffer::new(&syntax_parent, config);
-    buf.core.set_string(init.into(), true);
-    BufferMode::new(buf)
-}
-*/
 
 async fn simple_run(init: &str, commands: &str) -> String {
     let syntax_parent = accepted::syntax::SyntaxParent::default();
