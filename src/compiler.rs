@@ -118,12 +118,13 @@ pub struct Unknown {
 
 impl Default for Unknown {
     fn default() -> Self {
-        let job_queue = JobQueue::new(|(mut cmd, req): (process::Command, CompileId)| {
+        let job_queue = JobQueue::new(|(cmd, req): (process::Command, CompileId)| {
             async move {
+                let mut cmd = tokio::process::Command::from(cmd);
                 let messages = Vec::new();
                 let mut success = false;
 
-                if let Ok(cmd) = cmd.stderr(process::Stdio::piped()).output() {
+                if let Ok(cmd) = cmd.stderr(process::Stdio::piped()).output().await {
                     success = cmd.status.success();
                 }
                 (req, CompileResult { messages, success })
@@ -137,12 +138,13 @@ impl Default for Unknown {
 
 impl Default for Rust {
     fn default() -> Self {
-        let job_queue = JobQueue::new(|(mut rustc, req): (process::Command, CompileId)| {
+        let job_queue = JobQueue::new(|(rustc, req): (process::Command, CompileId)| {
             async move {
+                let mut rustc = tokio::process::Command::from(rustc);
                 let mut messages = Vec::new();
                 let mut success = false;
 
-                if let Ok(rustc) = rustc.stderr(process::Stdio::piped()).output() {
+                if let Ok(rustc) = rustc.stderr(process::Stdio::piped()).output().await {
                     success = rustc.status.success();
                     let buf = rustc.stderr;
                     let mut reader = io::Cursor::new(buf);
@@ -168,12 +170,13 @@ impl Default for Rust {
 
 impl Default for Cpp {
     fn default() -> Self {
-        let job_queue = JobQueue::new(|(mut clang, req): (process::Command, CompileId)| {
+        let job_queue = JobQueue::new(|(clang, req): (process::Command, CompileId)| {
             async move {
+                let mut clang = tokio::process::Command::from(clang);
                 let mut messages = Vec::new();
                 let mut success = false;
 
-                if let Ok(clang) = clang.stderr(process::Stdio::piped()).output() {
+                if let Ok(clang) = clang.stderr(process::Stdio::piped()).output().await {
                     success = clang.status.success();
                     let buf = clang.stderr;
                     let mut reader = io::Cursor::new(buf);
