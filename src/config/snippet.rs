@@ -25,7 +25,7 @@ pub fn load_snippet<P: AsRef<path::Path>>(path: P) -> anyhow::Result<BTreeMap<St
             buf.push_str(line);
             buf.push('\n');
         }
-        snippets.insert(snippet.prefix, buf);
+        snippets.insert(snippet.prefix, buf.replace("\\$", "$"));
     }
 
     Ok(snippets)
